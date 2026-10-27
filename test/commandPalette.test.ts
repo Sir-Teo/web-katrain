@@ -13,6 +13,12 @@ import {
 } from '../src/utils/commandPalette';
 
 describe('command palette search', () => {
+  it('matches and ranks Latin accent variants consistently', () => {
+    expect(normalizeCommandQuery('Jōseki')).toBe('joseki');
+    expect(commandMatchesQuery(['Jōseki workshop','Éloïse'],'joseki eloise')).toBe(true);
+    expect(scoreCommandMatch({label:'Jōseki'},'joseki')).toBe(0);
+  });
+
   const saveCopyParts = [
     'Save copy to library',
     'File',

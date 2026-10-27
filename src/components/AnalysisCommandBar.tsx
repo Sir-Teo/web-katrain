@@ -1,4 +1,5 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import type { AnalysisExperience } from '../types';
 import {
   FaChartBar,
@@ -43,9 +44,7 @@ import {
 } from '../utils/visitPresets';
 import { ENGINE_MAX_VISITS } from '../engine/katago/limits';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
-import { copyTextToClipboard } from '../utils/clipboard';
-import { formatEngineErrorReport } from '../utils/engineDiagnostics';
-import { setTimedNotification } from '../utils/timedNotification';
+import { useEngineErrorCopy } from '../hooks/useEngineErrorCopy';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { isReportReadyAnalysis, summarizeAnalysisCoverage } from '../utils/analysisCoverage';
 import { getFastReviewButtonState } from '../utils/fastReviewButtonState';
@@ -189,7 +188,6 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   // elapsed time: 13 of 121 after 2s read "ETA 1m 27s" for a 19s job.
   const reviewRunRef = React.useRef<{ type: unknown; done: number } | null>(null);
   const [reviewNow, setReviewNow] = React.useState(0);
-  const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const shouldShow =
     showAnalysisBar &&
     (mode === 'analyze' ||
@@ -239,22 +237,14 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     engineSummary.isFallback ? 'analysis-command-bar__status--fallback' : '',
     phoneHeaderAlreadyShowsEngineState ? 'analysis-command-bar__status--header-duplicate' : '',
   ].join(' ');
-  React.useEffect(() => {
-    setEngineErrorCopied(false);
-  }, [engineError]);
-  const copyEngineError = React.useCallback(async () => {
-    if (!engineError) return;
-    const ok = await copyTextToClipboard(formatEngineErrorReport({
-      status: engineStatus,
-      requestedBackend,
-      activeBackend: engineBackend ?? requestedBackend,
-      modelLabel: engineModelLabel,
-      modelUrl,
-      error: engineError,
-    }));
-    setEngineErrorCopied(ok);
-    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error');
-  }, [engineBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
+  const { copied: engineErrorCopied, copy: copyEngineError } = useEngineErrorCopy({
+    status: engineStatus,
+    requestedBackend,
+    activeBackend: engineBackend ?? requestedBackend,
+    modelLabel: engineModelLabel,
+    modelUrl,
+    error: engineError,
+  });
 
   const toggleOverlay = (key: keyof AnalysisControlsState) => {
     updateControls({ [key]: !analysisControls[key] });
@@ -405,6 +395,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       closeDepthPopover();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyEvent(event)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
@@ -497,6 +488,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onChange={(event) => setDepthDraft(event.currentTarget.value)}
           onBlur={(event) => commitDepthDraft(event.currentTarget.value)}
           onKeyDown={(event) => {
+            if (isComposingKeyEvent(event)) return;
             if (event.key === 'Enter') event.currentTarget.blur();
             if (event.key === 'Escape') {
               setDepthDraft(String(liveVisits));

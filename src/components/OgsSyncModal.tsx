@@ -6,6 +6,7 @@ import {
   collectExistingOgsGameIds,
   downloadNewOgsGames,
   formatOgsSyncSummary,
+  ogsSyncOperationId,
   listOgsFinishedGames,
   resolveOgsPlayer,
   type OgsSyncOutcome,
@@ -16,11 +17,12 @@ import { getOgsBackoffRemainingMs } from '../utils/ogsQueue';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import type { LibraryItem } from '../utils/library';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface OgsSyncModalProps {
   items: LibraryItem[];
   onClose: () => void;
-  onImport: (username: string, games: OgsSyncedGame[]) => void;
+  onImport: (username: string, games: OgsSyncedGame[], operationId: string) => number | Promise<number>;
 }
 
 type SyncSummary = OgsSyncOutcome;
@@ -33,6 +35,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   );
   const [limit, setLimit] = React.useState<number>(25);
   const [isRunning, setIsRunning] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [progress, setProgress] = React.useState<OgsSyncProgress | null>(null);
 
   /**
@@ -54,29 +57,59 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
   }, [isRunning]);
   const [summary, setSummary] = React.useState<SyncSummary | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const cancelledRef = React.useRef(false);
+  const requestRef = React.useRef<AbortController | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  useEscapeToClose(onClose);
+  const doneRef = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => {
+    const request = requestRef.current;
+    requestRef.current = null;
+    request?.abort();
+    onClose();
+  }, [onClose]);
+  useEscapeToClose(close);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { initialFocusRef: inputRef });
 
+  React.useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (isRunning) {
+      // Disabling the active input or Sync button drops focus onto body,
+      // outside the dialog's Tab handler. Keep the pending dialog in charge.
+      if (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))) {
+        dialog.focus({ preventScroll: true });
+      }
+    } else if (active === dialog || active === document.body) {
+      if (error) inputRef.current?.focus({ preventScroll: true });
+      else if (summary) doneRef.current?.focus({ preventScroll: true });
+    }
+  }, [dialogRef, isRunning, error, summary]);
+
   React.useEffect(() => {
+    const requests = requestRef;
     return () => {
-      cancelledRef.current = true;
+      requests.current?.abort();
+      requests.current = null;
     };
   }, []);
 
   const runSync = async () => {
     const trimmed = username.trim();
-    if (!trimmed || isRunning) return;
-    cancelledRef.current = false;
+    if (!trimmed || requestRef.current) return;
+    const request = new AbortController();
+    requestRef.current = request;
+    const isCurrent = () => requestRef.current === request && !request.signal.aborted;
     setIsRunning(true);
+    setIsSaving(false);
     setError(null);
     setSummary(null);
     setProgress(null);
     try {
-      const player = await resolveOgsPlayer(trimmed);
+      const player = await resolveOgsPlayer(trimmed, request.signal);
+      if (!isCurrent()) return;
       writeLocalStorage(OGS_SYNC_USERNAME_STORAGE_KEY, player.username);
-      const games = await listOgsFinishedGames(player.id, limit);
+      const games = await listOgsFinishedGames(player.id, limit, request.signal);
+      if (!isCurrent()) return;
       if (games.length === 0) {
         setError(`"${player.username}" has no finished games OGS will list.`);
         return;
@@ -84,24 +117,34 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
       const { synced, skipped, failed } = await downloadNewOgsGames(
         games,
         collectExistingOgsGameIds(items),
-        setProgress,
-        () => cancelledRef.current
+        (update) => { if (isCurrent()) setProgress(update); },
+        () => !isCurrent(),
+        request.signal
       );
-      if (cancelledRef.current) return;
-      if (synced.length > 0) onImport(player.username, synced);
+      if (!isCurrent()) return;
+      let added = 0;
+      if (synced.length > 0) {
+        setIsSaving(true);
+        added = await onImport(player.username, synced, ogsSyncOperationId(player.id, games));
+        if (!isCurrent()) return;
+      }
       setSummary({
-        added: synced.length,
-        skipped,
+        added,
+        skipped: skipped + synced.length - added,
         failed: failed.length,
         username: player.username,
       });
     } catch (cause) {
-      if (!cancelledRef.current) {
+      if (isCurrent()) {
         setError(cause instanceof Error ? cause.message : 'OGS sync failed.');
       }
     } finally {
-      setIsRunning(false);
-      setProgress(null);
+      if (requestRef.current === request) {
+        requestRef.current = null;
+        setIsRunning(false);
+        setIsSaving(false);
+        setProgress(null);
+      }
     }
   };
 
@@ -121,7 +164,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
             aria-label="Close OGS sync"
           >
@@ -148,7 +191,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               setSummary(null);
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') void runSync();
+              if (event.key === 'Enter' && !isComposingKeyEvent(event)) void runSync();
             }}
             disabled={isRunning}
             className="min-h-11 w-full rounded-lg border ui-input px-3 py-2 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
@@ -181,7 +224,9 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
               role="status"
               aria-live="polite"
             >
-              {backoffSeconds > 0
+              {isSaving
+                ? 'Saving games to library…'
+                : backoffSeconds > 0
                 ? `OGS is rate limiting us - resuming in ${backoffSeconds}s...`
                 : progress && progress.total > 0
                   ? `Downloading ${Math.min(progress.downloaded + 1, progress.total)} of ${progress.total}${
@@ -207,11 +252,12 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
 
         <div className="ogs-sync-footer ui-bar flex items-center justify-end gap-2 border-t border-[var(--ui-border)] px-4 py-3">
           <button
+            ref={doneRef}
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
           >
-            {summary ? 'Done' : 'Cancel'}
+            {summary ? 'Done' : isSaving ? 'Close' : 'Cancel'}
           </button>
           <button
             type="button"
@@ -221,7 +267,7 @@ export const OgsSyncModal: React.FC<OgsSyncModalProps> = ({ items, onClose, onIm
           >
             <span className="inline-flex items-center gap-2">
               <FaCloudDownloadAlt aria-hidden="true" />
-              {isRunning ? 'Syncing...' : summary ? 'Sync Again' : 'Sync'}
+              {isSaving ? 'Saving...' : isRunning ? 'Syncing...' : summary ? 'Sync Again' : 'Sync'}
             </span>
           </button>
         </div>

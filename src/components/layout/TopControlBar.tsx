@@ -704,9 +704,8 @@ export const TopControlBar: React.FC<TopControlBarProps> = ({
             <span className="text-sm font-medium">Rotate board</span>
             <span className="text-[0.6875rem] ui-text-faint">{shortcutLabels['rotate-board']}</span>
           </button>
-          {/* No Photo Board tile: the mobile sheet appends desktopViewMenu below,
-              which already lists it beside Copy/Paste SGF where importing a game
-              belongs — two tiles for one action in a single open menu. */}
+          {/* Photo Board lives beside the import actions in the mobile Menu.
+              Its desktopViewMenu row below is hidden with the other imports. */}
           <button type="button" className={mobileToolsGridBtn} onClick={() => { toggleTeachMode(); closeMobileToolsAfterAction(); }} aria-pressed={isTeachMode}>
             <FaGraduationCap size={18} className={isTeachMode ? "text-[var(--ui-accent)]" : "text-[var(--ui-text-muted)]"} />
             <span className="text-sm font-medium">Teach mode</span>

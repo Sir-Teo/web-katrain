@@ -30,7 +30,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The expanded native sweep plus verify exceeds the former 30-minute job.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -67,6 +68,10 @@ jobs:
       # depend on a developer's already-optimized Vite cache for this check.
       - name: Viewport and interaction checks
         id: viewport
+        # Match shipped React while retaining source modules for browser probes.
+        # Development rendering overhead can exhaust real clipboard deadlines.
+        env:
+          NODE_ENV: production
         run: npm run test:viewport
 
       - name: Keep failed viewport screenshots

@@ -56,6 +56,28 @@ describe('classifyProblemNode', () => {
     expect(classifyProblemNode(build({ note: 'Failure', properties: { GB: ['1'] } }))).toBe('wrong');
   });
 
+  it.each([
+    'Not correct.', 'Not a correct answer.', 'NOT RIGHT', 'Not right.',
+    'Not the right answer.', 'Not the solution.', 'Not a solution.',
+    'No solution.', '不正解', '不正确', '不正確',
+  ])('does not grade the negated verdict "%s" as correct', (note) => {
+    expect(classifyProblemNode(build({ note, properties: { GB: ['1'] } }))).toBe('wrong');
+  });
+
+  it('skips a negated solution when showing the correct continuation', () => {
+    const root = build({ children: [
+      { note: 'Not correct.', move: { x: 4, y: 4, player: 'black' } },
+      { note: 'Correct.', move: { x: 3, y: 3, player: 'black' } },
+    ] });
+    expect(findSolutionPath(root)).toEqual([root, root.children[1]]);
+  });
+
+  it.each(['Approach the left, not right side.', 'Not the right side to approach.'])(
+    'leaves directional instructions neutral: %s', (note) => {
+      expect(classifyProblemNode(build({ note }))).toBe('unknown');
+    },
+  );
+
   it('returns unknown without any signal', () => {
     expect(classifyProblemNode(build({ note: 'hello' }))).toBe('unknown');
     expect(classifyProblemNode(build({}))).toBe('unknown');

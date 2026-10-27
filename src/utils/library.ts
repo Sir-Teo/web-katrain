@@ -1,11 +1,15 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
-import { createSerialTaskQueue } from './serialTaskQueue';
+import { createCrossContextTaskQueue } from './crossContextTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
+import { reserveLibraryName, type LibraryNamePool } from './libraryNames';
 import { stripUnsafeFilenameControls } from './filename';
-import { countSgfGames, countSgfMoves, sgfTrailingGames } from './sgfScan';
+import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames } from './sgfScan';
 import { expandSgfPointList } from './sgf';
 import { getIndexedDB, getLocalStorage, readLocalStorage, removeLocalStorage, writeLocalStorage } from './storage';
-import { toSearchTerms } from './searchTerms';
+import { normalizeSearchText, toSearchTerms } from './searchTerms';
+import { getOgsGameId } from './ogsGameIdentity';
+import { clearFallbackCache, readFallbackCache, writeFallbackCache } from './libraryFallbackCache';
+import { normalizeSgfUtf8 } from './sgfEncoding';
 
 export type LibraryBase = {
   id: string;
@@ -34,14 +38,22 @@ export type LibraryFile = LibraryBase & {
   type: 'file';
   sgf: string;
   moveCount: number;
+  /** Bytes in the exported UTF-8 SGF, including its charset declaration. */
   size: number;
   metadata: LibraryFileMetadata;
   favorite?: boolean;
   tags?: string[];
+  /** Source identity survives display-name changes and backup round trips. */
+  ogsGameId?: number;
 };
 
 export type LibraryFolder = LibraryBase & {
   type: 'folder';
+};
+
+export type LibraryLoadResult = {
+  item: LibraryFile;
+  notice?: string;
 };
 
 export type LibraryItem = LibraryFile | LibraryFolder;
@@ -91,6 +103,7 @@ const ITEM_STORE = 'items';
 const META_STORE = 'meta';
 
 let memoryItems: LibraryItem[] | null = null;
+let memoryFallbackRaw: string | null | undefined;
 
 const createId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -99,49 +112,9 @@ const createId = (): string => {
   return `lib_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const unescapeSgfValue = (value: string): string => value.replace(/\\([\s\S])/g, '$1').trim();
-
-const readRootSgfProperties = (sgf: string): Record<string, string[]> => {
-  // SGF allows whitespace between '(' and ';', and the parser accepts it; a
-  // bare indexOf('(;') read such a file as having no metadata at all.
-  const opening = /\(\s*;/.exec(sgf);
-  if (!opening) return {};
-  const rootStart = opening.index + opening[0].length;
-  let i = rootStart;
-  let inValue = false;
-  let escaped = false;
-  while (i < sgf.length) {
-    const ch = sgf[i]!;
-    if (escaped) {
-      escaped = false;
-    } else if (ch === '\\') {
-      escaped = true;
-    } else if (ch === '[') {
-      inValue = true;
-    } else if (ch === ']') {
-      inValue = false;
-    } else if (!inValue && (ch === ';' || ch === '(' || ch === ')')) {
-      break;
-    }
-    i++;
-  }
-
-  const root = sgf.slice(rootStart, i);
-  const props: Record<string, string[]> = {};
-  // Values may be separated by whitespace, as wrapped AB lists are.
-  const propRe = /([A-Za-z]+)((?:\s*\[(?:\\.|[^\]])*\])+)/g;
-  let propMatch: RegExpExecArray | null;
-  while ((propMatch = propRe.exec(root))) {
-    const key = propMatch[1]!.replace(/[a-z]/g, '');
-    const valuesRaw = propMatch[2]!;
-    const values: string[] = [];
-    const valueRe = /\[((?:\\.|[^\]])*)\]/g;
-    let valueMatch: RegExpExecArray | null;
-    while ((valueMatch = valueRe.exec(valuesRaw))) values.push(unescapeSgfValue(valueMatch[1] ?? ''));
-    if (values.length > 0) props[key] = props[key] ? props[key]!.concat(values) : values;
-  }
-  return props;
-};
+// Match Blob/ZIP exports, rather than counting UTF-16 string code units.
+const getSgfByteSize = (sgf: string): number =>
+  new TextEncoder().encode(normalizeSgfUtf8(sgf)).byteLength;
 
 const numberProp = (value: string | undefined): number | undefined => {
   if (!value) return undefined;
@@ -287,8 +260,16 @@ export const getLibrarySaveTargetFolderId = ({
  * "Game 1".."Game 10" and suffixes duplicates " 2", " 10"; a plain
  * localeCompare put Game 10 and Game 11 before Game 2.
  */
+// Reuse locale setup: rebuilding it per comparison froze 10,000-name sorts
+// for about 680 ms in Chrome, before any rows were rendered.
+const libraryNameCollator = new Intl.Collator(undefined, { numeric: true });
+
 export const compareLibraryNames = (a: string, b: string): number =>
-  a.localeCompare(b, undefined, { numeric: true });
+  libraryNameCollator.compare(a, b);
+
+/** Stable across IndexedDB key order, including batches saved in one millisecond. */
+export const compareLibraryRecency = (a: LibraryItem, b: LibraryItem): number =>
+  b.updatedAt - a.updatedAt || compareLibraryNames(a.name, b.name) || a.id.localeCompare(b.id);
 
 export const formatLibrarySize = (bytes: number): string => {
   const normalized = Math.max(0, Number.isFinite(bytes) ? bytes : 0);
@@ -344,7 +325,7 @@ export const selectRecentLibraryFiles = (
   const preloadedNames = new Set(PRELOADED_GAMES.map((game) => game.name));
   const files = items
     .filter((item): item is LibraryFile => item.type === 'file')
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort(compareLibraryRecency);
   const isUntouchedSeed = (file: LibraryFile) =>
     file.parentId !== null
     && preloadedFolderIds.has(file.parentId)
@@ -417,15 +398,20 @@ export const getLibraryItemSearchText = (item: LibraryItem): string => {
       typeof metadata.handicap === 'number' ? `handicap ${metadata.handicap}` : undefined,
       typeof metadata.setupStoneCount === 'number' ? `${metadata.setupStoneCount} setup stones` : undefined,
       getLibraryFileMoveSummary(item),
+      item.ogsGameId ? `(ogs-${item.ogsGameId})` : undefined,
       item.favorite ? 'favorite starred' : undefined,
       ...(item.tags ?? []),
     );
   }
-  return fields.filter((field): field is string => !!field).join(' ').toLowerCase();
+  return normalizeSearchText(fields.filter((field): field is string => !!field).join(' '));
 };
 
 export const libraryItemMatchesQuery = (item: LibraryItem, query: string): boolean => {
-  const tokens = librarySearchTokens(query);
+  return libraryItemMatchesSearchTerms(item, librarySearchTokens(query));
+};
+
+/** Reuse a query's terms when filtering the whole library. */
+export const libraryItemMatchesSearchTerms = (item: LibraryItem, tokens: readonly string[]): boolean => {
   if (tokens.length === 0) return true;
   const haystack = getLibraryItemSearchText(item);
   return tokens.every((token) => haystack.includes(token));
@@ -531,6 +517,7 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
       // "( ;", an AB[aa:cc] rectangle, a comment before the first move --
       // never reached games already in the library.
       const metadata: LibraryFileMetadata = extractLibraryMetadata(sgf);
+      const ogsGameId = getOgsGameId({ name, ogsGameId: raw.ogsGameId });
       const tags = Array.isArray(raw.tags)
         ? Array.from(
             new Set(
@@ -541,8 +528,8 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
             )
           )
         : [];
-      // Only attach favorite/tags when meaningful so untagged items keep their
-      // original shape (no forced defaults), which keeps round-trips stable.
+      // Keep optional study fields absent when unused so ordinary records
+      // retain their original shape across storage and backup round trips.
       return {
         id,
         name,
@@ -552,10 +539,11 @@ export const normalizeLibraryItems = (rawItems: unknown): LibraryItem[] => {
         type: 'file',
         sgf,
         moveCount: countMoves(sgf),
-        size: typeof raw.size === 'number' && Number.isFinite(raw.size) ? raw.size : sgf.length,
+        size: getSgfByteSize(sgf),
         metadata,
         ...(raw.favorite === true ? { favorite: true } : {}),
         ...(tags.length > 0 ? { tags } : {}),
+        ...(ogsGameId !== undefined ? { ogsGameId } : {}),
       } as LibraryFile;
     });
   return rerootUnreachableItems(normalized);
@@ -684,12 +672,42 @@ const saveToIndexedDb = async (items: LibraryItem[], alreadyNormalized = false):
   }
 };
 
-const loadFallbackLibrary = (): LibraryItem[] => {
-  if (memoryItems) return memoryItems;
+const readFallbackRaw = (): string | null | undefined => {
+  try { return getLocalStorage()?.getItem(LEGACY_STORAGE_KEY); } catch { return undefined; }
+};
+
+const loadLegacyFallbackLibrary = (): LibraryItem[] => {
+  const raw = readFallbackRaw();
+  // A second tab can change this snapshot. Keep the cache only while its
+  // source is unchanged, or storage is unreadable and memory is all we have.
+  if (memoryItems && (
+    raw === undefined || raw === memoryFallbackRaw || (memoryFallbackRaw === undefined && raw === null)
+  )) return memoryItems;
   // Use the same version check as IndexedDB, including on the first load.
   // Saving records initialization only after the library is persisted.
-  const ensured = ensurePreloadedLibrary(safeParse(readLocalStorage(LEGACY_STORAGE_KEY)));
+  const ensured = ensurePreloadedLibrary(safeParse(raw ?? null));
   memoryItems = ensured.items;
+  memoryFallbackRaw = raw;
+  return memoryItems;
+};
+
+const parseFallbackCache = (raw: string): LibraryItem[] => {
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) throw new Error('The Library fallback snapshot is invalid.');
+  const items = normalizeLibraryItems(parsed);
+  if (items.length !== parsed.length) throw new Error('The Library fallback snapshot is invalid.');
+  return items;
+};
+
+const loadFallbackLibrary = async (): Promise<LibraryItem[]> => {
+  // Chrome can grant a Web Lock before its renderer has received the previous
+  // writer's localStorage update. Cache Storage reads go to the shared backend;
+  // its completed put remains inside the same Library lock as the local copy.
+  const cached = await readFallbackCache();
+  if (typeof cached !== 'string') return loadLegacyFallbackLibrary();
+  memoryItems = parseFallbackCache(cached);
+  memoryFallbackRaw = readFallbackRaw();
+  setPreloadedVersion(PRELOADED_VERSION);
   return memoryItems;
 };
 
@@ -706,8 +724,11 @@ const loadFallbackLibrary = (): LibraryItem[] => {
  */
 const saveFallbackLibrary = (items: LibraryItem[]): 'saved' | 'rejected' | 'no-storage' => {
   memoryItems = normalizeLibraryItems(items);
+  memoryFallbackRaw = readFallbackRaw();
   if (!getLocalStorage()) return 'no-storage';
-  if (!writeLocalStorage(LEGACY_STORAGE_KEY, JSON.stringify(memoryItems))) return 'rejected';
+  const serialized = JSON.stringify(memoryItems);
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, serialized)) return 'rejected';
+  memoryFallbackRaw = serialized;
   setPreloadedVersion(PRELOADED_VERSION);
   return 'saved';
 };
@@ -792,12 +813,16 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // would destroy everything stored before the outage. A union keeps both
     // sides -- an item deleted during the outage comes back, which is the
     // failure worth having when the alternative is losing one for good.
-    if (hasUnflushedFallback()) {
-      const merged = mergeLibrariesByNewest(items, loadFallbackLibrary());
+    const cachedFallback = await readFallbackCache();
+    if (hasUnflushedFallback() || typeof cachedFallback === 'string') {
+      const fallback = typeof cachedFallback === 'string' ? parseFallbackCache(cachedFallback) : await loadFallbackLibrary();
+      const merged = mergeLibrariesByNewest(items, fallback);
       await saveToIndexedDb(merged);
+      if (typeof cachedFallback === 'string') await clearFallbackCache();
       memoryItems = merged;
       setFallbackUnflushed(false);
       markMigrated();
+      memoryFallbackRaw = readFallbackRaw();
       return merged;
     }
     const legacyRaw = readLocalStorage(LEGACY_STORAGE_KEY);
@@ -831,7 +856,7 @@ const loadLibrarySnapshot = async (): Promise<LibraryItem[]> => {
     // showing. An empty one says nothing, so say that instead of inventing an
     // answer: every caller already handles this rejection, and the panel has a
     // storage-error state waiting for it.
-    const fallback = loadFallbackLibrary();
+    const fallback = await loadFallbackLibrary();
     if (fallback.length > 0) return fallback;
     const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
     throw new Error(`${LIBRARY_READ_FAILED_MESSAGE}${reason}`);
@@ -851,7 +876,7 @@ export const LIBRARY_SAVE_FAILED_MESSAGE =
   'Could not save the library: browser storage is full or unavailable.';
 
 export const LIBRARY_READ_FAILED_MESSAGE =
-  'Could not read the library from browser storage. Your games are still there; reload to try again.';
+  'Could not read the library from browser storage. Your games are still there; try again or reload the page.';
 
 /**
  * Persist the library, preferring IndexedDB and falling back to localStorage.
@@ -877,30 +902,60 @@ const persistFallback = (items: LibraryItem[]): void => {
   }
 };
 
+const persistCoherentFallback = async (items: LibraryItem[]): Promise<void> => {
+  const cached = await readFallbackCache();
+  if (cached === undefined) {
+    persistFallback(items);
+    return;
+  }
+  const previous = typeof cached === 'string' ? parseFallbackCache(cached) : loadLegacyFallbackLibrary();
+  const previousRaw = JSON.stringify(previous);
+  const previousVersion = readLocalStorage(PRELOADED_VERSION_KEY);
+  // Check the legacy store before changing either record snapshot. Retain a
+  // backend copy of the prior records so a failed commit cannot erase them.
+  if (!writeLocalStorage(LEGACY_STORAGE_KEY, previousRaw)) throw new Error(LIBRARY_SAVE_FAILED_MESSAGE);
+  if (cached === null) await writeFallbackCache(previousRaw);
+  try {
+    persistFallback(items);
+    await writeFallbackCache(JSON.stringify(memoryItems));
+  } catch (error) {
+    writeLocalStorage(LEGACY_STORAGE_KEY, previousRaw);
+    if (typeof cached === 'string') setPreloadedVersion(PRELOADED_VERSION);
+    else if (previousVersion === null) removeLocalStorage(PRELOADED_VERSION_KEY);
+    else writeLocalStorage(PRELOADED_VERSION_KEY, previousVersion);
+    memoryItems = previous;
+    memoryFallbackRaw = previousRaw;
+    throw error;
+  }
+};
+
 /** @see the note above `persistFallback` for why a fallback can reject. */
 const saveLibrarySnapshot = async (items: LibraryItem[]): Promise<void> => {
   const normalized = normalizeLibraryItems(items);
   const hasIndexedDb = !!getIndexedDB();
   if (!hasIndexedDb || idbLoadFailed) {
-    persistFallback(normalized);
+    await persistCoherentFallback(normalized);
     // Only a database that exists can come back and read over this. Where
     // there is none, the fallback is simply the store.
     if (hasIndexedDb) setFallbackUnflushed(true);
     return;
   }
   try {
+    const cachedFallback = await readFallbackCache();
     // Normalised just above; a second pass re-read every game's metadata.
     await saveToIndexedDb(normalized, true);
+    if (typeof cachedFallback === 'string') await clearFallbackCache();
     memoryItems = normalized;
     if (hasUnflushedFallback()) setFallbackUnflushed(false);
     markMigrated();
+    memoryFallbackRaw = readFallbackRaw();
   } catch {
-    persistFallback(normalized);
+    await persistCoherentFallback(normalized);
     setFallbackUnflushed(true);
   }
 };
 
-const runLibraryTask = createSerialTaskQueue();
+const runLibraryTask = createCrossContextTaskQueue(DB_NAME);
 
 let gameSaveRequestId = 0;
 /** Order game-save UI notifications by request, independent of storage latency. */
@@ -963,17 +1018,20 @@ export const createLibraryItem = (
   parentId: string | null = null,
   timestamp = Date.now()
 ): LibraryFile => {
+  const itemName = name.trim() || 'Untitled';
+  const ogsGameId = getOgsGameId({ name: itemName });
   return {
     id: createId(),
-    name: name.trim() || 'Untitled',
+    name: itemName,
     sgf,
     createdAt: timestamp,
     updatedAt: timestamp,
     moveCount: countMoves(sgf),
-    size: sgf.length,
+    size: getSgfByteSize(sgf),
     metadata: extractLibraryMetadata(sgf),
     parentId,
     type: 'file',
+    ...(ogsGameId !== undefined ? { ogsGameId } : {}),
   };
 };
 
@@ -1010,7 +1068,7 @@ export const updateLibraryFileSgf = (
       sgf: nextSgf,
       updatedAt: timestamp,
       moveCount: countMoves(nextSgf),
-      size: nextSgf.length,
+      size: getSgfByteSize(nextSgf),
       metadata: extractLibraryMetadata(nextSgf),
     };
   });
@@ -1032,29 +1090,6 @@ export const createLibraryFolder = (name: string, parentId: string | null = null
 const createCopyName = (name: string): string => {
   if (name.toLowerCase().endsWith('.sgf')) return `${name.slice(0, -4)} (copy).sgf`;
   return `${name} (copy)`;
-};
-
-type LibraryNamePool = { names: Set<string>; nextSuffix: Map<string, number> };
-
-const reserveLibraryName = (preferred: string, pool: LibraryNamePool): string => {
-  const key = preferred.toLowerCase();
-  if (!pool.names.has(key)) {
-    pool.names.add(key);
-    return preferred;
-  }
-
-  const dotSgf = key.endsWith('.sgf');
-  const base = dotSgf ? preferred.slice(0, -4) : preferred;
-  const suffix = dotSgf ? '.sgf' : '';
-  for (let i = pool.nextSuffix.get(key) ?? 2; ; i++) {
-    const candidate = `${base} ${i}${suffix}`;
-    const candidateKey = candidate.toLowerCase();
-    if (!pool.names.has(candidateKey)) {
-      pool.names.add(candidateKey);
-      pool.nextSuffix.set(key, i + 1);
-      return candidate;
-    }
-  }
 };
 
 const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string =>
@@ -1082,6 +1117,11 @@ export const prependLibraryImports = (
   imported: readonly LibraryItem[]
 ): LibraryItem[] => {
   const pools = new Map<string | null, LibraryNamePool>();
+  // A file read may finish after its destination is deleted. Resolve the
+  // destination before reserving names, including folders inside this batch.
+  const folderIds = new Set<string>();
+  for (const item of items) if (item.type === 'folder') folderIds.add(item.id);
+  for (const item of imported) if (item.type === 'folder') folderIds.add(item.id);
   const poolFor = (parentId: string | null): LibraryNamePool => {
     let pool = pools.get(parentId);
     if (!pool) {
@@ -1092,8 +1132,9 @@ export const prependLibraryImports = (
   };
   for (const item of items) poolFor(item.parentId ?? null).names.add(item.name.toLowerCase());
   const named = imported.map((item) => {
-    const name = reserveLibraryName(item.name.trim() || 'Untitled', poolFor(item.parentId ?? null));
-    return name === item.name ? item : { ...item, name };
+    const parentId = item.parentId && folderIds.has(item.parentId) ? item.parentId : null;
+    const name = reserveLibraryName(item.name.trim() || 'Untitled', poolFor(parentId));
+    return name === item.name && parentId === item.parentId ? item : { ...item, name, parentId };
   });
   return [...named, ...items];
 };
@@ -1109,19 +1150,15 @@ const libraryChildrenByParent = (items: readonly LibraryItem[]): Map<string, Lib
   return children;
 };
 
-export const duplicateLibraryItem = (
-  items: LibraryItem[],
-  id: string,
-  timestamp = Date.now()
+const copyLibraryTree = (
+  source: LibraryItem,
+  rootCopyName: string,
+  children: Map<string, LibraryItem[]>,
+  timestamp: number,
 ): DuplicateLibraryItemResult => {
-  const source = items.find((item) => item.id === id);
-  if (!source) return { items, duplicated: null, duplicatedIds: [] };
-
   const copies: LibraryItem[] = [];
   const duplicatedIds: string[] = [];
   const idMap = new Map<string, string>();
-  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
-  const rootCopyName = uniqueLibraryName(createCopyName(source.name), siblings);
 
   const copyOne = (item: LibraryItem, parentId: string | null, name: string): LibraryItem => {
     const newId = createId();
@@ -1155,7 +1192,6 @@ export const duplicateLibraryItem = (
   copies.push(rootCopy);
 
   if (source.type === 'folder') {
-    const children = libraryChildrenByParent(items);
     const pending = [...(children.get(source.id) ?? [])].reverse();
     while (pending.length > 0) {
       const item = pending.pop()!;
@@ -1171,10 +1207,24 @@ export const duplicateLibraryItem = (
   }
 
   return {
-    items: [...copies, ...items],
+    items: copies,
     duplicated: rootCopy,
     duplicatedIds,
   };
+};
+
+export const duplicateLibraryItem = (
+  items: LibraryItem[],
+  id: string,
+  timestamp = Date.now(),
+): DuplicateLibraryItemResult => {
+  const source = items.find((item) => item.id === id);
+  if (!source) return { items, duplicated: null, duplicatedIds: [] };
+  const siblings = items.filter((item) => (item.parentId ?? null) === (source.parentId ?? null) && item.id !== source.id);
+  const name = uniqueLibraryName(createCopyName(source.name), siblings);
+  const children = source.type === 'folder' ? libraryChildrenByParent(items) : new Map<string, LibraryItem[]>();
+  const copied = copyLibraryTree(source, name, children, timestamp);
+  return { ...copied, items: [...copied.items, ...items] };
 };
 
 export const duplicateLibraryItems = (
@@ -1183,26 +1233,52 @@ export const duplicateLibraryItems = (
   timestamp = Date.now()
 ): DuplicateLibraryItemResult => {
   const selectedIds = Array.from(ids);
-  const selectedIdSet = new Set(selectedIds);
-  const parentById = new Map(items.map((item) => [item.id, item.parentId ?? null]));
-  const rootSelectedIds = selectedIds.filter((id) => {
-    let parentId = parentById.get(id) ?? null;
-    while (parentId) {
-      if (selectedIdSet.has(parentId)) return false;
-      parentId = parentById.get(parentId) ?? null;
-    }
-    return true;
-  });
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const children = libraryChildrenByParent(items);
+  // Selected descendants are already copied with their ancestor. Visit them
+  // once rather than walking the same deep parent chain for every selection.
+  const coveredIds = new Set<string>();
+  const pending: LibraryItem[] = [];
+  for (const id of selectedIds) {
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  while (pending.length) {
+    const item = pending.pop()!;
+    if (coveredIds.has(item.id)) continue;
+    coveredIds.add(item.id);
+    for (const child of children.get(item.id) ?? []) pending.push(child);
+  }
+  const rootSelectedIds = selectedIds.filter(id => !coveredIds.has(id));
 
-  let nextItems = items;
+  // Index the original library and reserve names once for the whole action.
+  // Repeated single-item copies scanned and copied an ever-growing library;
+  // selecting 5,000 games blocked Chrome for over six seconds.
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (parentId: string | null): LibraryNamePool => {
+    let pool = pools.get(parentId);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      pools.set(parentId, pool);
+    }
+    return pool;
+  };
+  for (const item of items) poolFor(item.parentId ?? null).names.add(item.name.toLowerCase());
+
+  const groups: LibraryItem[][] = [];
   const duplicatedIds: string[] = [];
   let firstDuplicated: LibraryItem | null = null;
   for (const id of rootSelectedIds) {
-    const result = duplicateLibraryItem(nextItems, id, timestamp);
-    nextItems = result.items;
+    const source = byId.get(id);
+    if (!source) continue;
+    const name = reserveLibraryName(createCopyName(source.name), poolFor(source.parentId ?? null));
+    const result = copyLibraryTree(source, name, children, timestamp);
+    groups.push(result.items);
     if (!firstDuplicated) firstDuplicated = result.duplicated;
-    duplicatedIds.push(...result.duplicatedIds);
+    for (const copiedId of result.duplicatedIds) duplicatedIds.push(copiedId);
   }
+  // Each selected root used to be prepended in turn. Keep that visible order
+  // and the first-copy selection while assembling the final array only once.
+  const nextItems = groups.length ? [...groups.reverse().flat(), ...items] : items;
   return { items: nextItems, duplicated: firstDuplicated, duplicatedIds };
 };
 
@@ -1370,11 +1446,36 @@ export const createLibraryBackup = (items: LibraryItem[]): string => {
 
 export const parseLibraryBackup = (raw: string): LibraryItem[] => {
   const parsed = JSON.parse(raw) as unknown;
-  if (Array.isArray(parsed)) return normalizeLibraryItems(parsed);
-  if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
-    return normalizeLibraryItems((parsed as { items: unknown }).items);
+  let items: unknown[];
+  if (Array.isArray(parsed)) {
+    items = parsed;
+  } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)) {
+    const backup = parsed as { app?: unknown; version?: unknown; items: unknown[] };
+    if (backup.app !== undefined && backup.app !== 'web-katrain') {
+      throw new Error('This file is not a Web KaTrain library backup.');
+    }
+    if (backup.version !== undefined && backup.version !== 1 && backup.version !== 2) {
+      throw new Error('This library backup version is not supported.');
+    }
+    items = backup.items;
+  } else {
+    throw new Error('Invalid library backup. Choose a Web KaTrain JSON backup.');
   }
-  throw new Error('Invalid library backup');
+  // Normalization repairs old names, IDs and folder links. It also drops
+  // primitives and turns arbitrary objects into folders, which must never
+  // silently convert a damaged backup into a destructive replacement.
+  for (const [index, item] of items.entries()) {
+    const record = item && typeof item === 'object' && !Array.isArray(item)
+      ? item as Record<string, unknown>
+      : null;
+    const isFolder = record?.type === 'folder';
+    const isFile = record && (record.type === undefined || record.type === 'file') &&
+      typeof record.sgf === 'string' && record.sgf.trim().length > 0;
+    if (!isFolder && !isFile) {
+      throw new Error(`Invalid library backup item ${index + 1}. No games were replaced.`);
+    }
+  }
+  return normalizeLibraryItems(items);
 };
 
 export const restoreLibrary = async (raw: string): Promise<LibraryItem[]> => {

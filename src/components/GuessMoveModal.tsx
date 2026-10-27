@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { FaTimes, FaEye, FaArrowRight, FaBook, FaFolderOpen } from 'react-icons/fa';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FaTimes, FaEye, FaArrowRight, FaBook, FaFolderOpen, FaRedo } from 'react-icons/fa';
 import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 import {
   buildGuessPositions,
   guessVerdict,
@@ -72,6 +73,31 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
   const current = positions[safeIndex] ?? null;
   const size = current?.board.length ?? rootNode.gameState.board.length;
   const isLast = positions.length > 0 && safeIndex >= positions.length - 1;
+  const canRestart = isLast && phase === 'revealed';
+  const nextLabel = canRestart ? 'Start again' : isLast ? 'End of game' : 'Next move';
+
+  React.useLayoutEffect(() => {
+    const body = dialogRef.current?.querySelector<HTMLElement>('.guess-move-body');
+    if (!body) return;
+    if (phase === 'guess') {
+      body.scrollTop = 0;
+      return;
+    }
+    const result = body.querySelector<HTMLElement>('[data-guess-move-result]');
+    if (!result) return;
+    // A missed guess adds a distance row. Keep that row above the footer
+    // without moving focus away from the next-round action.
+    revealPaneFeedback(result, body);
+  }, [phase, safeIndex, filter, rootNode.id, dialogRef]);
+
+  useEffect(() => {
+    // Revealing removes its button; keep the keyboard on the next action.
+    // Each new round returns to the board so answering can continue directly.
+    const target = dialogRef.current?.querySelector<SVGSVGElement | HTMLButtonElement>(
+      phase === 'guess' ? '[data-static-board-interactive="true"]' : '[data-guess-move-next]'
+    );
+    target?.focus({ preventScroll: true });
+  }, [phase, safeIndex, filter, rootNode.id, dialogRef]);
 
   const resetRound = (nextIndex: number) => {
     setIndex(nextIndex);
@@ -108,6 +134,11 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
   const handleNext = () => {
     if (isLast) return;
     resetRound(safeIndex + 1);
+  };
+
+  const handleRestart = () => {
+    resetRound(0);
+    setStats({ attempts: 0, correct: 0 });
   };
 
   const markers: StaticBoardMarker[] = [];
@@ -211,6 +242,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
               <div className="guess-move-board mx-auto w-full max-w-[340px]">
                 {current && (
                   <StaticBoard
+                    key={`${rootNode.id}:${filter}:${safeIndex}:${phase}`}
                     board={current.board}
                     lastMove={current.lastMove}
                     markers={markers}
@@ -221,7 +253,7 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
               </div>
 
               {phase === 'revealed' && current && (
-                <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm" data-guess-move-result="true">
+                <div className="space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm" data-guess-move-result="true" role="status" aria-live="polite" aria-atomic="true">
                   {verdict ? (
                     <div className="text-base font-semibold" style={{ color: toneColor(verdict.tone) }}>
                       {verdict.label}
@@ -275,16 +307,16 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
               ) : null}
               <button
                 type="button"
-                onClick={handleNext}
-                disabled={isLast}
-                aria-label={isLast ? 'End of game' : 'Next move'}
+                onClick={canRestart ? handleRestart : handleNext}
+                disabled={isLast && !canRestart}
+                aria-label={nextLabel}
                 className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:opacity-60"
                 data-guess-move-next="true"
               >
                 <span className="inline-flex items-center gap-2">
-                  <span className="guess-move-label-full">{isLast ? 'End of game' : 'Next move'}</span>
-                  <span className="guess-move-label-compact">{isLast ? 'End' : 'Next'}</span>
-                  <FaArrowRight aria-hidden="true" />
+                  <span className="guess-move-label-full">{nextLabel}</span>
+                  <span className="guess-move-label-compact">{canRestart ? 'Again' : isLast ? 'End' : 'Next'}</span>
+                  {canRestart ? <FaRedo aria-hidden="true" /> : <FaArrowRight aria-hidden="true" />}
                 </span>
               </button>
             </div>

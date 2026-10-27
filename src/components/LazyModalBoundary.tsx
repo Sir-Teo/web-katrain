@@ -63,16 +63,38 @@ export class LazyModalBoundary extends React.Component<LazyModalBoundaryProps, L
  * resolves within the same commit and React never shows a fallback, so
  * reopening a dialog is untouched by this.
  */
-export const LazyModalFallback: React.FC = () => (
-  <div
-    data-lazy-modal-loading="true"
-    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 mobile-safe-inset mobile-safe-area-bottom"
-  >
+export const LazyModalFallback: React.FC = () => {
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Keep existing Escape cancellation available while a chunk is pending.
+      if (event.key === 'Escape') return;
+      event.stopPropagation();
+      const tabWithinPage = event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey;
+      if (tabWithinPage || ['Enter', ' ', 'Spacebar'].includes(event.key)) event.preventDefault();
+    };
+    const onPaste = (event: ClipboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('paste', onPaste, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('paste', onPaste, true);
+    };
+  }, []);
+
+  return (
     <div
-      role="status"
-      className="ui-panel rounded-lg border shadow-xl px-6 py-4 text-sm text-[var(--ui-text-muted)]"
+      data-lazy-modal-loading="true"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 mobile-safe-inset mobile-safe-area-bottom"
     >
-      Opening…
+      <div
+        role="status"
+        className="ui-panel rounded-lg border shadow-xl px-6 py-4 text-sm text-[var(--ui-text-muted)]"
+      >
+        Opening…
+      </div>
     </div>
-  </div>
-);
+  );
+};

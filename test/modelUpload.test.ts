@@ -102,6 +102,22 @@ describe('model upload helpers', () => {
     });
   });
 
+  it('preserves the selected URL and metadata if a replacement URL cannot be created', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const previous = createUploadedModelUrl(new File(['usable weights'], 'previous.bin.gz'), '/models/original.bin.gz');
+    const info = getUploadedModelInfo();
+    create.mockImplementationOnce(() => { throw new Error('Object URL allocation failed'); });
+
+    expect(() => createUploadedModelUrl(new Blob(['new weights']), previous))
+      .toThrow('Browser object URLs are unavailable');
+    expect(revoke).not.toHaveBeenCalledWith(previous);
+    expect(getUploadedModelInfo()).toEqual(info);
+    expect(await (await fetch(previous)).text()).toBe('usable weights');
+    expect(clearUploadedModelUrl('/models/fallback.bin.gz')).toBe('/models/original.bin.gz');
+    expect(revoke).toHaveBeenCalledWith(previous);
+  });
+
   it('sanitizes model names derived from uploads and URLs', () => {
     expect(sanitizeModelDisplayName('  kata\u202efgs.bin.gz  ')).toBe('katafgs.bin.gz');
     expect(sanitizeModelDisplayName('\u200b')).toBe('Uploaded weights');

@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractOgsGameId, isOgsUrl, loadSgfOrOgs } from '../src/utils/ogs';
+import { resetOgsFetchQueueForTests } from '../src/utils/ogsQueue';
+
+const deferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetOgsFetchQueueForTests();
+});
 
 describe('OGS URL utilities', () => {
   it('extracts game IDs from supported Online-Go game URLs', () => {
@@ -38,5 +50,46 @@ describe('OGS URL utilities', () => {
     expect(extractOgsGameId('ftp://online-go.com/game/81344851')).toBeNull();
     expect(extractOgsGameId('javascript:online-go.com/game/81344851')).toBeNull();
     expect(extractOgsGameId('https://online-go.com/game/81344851abc')).toBeNull();
+  });
+});
+
+describe('canceling an OGS import', () => {
+  it('rejects an already canceled import without contacting OGS', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(loadSgfOrOgs('https://online-go.com/game/1', { signal: controller.signal }))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('aborts an active download through its original signal', async () => {
+    const controller = new AbortController();
+    const started = deferred<void>();
+    const fetch = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      expect(init?.signal).toBe(controller.signal);
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+      started.resolve();
+    }));
+    vi.stubGlobal('fetch', fetch);
+    const pending = loadSgfOrOgs('https://online-go.com/game/1', { signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await started.promise;
+    controller.abort();
+    await rejected;
+  });
+
+  it('refuses a late response even when its transport ignores cancellation', async () => {
+    const controller = new AbortController();
+    const response = deferred<Response>();
+    const started = deferred<void>();
+    vi.stubGlobal('fetch', vi.fn(() => { started.resolve(); return response.promise; }));
+    const pending = loadSgfOrOgs('https://online-go.com/game/1', { signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await started.promise;
+    controller.abort();
+    response.resolve(new Response('(;GM[1]SZ[9];B[dd])'));
+    await rejected;
   });
 });

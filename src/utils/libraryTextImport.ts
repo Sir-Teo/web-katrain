@@ -20,8 +20,13 @@ export async function createLibraryItemFromSgfOrOgsText(
   const result = await loadSgfOrOgs(text);
   assertValidLibrarySgfImport(result.sgf);
   const fallback = result.source === 'ogs' && result.gameId ? `ogs-${result.gameId}` : fallbackName;
+  const item = createLibraryItem(suggestLibraryItemNameFromSgf(result.sgf, fallback), result.sgf, folderId);
+  if (result.source === 'ogs') {
+    const gameId = Number(result.gameId);
+    if (Number.isSafeInteger(gameId) && gameId > 0) item.ogsGameId = gameId;
+  }
   return {
-    item: createLibraryItem(suggestLibraryItemNameFromSgf(result.sgf, fallback), result.sgf, folderId),
+    item,
     source: result.source,
     gameId: result.gameId,
   };

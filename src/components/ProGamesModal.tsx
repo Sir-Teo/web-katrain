@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { FaTimes, FaSearch, FaDownload, FaDice } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
 import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 
 interface ProGamesModalProps {
   onClose: () => void;
@@ -36,20 +39,64 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { focusContainer: false });
 
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const browseHelpId = React.useId();
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
-
-  const surpriseMe = () => {
-    if (PRO_GAMES.length === 0) return;
-    const pick = PRO_GAMES[Math.floor(Math.random() * PRO_GAMES.length)]!;
-    setQuery('');
-    setSelectedId(pick.id);
-  };
 
   const selected: ProGameMeta | undefined = useMemo(
     () => filtered.find((g) => g.id === selectedId) ?? filtered[0],
     [filtered, selectedId],
   );
+
+  React.useLayoutEffect(() => {
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+    const pane = resultsRef.current;
+    const row = pane?.querySelector<HTMLButtonElement>('[aria-current="true"]');
+    if (pane && row) revealPaneFeedback(row, pane);
+  }, [selected?.id]);
+
+  const focusGame = (index: number) => {
+    const next = Math.max(0, Math.min(filtered.length - 1, index));
+    const game = filtered[next];
+    const pane = resultsRef.current;
+    const button = pane?.querySelectorAll<HTMLButtonElement>('li > button')[next];
+    if (!game || !pane || !button) return;
+    setSelectedId(game.id);
+    button.focus({ preventScroll: true });
+    revealPaneFeedback(button, pane);
+  };
+
+  const handleResultKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+    if (isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest('button');
+    const rows = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('li > button')];
+    const index = rows.findIndex(row => row === button);
+    if (index < 0) return;
+    let next: number;
+    if (event.key === 'ArrowDown') next = index + 1;
+    else if (event.key === 'ArrowUp') next = index - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = filtered.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusGame(next);
+  };
+
+  const surpriseMe = () => {
+    // A search can display a fallback while selectedId is hidden. Exclude
+    // the game the reader actually sees when another game is available.
+    const alternatives = PRO_GAMES.filter(game => game.id !== selected?.id);
+    const choices = alternatives.length ? alternatives : PRO_GAMES;
+    if (!choices.length) return;
+    const pick = choices[Math.floor(Math.random() * choices.length)]!;
+    setQuery('');
+    setSelectedId(pick.id);
+  };
 
   const preview = useMemo(() => {
     if (!selected) return null;
@@ -96,22 +143,46 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 <div className="relative flex-1">
                   <FaSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-muted)]" />
                   <input
+                    ref={searchRef}
                     type="search"
                     value={query}
+                    maxLength={MAX_SEARCH_QUERY_LENGTH}
                     autoCapitalize="none"
                     autoCorrect="off"
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'ArrowDown' || isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey || !selected) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      focusGame(filtered.findIndex(game => game.id === selected.id));
+                    }}
                     aria-label="Search pro games"
+                    aria-describedby={browseHelpId}
+                    data-pro-games-search="true"
                     placeholder="Search by player, event, date…"
-                    className="min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 pr-3 text-sm text-[var(--ui-text)] desktop-shell:min-h-0"
+                    className={`min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 text-sm text-[var(--ui-text)] desktop-shell:min-h-0 ${query ? 'pr-12 desktop-shell:pr-10' : 'pr-3'}`}
                     autoFocus
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] desktop-shell:h-8 desktop-shell:w-8"
+                      aria-label="Clear pro game search"
+                      onClick={() => {
+                        setQuery('');
+                        searchRef.current?.focus();
+                      }}
+                    >
+                      <FaTimes aria-hidden="true" size={12} />
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={surpriseMe}
+                  aria-label="Surprise me: choose another pro game"
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0 desktop-shell:min-w-0"
                   title="Jump to a random pro game"
                 >
@@ -148,9 +219,13 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                 </div>
               )}
             </div>
-            <ul className="pro-games-results min-h-0 flex-1 overflow-y-auto">
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {filtered.length} game{filtered.length === 1 ? '' : 's'} found.
+            </div>
+            <p id={browseHelpId} className="sr-only">Press Down Arrow to browse games. Use the arrow keys, Home, and End to choose a preview. Use Load &amp; study this game to open it on the board.</p>
+            <ul ref={resultsRef} className="pro-games-results min-h-0 flex-1 overflow-y-auto" aria-label="Pro games" aria-describedby={browseHelpId} onKeyDown={handleResultKeyDown}>
               {filtered.length === 0 && (
-                <li className="p-4 text-sm text-[var(--ui-text-muted)]">No games match “{query}”.</li>
+                <li className="p-4 text-sm text-[var(--ui-text-muted)] [overflow-wrap:anywhere]">No games match “{query}”.</li>
               )}
               {filtered.map((g) => {
                 const active = selected?.id === g.id;
@@ -195,7 +270,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
           </div>
 
           {/* Detail / preview */}
-          <div className="pro-games-detail flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+          <div ref={detailRef} className="pro-games-detail flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             {selected ? (
               <>
                 <div className="pro-games-preview mx-auto w-full max-w-[280px]">

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { KifuPrintModal } from '../src/components/KifuPrintModal';
 import { useGameStore } from '../src/store/gameStore';
+import { parseSgf } from '../src/utils/sgf';
 
 describe('KifuPrintModal actions', () => {
   it('explains why printing is unavailable before the game has moves', () => {
@@ -14,6 +15,31 @@ describe('KifuPrintModal actions', () => {
     expect(html).toContain('aria-label="No moves to print"');
     expect(html).toContain('disabled=""');
     expect(html).toContain('disabled:cursor-not-allowed');
+  });
+
+  it('prints setup stones without inventing numbered moves or changing the position', () => {
+    useGameStore.getState().loadGame(parseSgf('(;GM[1]SZ[9]AB[aa][ba]AW[bb])'));
+    const before = useGameStore.getState().currentNode.gameState.board.map(row => [...row]);
+
+    // Zustand's server render reads the initial snapshot, so point that
+    // snapshot at this imported position and restore it after the render.
+    const serverSnapshot = useGameStore.getInitialState();
+    const previousNode = serverSnapshot.currentNode;
+    try {
+      serverSnapshot.currentNode = useGameStore.getState().currentNode;
+      const html = renderToStaticMarkup(<KifuPrintModal onClose={() => undefined} />);
+
+      expect(html).toContain('aria-label="Print position or save as PDF"');
+      expect(html).toContain('aria-label="Kifu board position"');
+      expect(html).toContain('Position diagram · no moves recorded.');
+      expect(html.match(/r="0\.47"/g)).toHaveLength(3);
+      expect(html).not.toContain('aria-label="Moves per diagram"');
+      expect(html).not.toContain('Kifu diagram moves 0');
+      expect(useGameStore.getState().currentNode.gameState.board).toEqual(before);
+      expect(useGameStore.getState().moveHistory).toHaveLength(0);
+    } finally {
+      serverSnapshot.currentNode = previousNode;
+    }
   });
 
   it('gives the printed figure the whole page instead of half of it', () => {

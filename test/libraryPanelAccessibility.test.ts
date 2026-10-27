@@ -195,7 +195,7 @@ describe('LibraryPanel accessibility', () => {
 
   it('keeps selection exit beside the selection count instead of adding a toolbar row', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
-    const selectionSummaryIndex = source.indexOf('{sortedItems.length} items');
+    const selectionSummaryIndex = source.indexOf('data-library-result-count="true"');
     const clearSelectionIndex = source.indexOf('aria-label="Clear selection"');
 
     expect(selectionSummaryIndex).toBeGreaterThan(-1);
@@ -207,7 +207,7 @@ describe('LibraryPanel accessibility', () => {
     const source = readFileSync('src/components/LibraryPanel.tsx', 'utf8');
     const toolbarIndex = source.indexOf('<div className="panel-toolbar">');
     const breadcrumbsIndex = source.indexOf('className="library-breadcrumbs');
-    const summaryIndex = source.indexOf('{sortedItems.length} items');
+    const summaryIndex = source.indexOf('data-library-result-count="true"');
 
     // The trail sat under a toolbar row that was empty between the root button
     // and the item count — 26px of phone panel for one short line.

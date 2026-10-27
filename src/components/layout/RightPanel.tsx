@@ -1,4 +1,5 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../../utils/compositionKey';
 import {
   FaFastBackward,
   FaFastForward,
@@ -279,6 +280,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
   const handleBranchIndexKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
+    if (isComposingKeyEvent(event)) return;
     if (event.key === 'Enter' || event.key === 'Escape') {
       if (event.key === 'Escape') cancelBranchIndexEdit();
       event.currentTarget.blur();

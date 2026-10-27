@@ -1,5 +1,6 @@
 import type { InsertProgress } from '../../utils/insertMode';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isComposingKeyEvent } from '../../utils/compositionKey';
 import './dashboard.css';
 import { Icon, type IconName } from './icons';
 import type { CandidateMove, GameNode, GameRules, GameSettings, Player } from '../../types';
@@ -108,6 +109,7 @@ export interface DesktopDashboardProps {
   libraryWidth?: number;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  noteFocusRequest?: number;
   focusMode?: boolean;
 
   // ---- game analysis ----
@@ -118,7 +120,7 @@ export interface DesktopDashboardProps {
   startQuickGameAnalysis: () => void;
   startFastGameAnalysis: () => void;
   stopGameAnalysis: () => void;
-  onClearAnalysisCache: () => void;
+  onClearAnalysisCache: (returnFocus?: HTMLElement | null) => void;
   onOpenGameReport: () => void;
 
   // ---- navigation / play ----
@@ -256,7 +258,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     settings, updateControls, updateSettings,
     isInsertMode, insertProgress, toggleInsertMode, isSelectingRegionOfInterest, startSelectRegionOfInterest,
     hasMoveTimes = false,
-    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, focusMode = false,
+    libraryOpen, setLibraryOpen, libraryPanel, libraryWidth, sidebarOpen, setSidebarOpen, noteFocusRequest = 0, focusMode = false,
     isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal,
     startQuickGameAnalysis, startFastGameAnalysis, stopGameAnalysis, onClearAnalysisCache, onOpenGameReport,
     navigateBack, navigateForward, canNavigateBack, canNavigateForward, navigateStart, navigateEnd, navigateToMove,
@@ -280,6 +282,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     candidates: true,
     notes: true,
   });
+  const [handledNoteFocusRequest, setHandledNoteFocusRequest] = useState(0);
+  if (noteFocusRequest !== handledNoteFocusRequest) {
+    setHandledNoteFocusRequest(noteFocusRequest);
+    if (noteFocusRequest > 0 && !sections.notes) setSections({ ...sections, notes: true });
+  }
   // Top game-info strip and bottom metrics bar collapse like the side panels so
   // the board can take the full column; reopen handles mirror the edge toggles.
   const [gamestripOpen, setGamestripOpen] = useState(() => {
@@ -928,6 +935,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 onChange={(e) => setMoveInputDraft(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
+                  if (isComposingKeyEvent(e)) return;
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     const trimmedMove = moveInputValue.trim();
@@ -1335,7 +1343,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
                 {/* "Lock AI details (Play mode)" is a teacher's setting; the
                     other shell honours it, this one used to show the PV and
                     policy text regardless. */}
-                <NotesPanel showInfo detailed={!(mode === 'play' && settings.trainerLockAi)} showNotes />
+                <NotesPanel showInfo detailed={!(mode === 'play' && settings.trainerLockAi)} showNotes focusRequest={noteFocusRequest} />
               </div>
             </div>
           </div>
@@ -1362,7 +1370,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           visits={settings.katagoVisits}
           visitsDisabled={isGameAnalysisRunning}
           onVisitsChange={(katagoVisits) => updateSettings({ katagoVisits })}
-          onClearCache={() => { closePop(); onClearAnalysisCache(); }}
+          onClearCache={() => { const returnFocus = popTriggerRef.current; closePop(); onClearAnalysisCache(returnFocus); }}
         />
       )}
       {pop?.id === 'file' && (

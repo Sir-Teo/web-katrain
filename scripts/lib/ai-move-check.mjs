@@ -30,13 +30,6 @@ export async function assertAiMoveCancellation(cdp, outputDir, gameRules) {
     fs.writeFileSync(path.join(outputDir, `${name}.png`), Buffer.from(response.result.data, 'base64'));
   };
   const boardMoves = `Number(document.querySelector('[data-board-snapshot=true]')?.dataset.boardMoveCount)`;
-  // The preceding live-analysis check leaves analysis mode enabled. Disable it
-  // through its shortcut so playing a warm-up AI move does not also request a
-  // separate evaluation 500 ms later.
-  if (await evaluate(cdp, `document.querySelector('#wk-engine-pill-label')?.textContent==='Analysis mode'`)) {
-    await key('Tab', 9);
-    await wait(`document.querySelector('#wk-engine-pill-label')?.textContent!=='Analysis mode'`);
-  }
   for (const [width, height] of [[1280, 800], [390, 844]]) {
     const mobile = width < 1000;
     const click = async (elementExpression) => {
@@ -70,6 +63,16 @@ export async function assertAiMoveCancellation(cdp, outputDir, gameRules) {
     try {
       await setViewport(cdp, { width, height, mobile });
       await wait(`!!document.querySelector('[data-board-snapshot=true]')`);
+      // Live analysis and the preceding recovery check can leave analysis mode
+      // enabled. Check each layout before measuring an isolated AI request.
+      const analysisOn = mobile
+        ? `document.querySelector('button[title^="Toggle analysis mode"]')?.getAttribute('aria-pressed')==='true'`
+        : `document.querySelector('#wk-engine-pill-label')?.textContent==='Analysis mode'`;
+      if (await evaluate(cdp, analysisOn)) {
+        await evaluate(cdp, 'document.activeElement?.blur()');
+        await key('Tab', 9);
+        await wait(`!(${analysisOn})`);
+      }
       const initialMoves = await evaluate(cdp, boardMoves);
       const initialRequests = await evaluate(cdp, 'auditRequests.length');
       const lastId = await evaluate(cdp, 'auditRequests.at(-1)?.id ?? 0');
@@ -112,13 +115,13 @@ export async function assertAiMoveCancellation(cdp, outputDir, gameRules) {
         'Every AI request must retain the selected rules, including after recovery');
       await screenshot(`${width}x${height}-ai-restarted`);
       reports.push({ width, height, canceledAfterInputMs, warmVisits: warm.visits, freshVisits: fresh.visits,
-        ...await evaluate(cdp, '({requests:auditRequests,responses:auditResponses})') });
-      console.log(`AI move at ${width}x${height}: warm move, Stop, no retry, and fresh move passed.`);
+        ...await evaluate(cdp, '({requests:auditRequests,responses:auditResponses,cancels:auditCancels})') });
+      console.log(`AI move at ${width}x${height}: Stop reached the worker in ${canceledAfterInputMs.toFixed(1)} ms; warm move, no retry, and fresh move passed.`);
       await assertUnsavedNavigation(cdp, await evaluate(cdp, 'location.href'), outputDir, { width, height, gameRules });
     } catch (error) {
       await screenshot(`${width}x${height}-ai-failure`);
       fs.writeFileSync(path.join(outputDir, `${width}x${height}-ai-failure.json`), JSON.stringify(
-        await evaluate(cdp, '({requests:auditRequests,responses:auditResponses})'), null, 2));
+        await evaluate(cdp, '({requests:auditRequests,responses:auditResponses,cancels:auditCancels})'), null, 2));
       throw error;
     }
   }

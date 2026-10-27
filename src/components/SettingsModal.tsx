@@ -1,4 +1,6 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -48,13 +50,12 @@ import {
     isUploadedModelUrl,
     MAX_BROWSER_MODEL_UPLOAD_LABEL,
     MODEL_UPLOAD_ACCEPT,
-    revokeUploadedModelUrl,
     savePersistedUploadedModel,
+    subscribeUploadedModelInfo,
     syncUploadedModelUrl,
-    type UploadedModelInfo,
     validateModelUploadFile,
 } from '../utils/modelUpload';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../utils/clipboard';
 import { OBJECT_URL_UNAVAILABLE_MESSAGE, createObjectUrl, revokeObjectUrl } from '../utils/objectUrl';
 import { fetchBlobWithProgress } from '../utils/downloadProgress';
 import {
@@ -220,15 +221,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const humanModelUploadInputRef = React.useRef<HTMLInputElement>(null);
     const humanBlobUrlRef = React.useRef<string | null>(null);
     const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+    const [failedCopyUrl, setFailedCopyUrl] = React.useState<string | null>(null);
+    const copyUrlStatusId = React.useId();
+    const copyUrlFeedback = React.useRef<{ mounted: boolean; timer: number | null }>({ mounted: false, timer: null });
+    React.useEffect(() => {
+        const feedback = copyUrlFeedback.current;
+        feedback.mounted = true;
+        return () => {
+            feedback.mounted = false;
+            if (feedback.timer !== null) window.clearTimeout(feedback.timer);
+        };
+    }, []);
     const [downloadingUrl, setDownloadingUrl] = React.useState<string | null>(null);
+    const modelDownloadRef = React.useRef<{
+        controller: AbortController;
+        modelUrl: string;
+        saving: boolean;
+        trigger: HTMLButtonElement;
+    } | null>(null);
+    const [savingDownloadedModel, setSavingDownloadedModel] = React.useState(false);
     const [downloadProgress, setDownloadProgress] = React.useState<number | null>(null);
     const [downloadError, setDownloadError] = React.useState<string | null>(null);
     const [modelUploadError, setModelUploadError] = React.useState<string | null>(null);
     const [humanModelError, setHumanModelError] = React.useState<string | null>(null);
     const [humanModelFileName, setHumanModelFileName] = React.useState<string | null>(null);
-    const [uploadedModelInfo, setUploadedModelInfo] = React.useState<UploadedModelInfo | null>(() => getUploadedModelInfo());
+    const uploadedModelInfo = React.useSyncExternalStore(subscribeUploadedModelInfo, getUploadedModelInfo, () => null);
     const [webGpuAvailability, setWebGpuAvailability] = React.useState<BrowserBackendAvailability>(() => detectWebGpuAvailability());
     const shortcutLabels = useShortcutLabels(ANALYSIS_OVERLAY_SHORTCUT_IDS);
+
+    const cancelModelDownload = React.useCallback(() => {
+        const request = modelDownloadRef.current;
+        if (!request || request.saving) return;
+        request.controller.abort();
+        modelDownloadRef.current = null;
+        setDownloadingUrl(null);
+        setDownloadProgress(null);
+        if (request.trigger.parentElement?.contains(document.activeElement)) {
+            requestAnimationFrame(() => {
+                if (request.trigger.isConnected) request.trigger.focus();
+            });
+        }
+    }, []);
+
+    React.useEffect(() => {
+        const request = modelDownloadRef.current;
+        if (request && !request.saving && request.modelUrl !== settings.katagoModelUrl) cancelModelDownload();
+    }, [cancelModelDownload, settings.katagoModelUrl]);
+
+    React.useEffect(() => {
+        const requests = modelDownloadRef;
+        return () => {
+            requests.current?.controller.abort();
+            requests.current = null;
+        };
+    }, []);
 
     const [activeTab, setActiveTab] = React.useState<SettingsTabId>(() => {
         if (focusModel) return 'ai';
@@ -262,7 +308,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     // opened the next tab mid-way (or at its foot) with no heading in view.
     // Layout effect, so the reset lands before a search result's reveal runs.
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const tabsRef = React.useRef<HTMLDivElement>(null);
     React.useLayoutEffect(() => {
+        const tabs = tabsRef.current;
+        if (!tabs) return;
+        const revealSelectedTab = () => {
+            const selected = tabs.querySelector<HTMLElement>('[aria-selected="true"]');
+            if (!selected || tabs.scrollWidth <= tabs.clientWidth) return;
+            const bounds = tabs.getBoundingClientRect();
+            const item = selected.getBoundingClientRect();
+            // Scroll only the tab strip, keeping the current setting in view.
+            if (item.left < bounds.left) tabs.scrollLeft += item.left - bounds.left;
+            else if (item.right > bounds.right) tabs.scrollLeft += item.right - bounds.right;
+        };
+        revealSelectedTab();
+        const observer = new ResizeObserver(revealSelectedTab);
+        observer.observe(tabs);
+        return () => observer.disconnect();
+    }, [activeTab]);
+    React.useLayoutEffect(() => {
+        if (!failedCopyUrl || activeTab !== 'ai') return;
+        const index = OFFICIAL_MODELS.findIndex(model => model.url === failedCopyUrl);
+        const status = document.getElementById(`${copyUrlStatusId}-${index}`);
+        const pane = contentRef.current;
+        if (!pane || !status || !pane.contains(status)) return;
+        const bounds = pane.getBoundingClientRect();
+        const message = status.getBoundingClientRect();
+        // Reveal the explanation without moving focus or scrolling the page.
+        if (message.bottom > bounds.bottom) pane.scrollTop += message.bottom - bounds.bottom + 4;
+        else if (message.top < bounds.top) pane.scrollTop -= bounds.top - message.top + 4;
+    }, [failedCopyUrl, copyUrlStatusId, activeTab]);
+    const previousContentTabRef = React.useRef(activeTab);
+    React.useLayoutEffect(() => {
+        // A fresh scroller already starts at zero. Writing scrollTop during
+        // its first commit forces layout before the dialog's focus/layout work.
+        if (previousContentTabRef.current === activeTab) return;
+        previousContentTabRef.current = activeTab;
         if (contentRef.current) contentRef.current.scrollTop = 0;
     }, [activeTab]);
 
@@ -282,12 +363,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         if (!label && !control) return;
         setPendingReveal(null);
 
-        (label ?? control)?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
+        const disclosure = control?.closest('details');
+        if (disclosure) disclosure.open = true;
+
         // Focused, not just scrolled to, so keyboard users land on the control
         // and can change it straight away.
         const focusTarget = control?.getAttribute('role') === 'radiogroup'
             ? control.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
             : control;
+        const revealTarget = control?.getAttribute('role') === 'radiogroup'
+            ? focusTarget ?? control
+            : label ?? control;
+        revealTarget?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         focusTarget?.focus({ preventScroll: true });
         const row = label?.closest<HTMLElement>('div') ?? control;
         if (!row) return;
@@ -385,11 +472,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         event: React.KeyboardEvent<HTMLButtonElement>,
         value: GameSettings['katagoBackend']
     ) => {
+        if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             if (isKataGoBackendAvailable(value, webGpuAvailability)) {
                 updateSettings({ katagoBackend: value });
             }
+            return;
+        }
+
+        if (event.key === 'Home' || event.key === 'End') {
+            const availableOptions = backendOptions.filter((option) => isKataGoBackendAvailable(option.value, webGpuAvailability));
+            const nextOption = event.key === 'Home' ? availableOptions[0] : availableOptions.at(-1);
+            if (!nextOption) return;
+            event.preventDefault();
+            updateSettings({ katagoBackend: nextOption.value });
+            focusBackendOption(nextOption.value);
             return;
         }
 
@@ -426,6 +524,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         event: React.KeyboardEvent<HTMLButtonElement>,
         value: GameSettings['boardTheme']
     ) => {
+        if (isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey) return;
         const currentIndex = boardThemeChoices.findIndex((theme) => theme.value === value);
         let nextIndex = currentIndex;
         if (event.key === 'Home') nextIndex = 0;
@@ -453,11 +552,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         setWebGpuAvailability(detectWebGpuAvailability());
     }, []);
 
-    React.useEffect(() => {
-        setUploadedModelInfo(isUploadedModel ? getUploadedModelInfo() : null);
-    }, [isUploadedModel, settings.katagoModelUrl]);
-
-    const uploadedModelSavedLabel = uploadedModelInfo?.updatedAt
+    const uploadedModelSavedLabel = uploadedModelInfo?.persistence === 'saved' && uploadedModelInfo.updatedAt
         ? new Date(uploadedModelInfo.updatedAt).toLocaleString([], {
             month: 'short',
             day: 'numeric',
@@ -468,6 +563,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
 
     const handleModelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
+        event.target.value = '';
         if (!file) return;
         setModelUploadError(null);
         const error = validateModelUploadFile(file);
@@ -477,9 +573,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
             return;
         }
         try {
-            updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+            const modelUrl = createUploadedModelUrl(file, settings.katagoModelUrl);
+            updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(file);
-            setUploadedModelInfo(getUploadedModelInfo());
+            if (useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
             if (!persisted) {
                 setModelUploadError('Loaded for this session, but browser storage could not save the upload for reload.');
             }
@@ -521,15 +618,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     };
 
     const handleCopyUrl = async (url: string) => {
-        const onCopied = () => {
-            setCopiedUrl(url);
-            window.setTimeout(() => {
-                setCopiedUrl((current) => (current === url ? null : current));
-            }, 2000);
-        };
-
-        if (await copyTextToClipboard(url)) {
-            onCopied();
+        const request = beginClipboardWriteRequest();
+        setFailedCopyUrl(null);
+        const copied = await copyTextToClipboard(url, undefined, undefined, request);
+        const feedback = copyUrlFeedback.current;
+        if (isClipboardWriteRequestCurrent(request) && feedback.mounted) {
+            if (feedback.timer !== null) window.clearTimeout(feedback.timer);
+            feedback.timer = null;
+            setCopiedUrl(copied ? url : null);
+            setFailedCopyUrl(copied ? null : url);
+            if (copied) {
+                feedback.timer = window.setTimeout(() => {
+                    feedback.timer = null;
+                    setCopiedUrl(null);
+                }, 2000);
+            }
         }
     };
 
@@ -544,35 +647,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
     const handleClearUpload = () => {
         if (!isUploadedModel) return;
         setModelUploadError(null);
-        setUploadedModelInfo(null);
         updateSettings({ katagoModelUrl: clearUploadedModelUrl(SMALL_MODEL_URL) });
     };
 
-    const handleDownloadAndLoad = async (url: string) => {
-        if (downloadingUrl) return;
+    const handleDownloadAndLoad = async (url: string, trigger: HTMLButtonElement) => {
+        if (modelDownloadRef.current) return;
+        const request = {
+            controller: new AbortController(),
+            modelUrl: useGameStore.getState().settings.katagoModelUrl,
+            saving: false,
+            trigger,
+        };
+        modelDownloadRef.current = request;
         setDownloadError(null);
         setDownloadProgress(null);
+        setSavingDownloadedModel(false);
         setDownloadingUrl(url);
         try {
-            revokeUploadedModelUrl();
-            const blob = await fetchBlobWithProgress(url, ({ percent }) => setDownloadProgress(percent));
+            const blob = await fetchBlobWithProgress(url, ({ percent }) => {
+                if (modelDownloadRef.current === request) setDownloadProgress(percent);
+            }, request.controller.signal);
+            if (modelDownloadRef.current !== request) return;
+            // A selection can change before its cancellation effect runs.
+            if (useGameStore.getState().settings.katagoModelUrl !== request.modelUrl) return;
+            request.saving = true;
+            setSavingDownloadedModel(true);
             const downloadedFile = new File([blob], getModelFileNameFromUrl(url), { type: blob.type });
-            updateSettings({ katagoModelUrl: createUploadedModelUrl(downloadedFile, settings.katagoModelUrl) });
+            const modelUrl = createUploadedModelUrl(downloadedFile, settings.katagoModelUrl);
+            updateSettings({ katagoModelUrl: modelUrl });
             const persisted = await savePersistedUploadedModel(downloadedFile);
-            setUploadedModelInfo(getUploadedModelInfo());
+            if (modelDownloadRef.current !== request || useGameStore.getState().settings.katagoModelUrl !== modelUrl) return;
             if (!persisted) {
                 setDownloadError('Loaded for this session, but browser storage could not save the download for reload.');
             }
         } catch (error) {
-            setDownloadError(describeModelDownloadError(error));
+            if (modelDownloadRef.current === request && !request.controller.signal.aborted) {
+                setDownloadError(describeModelDownloadError(error));
+            }
         } finally {
-            setDownloadingUrl(null);
-            setDownloadProgress(null);
+            if (modelDownloadRef.current === request) {
+                modelDownloadRef.current = null;
+                setDownloadingUrl(null);
+                setDownloadProgress(null);
+                setSavingDownloadedModel(false);
+            }
         }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
             <div
                 ref={dialogRef}
                 tabIndex={-1}
@@ -592,13 +715,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         <FaTimes />
                     </button>
                 </div>
-                <div className="settings-modal-body min-h-0 px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-hidden">
+                <div className="settings-modal-body min-h-0 px-4 sm:px-6 py-5 flex flex-col flex-1 overflow-x-hidden overflow-y-auto">
                     {/* Search. Four tabs and 80-odd controls is more than anyone
                         should have to hunt through by eye; typing a word jumps
                         straight to the control, switching tabs on the way. */}
-                    <div className="settings-search relative mb-4">
+                    <div className="settings-search relative mb-4 shrink-0">
                         <input
                             type="search"
+                            maxLength={MAX_SEARCH_QUERY_LENGTH}
                             role="combobox"
                             id="settings-search-input"
                             className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
@@ -618,6 +742,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                 setActiveSettingsResult(-1);
                             }}
                             onKeyDown={(e) => {
+                                if (isComposingKeyEvent(e)) return;
                                 if (e.key === 'Escape' && settingsQuery) {
                                     // Clear the query first; a second Escape closes the modal.
                                     e.stopPropagation();
@@ -638,7 +763,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         {settingsQuery.trim() !== '' && (
                             <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
                                 {settingsResults.length === 0 ? (
-                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                    <li className="settings-search-empty break-words">No setting matches “{settingsQuery.trim()}”</li>
                                 ) : (
                                     settingsResults.map((entry, index) => (
                                         <li key={entry.id}>
@@ -664,7 +789,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="settings-tabs flex w-full min-w-0 border-b mb-5"
+                    <div ref={tabsRef} className="settings-tabs flex w-full min-w-0 shrink-0 overflow-x-auto border-b mb-5"
                         role="tablist"
                         aria-orientation="horizontal"
                     >
@@ -683,6 +808,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                     tabIndex={isActive ? 0 : -1}
                                     onClick={() => setActiveTab(tab.id)}
                                     onKeyDown={(e) => {
+                                        if (isComposingKeyEvent(e) || e.ctrlKey || e.altKey || e.metaKey) return;
                                         const nextTabId = getNextSettingsTabId(tab.id, e.key);
                                         if (!nextTabId) return;
                                         e.preventDefault();
@@ -690,7 +816,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                         setActiveTab(nextTabId);
                                         focusSettingsTab(nextTabId);
                                     }}
-                                    className={`settings-tab min-w-0 flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
+                                    className={`settings-tab min-w-max flex-1 shrink-0 whitespace-nowrap px-2 py-2 text-sm font-medium transition-colors sm:px-4 ${
                                         isActive
                                             ? 'settings-tab-active border-b-2'
                                             : ''
@@ -703,8 +829,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         })}
                     </div>  
                 
-                    {/* Tab Content */}  
-                    <div ref={contentRef} className="settings-modal-content min-h-0 flex-1 overflow-y-auto space-y-6">
+                    {/* Keep room for controls when enlarged text fills the
+                        chrome; the outer body can scroll to this pane. */}
+                    <div ref={contentRef} className="settings-modal-content min-h-32 flex-1 overflow-y-auto space-y-6">
                         {activeTab === 'general' && (  
                             <div
                                 id="panel-general"
@@ -774,10 +901,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             />
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div id="settings-board-theme-label" className="ui-text-muted">Board Theme</div>
-                                            </div>
+                                        <details className="group/theme-picker space-y-2" data-board-theme-disclosure="true">
+                                            <summary tabIndex={0} className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2">
+                                                <span id="settings-board-theme-label" className="ui-text-muted">Board Theme</span>
+                                                <span className="flex items-center gap-2 text-sm font-medium">
+                                                    {boardThemeChoices.find((theme) => theme.value === settings.boardTheme)?.label ?? 'Choose a theme'}
+                                                    <FaChevronDown aria-hidden="true" className="transition-transform group-open/theme-picker:rotate-180" />
+                                                </span>
+                                            </summary>
                                             <div
                                                 id="settings-board-theme"
                                                 className="grid grid-cols-2 gap-2 sm:grid-cols-3"
@@ -875,7 +1006,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     );
                                                 })}
                                             </div>
-                                        </div>
+                                        </details>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-2">
@@ -2387,10 +2518,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     <div className="mt-1 min-w-0 truncate font-mono">
                                                         {uploadedModelInfo?.name ?? 'Uploaded weights'}
                                                     </div>
-                                                    <div className="mt-1 text-[var(--ui-text-muted)]">
-                                                        {uploadedModelInfo
-                                                            ? `${formatUploadedModelSize(uploadedModelInfo.size)}${uploadedModelSavedLabel ? ` / saved ${uploadedModelSavedLabel}` : ''}`
-                                                            : 'Saved in this browser and restored after reload.'}
+                                                        <div
+                                                            className="mt-1 text-[var(--ui-text-muted)]"
+                                                            role="status"
+                                                            data-model-upload-persistence={uploadedModelInfo?.persistence ?? 'session'}
+                                                        >
+                                                            {uploadedModelInfo && `${formatUploadedModelSize(uploadedModelInfo.size)} / `}
+                                                            {uploadedModelInfo?.persistence === 'saving'
+                                                                ? 'Saving in browser…'
+                                                                : uploadedModelSavedLabel
+                                                                    ? `Saved ${uploadedModelSavedLabel}`
+                                                                    : 'Available for this session'}
                                                     </div>
                                                 </div>
                                             ) : null}
@@ -2423,7 +2561,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             {officialModelsOpen ? (
                                             <div id="settings-official-models" className="space-y-2">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {OFFICIAL_MODELS.map((model) => (
+                                                {OFFICIAL_MODELS.map((model, index) => (
                                                     <div
                                                         key={model.url}
                                                         className={modelCardClass}
@@ -2458,16 +2596,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                     {(() => {
                                                                         const isDownloadingModel = downloadingUrl === model.url;
                                                                         const downloadLabel = isDownloadingModel
-                                                                            ? downloadProgress === null
-                                                                                ? 'Downloading...'
-                                                                                : `Downloading ${downloadProgress}%`
+                                                                            ? savingDownloadedModel
+                                                                                ? 'Saving...'
+                                                                                : downloadProgress === null
+                                                                                    ? 'Downloading...'
+                                                                                    : `Downloading ${downloadProgress}%`
                                                                             : 'Download & Load';
                                                                         return (
                                                                             <>
                                                                                 <button
                                                                                     type="button"
                                                                                     className="px-2 py-1 text-xs rounded ui-accent-soft border not-disabled:hover:brightness-110 disabled:opacity-60"
-                                                                                    onClick={() => handleDownloadAndLoad(model.url)}
+                                                                                    onClick={(event) => handleDownloadAndLoad(model.url, event.currentTarget)}
                                                                                     disabled={isDownloadingModel}
                                                                                     aria-label={
                                                                                         isDownloadingModel
@@ -2477,6 +2617,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                                 >
                                                                                     {downloadLabel}
                                                                                 </button>
+                                                                                {isDownloadingModel && !savingDownloadedModel && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className={modelActionClass}
+                                                                                        onClick={cancelModelDownload}
+                                                                                        aria-label={`Cancel download of ${model.name}`}
+                                                                                    >
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                )}
                                                                                 {isDownloadingModel ? (
                                                                                     <span
                                                                                         className="shrink-0 min-w-[5.5rem] overflow-hidden rounded-full border border-[var(--ui-accent)] bg-[var(--ui-surface)] text-[0.625rem] text-[var(--ui-accent)]"
@@ -2506,7 +2656,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                                         </span>
                                                                                     </span>
                                                                                 ) : (
-                                                                                    <span className="text-[0.625rem] text-[var(--ui-accent)]">Saved in browser</span>
+                                                                                    <span className="text-[0.625rem] text-[var(--ui-text-muted)]">Saves in browser</span>
                                                                                 )}
                                                                             </>
                                                                         );
@@ -2521,6 +2671,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                 type="button"
                                                                 className={modelActionClass}
                                                                 onClick={() => handleCopyUrl(model.url)}
+                                                                aria-describedby={failedCopyUrl === model.url ? `${copyUrlStatusId}-${index}` : undefined}
                                                                 // One of these per model, all reading "Copy URL" — name them
                                                                 // like the download progress bar above already does.
                                                                 aria-label={
@@ -2532,6 +2683,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                                 {copiedUrl === model.url ? 'Copied' : 'Copy URL'}
                                                             </button>
                                                         </div>
+                                                        <p
+                                                            id={`${copyUrlStatusId}-${index}`}
+                                                            role="status"
+                                                            aria-atomic="true"
+                                                            className={failedCopyUrl === model.url ? 'mt-2 text-xs text-[var(--ui-danger)]' : 'sr-only'}
+                                                        >
+                                                            {failedCopyUrl === model.url ? 'Could not copy this URL. Try Copy URL again.' : ''}
+                                                        </p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -2897,7 +3056,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         )}
                     </div>  
                 </div>
-                <div className="settings-modal-footer sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t backdrop-blur">
+                <div className="settings-modal-footer sticky bottom-0 z-10 flex justify-end px-4 sm:px-6 py-4 ui-panel border-t">
                     <button type="button"
                         onClick={onClose}
                         className="px-5 py-2.5 rounded-lg ui-accent-bg hover:brightness-110 font-semibold shadow-lg shadow-black/20 transition-colors"

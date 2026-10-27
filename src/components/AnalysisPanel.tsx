@@ -30,8 +30,7 @@ import { getCurrentNodeBestMoveSummary } from '../utils/bestMoveSummary';
 import { isAnswerHidden } from '../utils/mistakeDrill';
 import { getNextMoveQuality, getPlayedMoveQuality } from '../utils/playedMoveQuality';
 import { setTimedNotification } from '../utils/timedNotification';
-import { copyTextToClipboard } from '../utils/clipboard';
-import { formatEngineErrorReport } from '../utils/engineDiagnostics';
+import { useEngineErrorCopy } from '../hooks/useEngineErrorCopy';
 import { getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import {
@@ -267,7 +266,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   const activeBranchChildIds = useGameStore((state) => state.activeBranchChildIds);
   const updateSettings = useGameStore((state) => state.updateSettings);
   const [legendOpen, setLegendOpen] = React.useState(false);
-  const [engineErrorCopied, setEngineErrorCopied] = React.useState(false);
   const [engineDetailsOpen, setEngineDetailsOpen] = React.useState(false);
   const isPro = (analysisExperienceOverride ?? analysisExperience) === 'pro';
   const engineSummary = React.useMemo(() => getEngineStatusSummary({
@@ -317,9 +315,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     gameAnalysisTotal,
     analysisCoverage: reportReadyCoverage,
   });
-  React.useEffect(() => {
-    setEngineErrorCopied(false);
-  }, [engineError]);
   const drillHidesAnswer = useGameStore((state) => isAnswerHidden(state, state.currentNode.id));
   const bestMoveSummary = React.useMemo(() => {
     // Node analysis mutates in place; treeVersion bumps whenever it changes.
@@ -348,19 +343,14 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
       }, 0);
     }
   }, [isAnalysisMode, liveVisits, updateSettings]);
-  const copyEngineError = React.useCallback(async () => {
-    if (!engineError) return;
-    const ok = await copyTextToClipboard(formatEngineErrorReport({
-      status: engineStatus,
-      requestedBackend,
-      activeBackend,
-      modelLabel: engineModelLabel,
-      modelUrl,
-      error: engineError,
-    }));
-    setEngineErrorCopied(ok);
-    setTimedNotification(ok ? 'Copied engine error details.' : 'Could not copy engine error details.', ok ? 'success' : 'error');
-  }, [activeBackend, engineError, engineModelLabel, engineStatus, modelUrl, requestedBackend]);
+  const { copied: engineErrorCopied, copy: copyEngineError } = useEngineErrorCopy({
+    status: engineStatus,
+    requestedBackend,
+    activeBackend,
+    modelLabel: engineModelLabel,
+    modelUrl,
+    error: engineError,
+  });
   const overlayToggle = (
     control: AnalysisOverlayControl,
     label: string,

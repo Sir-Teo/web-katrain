@@ -195,6 +195,25 @@ describe('shortcut utilities', () => {
     expect(isShortcutRecordingCancelKey(keyboardEvent('s', { ctrlKey: true }))).toBe(false);
   });
 
+  it.each([
+    { key: 'Enter', isComposing: true },
+    { key: 'Escape', isComposing: true },
+    { key: 'a', isComposing: true },
+    { key: 'Enter', keyCode: 229 },
+    { key: 'Escape', keyCode: 229 },
+    { key: 'Enter', nativeEvent: { isComposing: true } },
+    { key: 'Escape', nativeEvent: { keyCode: 229 } },
+    { key: 'Process' },
+    { key: 'Dead' },
+    { key: 'Unidentified' },
+    { key: 'Compose' },
+  ])('does not record or match input-method events: %j', (init) => {
+    const event = { ...keyboardEvent(init.key), ...init };
+    expect(eventToShortcutBinding(event)).toBeNull();
+    expect(isShortcutRecordingCancelKey(event)).toBe(false);
+    expect(eventMatchesBinding(event, { key: init.key })).toBe(false);
+  });
+
   it('recognizes native paste chords so clipboard images can reach paste events', () => {
     expect(isNativePasteShortcutEvent(keyboardEvent('v', { ctrlKey: true }))).toBe(true);
     expect(isNativePasteShortcutEvent(keyboardEvent('V', { metaKey: true }))).toBe(true);

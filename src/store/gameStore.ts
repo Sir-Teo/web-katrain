@@ -15,7 +15,7 @@ import { decodeKaTrainKt, kaTrainAnalysisToAnalysisResult } from '../utils/katra
 import { decodeKayaKa } from '../utils/kayaSgfAnalysis';
 import { publicUrl } from '../utils/publicUrl';
 import { isLegacyGameEncoding } from '../utils/gameRecordImport';
-import { isBoardThemeId } from '../utils/boardThemes';
+import { DEFAULT_BOARD_THEME_ID, isBoardThemeId } from '../utils/boardThemes';
 import { isAppLocaleId } from '../utils/locales';
 import { createEmptyBoard, getHandicapPoints, getMaxHandicap, normalizeBoardSize } from '../utils/boardSize';
 import { makeAnalysisPositionKey, makeGameStateAnalysisPositionKey } from '../utils/analysisPositionKey';
@@ -46,7 +46,7 @@ import {
 } from '../utils/branchNavigation';
 import { ensurePinGameId, getNodePath, getPinGameId, PIN_GAME_ID_PROP, repathPinnedVariations, resolvePinnedVariation, restorePinnedVariations, writeStoredPinnedVariations, type PinnedVariation } from '../utils/pinnedVariations';
 import { describeHumanBotPick, pickHumanBotMove } from '../utils/humanBotMove';
-import { komiWithHandicapBonus } from '../utils/handicap';
+import { countStartingBlackHandicapMoves, komiWithHandicapBonus } from '../utils/handicap';
 import { humanBotPresets } from '../engine/katago/chosenMove';
 import {
   countMoveTreeDescendants,
@@ -193,6 +193,7 @@ interface GameStore extends GameState {
   undoMove: () => void; // Go back
   navigateBack: () => void;
   navigateForward: () => void; // Go forward (main branch)
+  navigateByNodes: (steps: number) => void;
   navigateToMove: (moveNumber: number) => void;
   navigateStart: () => void;
   navigateEnd: () => void;
@@ -1349,7 +1350,7 @@ const defaultSettings: GameSettings = {
   noteFontScale: 1,
   fuzzyStonePlacement: true,
   showNextMovePreview: true,
-  boardTheme: 'hikaru',
+  boardTheme: DEFAULT_BOARD_THEME_ID,
   // 'system' resolves to noir/light per the device's color-scheme preference.
   uiTheme: 'system',
   uiDensity: 'comfortable',
@@ -1657,7 +1658,7 @@ const analyzeForPlayout = (
       currentPlayer: s.currentPlayer,
       moveHistory: s.moveHistory,
       repetitionHistory: repetitionHistoryForNode(node, rules),
-      komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi),
+      komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, s.komi, s.moveHistory),
       rules,
       topK: Math.max(1, Math.min(s.settings.katagoTopK, 10)),
       analysisPvLen: Math.max(0, Math.min(s.settings.katagoAnalysisPvLen, 30)),
@@ -2110,7 +2111,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const passMove: Move = { x: -1, y: -1, player: sideToMove };
     const rules = state.settings.gameRules;
     const boardSize = getBoardSizeFromBoard(state.board);
-    const komi = komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi);
     const modelUrl = resolveModelUrlForFetch(state.settings.katagoModelUrl);
     const visits = clampAnalysisVisits(state.settings.katagoVisits);
     const maxTimeMs = Math.max(25, Math.min(state.settings.katagoMaxTimeMs, ENGINE_MAX_TIME_MS));
@@ -2118,6 +2118,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // A pass leaves the stones alone, so the post-pass position sees the same
     // board with the turn handed over and one more entry in the history.
     const moveHistory = [...state.moveHistory, passMove];
+    const komi = komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi, moveHistory);
     const beforePassHistory = repetitionHistoryForNode(node, rules);
     const repetitionHistory = beforePassHistory
       ? [...new Set([...beforePassHistory, situationalKey(state.board, opponent)])].sort()
@@ -3241,7 +3242,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 currentPlayer: n.gameState.currentPlayer,
                 moveHistory: n.gameState.moveHistory,
                 repetitionHistory: repetitionHistoryForNode(n, rules),
-                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, n.gameState.komi),
+                komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, n.gameState.komi, n.gameState.moveHistory),
               })),
               rules,
               conservativePass,
@@ -3441,7 +3442,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               repetitionHistory: repetitionHistoryForNode(node, rules),
-              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi, node.gameState.moveHistory),
               rules,
               topK,
               analysisPvLen,
@@ -3657,7 +3658,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               currentPlayer: node.gameState.currentPlayer,
               moveHistory: node.gameState.moveHistory,
               repetitionHistory: repetitionHistoryForNode(node, rules),
-              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi),
+              komi: komiWithHandicapBonus(s.rootNode.gameState.board, rules, node.gameState.komi, node.gameState.moveHistory),
               rules,
               topK,
               analysisPvLen,
@@ -4015,7 +4016,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          repetitionHistory: repetitionHistoryForNode(node, rules),
-	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi, state.moveHistory),
             rules,
             regionOfInterest: state.regionOfInterest,
 	          topK,
@@ -4694,7 +4695,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	          currentPlayer: state.currentPlayer,
 	          moveHistory: state.moveHistory,
 	          repetitionHistory: repetitionHistoryForNode(node, rules),
-	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi),
+	          komi: komiWithHandicapBonus(state.rootNode.gameState.board, rules, state.komi, state.moveHistory),
             rules,
 	          topK,
             includeMovesOwnership: aiNeedsMovesOwnership,
@@ -5509,6 +5510,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
           activeBranchChildIds: rememberActiveBranchPath(state.activeBranchChildIds, nextNode),
       };
   }),
+
+  /** Fast navigation publishes the destination without visiting every board. */
+  navigateByNodes: (steps) => {
+      if (!Number.isFinite(steps)) return;
+      const count = Math.trunc(Math.abs(steps));
+      if (!count) return;
+      // Taking back inserted moves also deletes their temporary tree nodes.
+      if (steps < 0 && get().isInsertMode) {
+          for (let i = 0; i < count && get().currentNode.parent; i++) get().navigateBack();
+          return;
+      }
+      set((state) => {
+          let node = state.currentNode;
+          for (let i = 0; i < count; i++) {
+              const next = steps < 0 ? node.parent : getActiveChild(node, state.activeBranchChildIds);
+              if (!next) break;
+              node = next;
+          }
+          if (node === state.currentNode) return state;
+          return {
+              currentNode: node,
+              board: node.gameState.board,
+              currentPlayer: node.gameState.currentPlayer,
+              moveHistory: node.gameState.moveHistory,
+              capturedBlack: node.gameState.capturedBlack,
+              capturedWhite: node.gameState.capturedWhite,
+              analysisData: node.analysis || null,
+              activeBranchChildIds: steps > 0
+                  ? rememberActiveBranchPath(state.activeBranchChildIds, node)
+                  : state.activeBranchChildIds,
+          };
+      });
+  },
 
   navigateStart: () => set((state) => {
       let node = state.currentNode;
@@ -6346,15 +6380,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const ha = parseInt(sgfProps?.['HA']?.[0] ?? '0', 10);
     const safeHandicap = Number.isFinite(ha) ? Math.max(0, Math.min(ha, getMaxHandicap(boardSize))) : 0;
     // Only a declared handicap of two or more places stones, and only when the
-    // file does not place them itself -- in the root or, as Tygem and other
-    // servers write it, in the first node after it. HA[1] put a stone on Q16,
+    // file does not place them itself -- in setup properties or a starting
+    // run of Black moves. HA[1] put a stone on Q16,
     // the commonest first move, so B[pd] met an occupied point and the whole
     // game was dropped; stones in the first node were placed twice over, and
-    // White's first move usually landed on one of them. KaTrain applies the
-    // same two conditions.
+    // White's first move usually landed on one of them. Free placement as
+    // moves likewise must not collide with automatically invented stones.
     const firstChildProps = sgf.tree?.children?.[0]?.props;
     const firstChildPlacesStones = !!(firstChildProps?.['AB']?.length || firstChildProps?.['AW']?.length);
-    const placesHandicapStones = safeHandicap >= 2 && !hasExplicitRootSetup && !firstChildPlacesStones;
+    const firstMovesPlaceStones = countStartingBlackHandicapMoves(sgf.moves) >= 2;
+    const hasPlacement = firstChildPlacesStones || firstMovesPlaceStones;
+    const placesHandicapStones = safeHandicap >= 2 && !hasExplicitRootSetup && !hasPlacement;
     if (placesHandicapStones) {
       currentBoard = cloneBoard(currentBoard);
       applyHandicapStones(currentBoard, boardSize, safeHandicap);
@@ -6375,7 +6411,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newRoot.properties = { RU: [rulesToSgfRu(rules)], SZ: [String(boardSize)] };
     if (safeHandicap > 0) {
       newRoot.properties.HA = [String(safeHandicap)];
-      if (safeHandicap >= 2 && !firstChildPlacesStones) newRoot.properties.PL = ['W'];
+      if (safeHandicap >= 2 && !hasPlacement) newRoot.properties.PL = ['W'];
       if (placesHandicapStones) syncRootSetupPropertiesFromBoard(newRoot.properties, rootState.board, boardSize, safeHandicap);
     }
 
@@ -6564,7 +6600,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!rootPropsCopy['SZ']?.length) rootPropsCopy['SZ'] = [String(boardSize)];
       if (safeHandicap > 0) {
         rootPropsCopy['HA'] = [String(safeHandicap)];
-        if (!rootPropsCopy['PL']?.length && safeHandicap >= 2 && !firstChildPlacesStones) rootPropsCopy['PL'] = ['W'];
+        if (!rootPropsCopy['PL']?.length && safeHandicap >= 2 && !hasPlacement) rootPropsCopy['PL'] = ['W'];
         if (placesHandicapStones) syncRootSetupPropertiesFromBoard(rootPropsCopy, rootState.board, boardSize, safeHandicap);
       }
       newRoot.properties = rootPropsCopy;

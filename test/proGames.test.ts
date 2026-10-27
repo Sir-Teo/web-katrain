@@ -54,6 +54,11 @@ describe('searching the pro games', () => {
   it('finds nothing for a query that matches nothing', () => {
     expect(count('zzzznotaplayer')).toBe(0);
   });
+
+  it('finds accented player names and event titles from an ordinary keyboard query', () => {
+    const game={...PRO_GAMES[0]!,black:'Ō Rissei',white:'Éloïse',event:'Jōseki workshop'};
+    expect(filterProGames([game],'o rissei eloise joseki')).toEqual([game]);
+  });
 });
 
 describe('replaying a game for its preview', () => {
@@ -67,5 +72,34 @@ describe('replaying a game for its preview', () => {
     for (const game of PRO_GAMES) {
       expect(() => buildFinalBoard(game.sgf)).not.toThrow();
     }
+  });
+
+  it('applies setup ranges and cleared points between moves', () => {
+    const {board,moveCount}=buildFinalBoard('(;SZ[9]AB[aa:bb];B[dd];AW[ee:ff]AE[aa][dd];W[gg])');
+    expect(moveCount).toBe(2);
+    expect(board[0]?.[0]).toBeNull();
+    expect(board[3]?.[3]).toBeNull();
+    expect(board[0]?.[1]).toBe('black');
+    for(const [x,y] of [[4,4],[4,5],[5,4],[5,5],[6,6]] as const) expect(board[y]?.[x]).toBe('white');
+  });
+
+  it('keeps setup changes on pass nodes and follows the first variation', () => {
+    const passed=buildFinalBoard('(;SZ[9];B[aa];W[]AW[bb]AE[aa];B[cc])');
+    expect(passed.moveCount).toBe(3);
+    expect(passed.board[0]?.[0]).toBeNull();
+    expect(passed.board[1]?.[1]).toBe('white');
+    expect(passed.board[2]?.[2]).toBe('black');
+    const variation=buildFinalBoard('(;SZ[9];B[aa](;AW[bb];W[cc])(;AW[dd];W[ee]))');
+    expect(variation.board[1]?.[1]).toBe('white');
+    expect(variation.board[3]?.[3]).toBeNull();
+    expect(variation.moveCount).toBe(2);
+  });
+
+  it('removes a legally self-captured group under the record’s New Zealand rules', () => {
+    const {board,moveCount}=buildFinalBoard('(;GM[1]SZ[9]RU[NZ]AB[aa]AW[ca][ab][bb];B[ba];W[ee])');
+    expect(moveCount).toBe(2);
+    expect(board[0]?.[0]).toBeNull();
+    expect(board[0]?.[1]).toBeNull();
+    expect(board[4]?.[4]).toBe('white');
   });
 });

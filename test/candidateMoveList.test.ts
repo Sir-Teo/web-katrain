@@ -85,12 +85,9 @@ describe('candidate list controls', () => {
   const source = readFileSync(new URL('../src/components/CandidateMoveList.tsx', import.meta.url), 'utf8');
 
   /**
-   * These four are Pro-only, and a Pro candidate list needs analysis data to
-   * render at all, so `npm run test:viewport` -- which drives the app in its
-   * default Coach experience with no engine -- cannot see them. It measured
-   * every other target at the WCAG 2.2 SC 2.5.8 floor while these four sat at
-   * 16-21px tall. Measured live at 1440x900 after the fix: all 24px or more,
-   * with the detail columns open and closed.
+   * These Pro-only controls originally sat at 16-21px. Retain their desktop
+   * floor; the native variation suite now also opens real Pro controls and
+   * measures 44px actions on phones and with coarse pointers.
    */
   it('holds every Pro control at the 24px WCAG floor', () => {
     const block = (selector: string): string => {
@@ -103,7 +100,7 @@ describe('candidate list controls', () => {
     expect(block('.candidate-list-head .cl-detail-toggle {')).toContain('height: 1.5rem');
     expect(block('.candidate-row .cl-pv-toggle {')).toContain('width: 1.5rem');
     expect(block('.candidate-row .cl-pv-toggle {')).toContain('height: 1.5rem');
-    expect(block('.candidate-list .cl-pv-action {')).toContain('min-height: 1.5rem');
+    expect(block('.candidate-list .cl-pv-action {')).toContain('min-height: var(--candidate-action-size, 1.5rem)');
     // The head budgets exactly 1.5rem in the list's max-height, so the taller
     // controls have to replace its padding rather than stack on top of it.
     expect(block('.candidate-list-head {')).toContain('padding-block: 0');

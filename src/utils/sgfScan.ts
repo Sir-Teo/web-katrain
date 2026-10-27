@@ -31,6 +31,55 @@ export interface SgfScan {
 const isLetter = (ch: string): boolean => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
 const isSpace = (ch: string): boolean => ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t';
 
+/** Read the first game's root without building its move tree. Values are trimmed. */
+export function readRootSgfProperties(sgf: string): Record<string, string[]> {
+  const props: Record<string, string[]> = {};
+  let i = sgf.indexOf('(');
+  if (i < 0) return props;
+  i += 1;
+  const skipSpace = () => {
+    while (i < sgf.length && /\s/.test(sgf[i]!)) i += 1;
+  };
+  skipSpace();
+  if (sgf[i] !== ';') return props;
+  i += 1;
+  skipSpace();
+  while (i < sgf.length && isLetter(sgf[i]!)) {
+    let key = '';
+    while (i < sgf.length && isLetter(sgf[i]!)) {
+      const letter = sgf[i]!;
+      if (letter >= 'A' && letter <= 'Z') key += letter;
+      i += 1;
+    }
+    skipSpace();
+    const values: string[] = [];
+    while (sgf[i] === '[') {
+      i += 1;
+      const start = i;
+      while (i < sgf.length && sgf[i] !== ']') {
+        i += sgf[i] === '\\' ? 2 : 1;
+      }
+      if (i >= sgf.length) break;
+      // Decode in one pass: an escaped backslash before a newline is not a
+      // continuation. Match CRLF together, as the full parser does.
+      values.push(sgf.slice(start, i).replace(/\\(?:\r\n|\r|\n)|\\([\s\S])/g,
+        (_match, escaped: string | undefined) => escaped ?? '').trim());
+      i += 1;
+      skipSpace();
+    }
+    // FF[3] lowercase filler is dropped, including wholly lowercase keys.
+    // Repeated keys share this root’s own array instead of copying its prefix.
+    if (key && values.length) {
+      const existing = props[key];
+      if (existing) {
+        for (const value of values) existing.push(value);
+      } else props[key] = values;
+    }
+    skipSpace();
+  }
+  return props;
+}
+
 export function scanSgf(sgf: string): SgfScan {
   if (!sgf) return { moveCount: 0, firstMoveIndex: -1 };
   let moveCount = 0;
@@ -138,6 +187,42 @@ export const countSgfGames = (sgf: string): number => {
   }
   return games;
 };
+
+/** Extract complete top-level games verbatim, without expanding their trees. */
+export function splitSgfGames(sgf: string): string[] {
+  const games: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inValue = false;
+  for (let i = 0; i < sgf.length; i++) {
+    const ch = sgf[i]!;
+    if (inValue) {
+      if (ch === '\\') i++;
+      else if (ch === ']') inValue = false;
+      continue;
+    }
+    if (depth === 0 && /\s/.test(ch)) continue;
+    if (ch === '(') {
+      if (depth === 0) start = i;
+      let next = i + 1;
+      while (next < sgf.length && /\s/.test(sgf[next]!)) next++;
+      if (sgf[next] !== ';') throw new Error('The collection contains an invalid game tree.');
+      depth++;
+    } else if (ch === ')') {
+      if (depth === 0) throw new Error('The collection contains an unmatched closing parenthesis.');
+      depth--;
+      if (depth === 0) games.push(sgf.slice(start, i + 1));
+    } else if (depth === 0) {
+      throw new Error('The collection contains text outside its game trees.');
+    } else if (ch === '[') {
+      inValue = true;
+    } else if (ch === ']') {
+      throw new Error('The collection contains an unmatched closing bracket.');
+    }
+  }
+  if (depth !== 0 || inValue) throw new Error('The collection contains an incomplete game.');
+  return games;
+}
 
 /**
  * The games after the first, as they were written, or `''`.

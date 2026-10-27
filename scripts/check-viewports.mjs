@@ -3,18 +3,88 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
+import { assertScoreQuizFocus } from './lib/score-quiz-focus-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
 import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
-import { assertLibrarySaveRecovery } from './lib/library-save-check.mjs';
+import { assertLibrarySaveRecovery, assertPendingSaveKeyboard, assertSaveDialogLoading } from './lib/library-save-check.mjs';
+import { assertLibraryRestoreSave } from './lib/library-restore-save-check.mjs';
+import { assertLibraryRestoreRead } from './lib/library-restore-read-check.mjs';
+import { assertLibraryRestorePeer } from './lib/library-restore-peer-check.mjs';
+import { assertLibraryBackgroundSave } from './lib/library-background-save-check.mjs';
+import { assertLibraryCopyLaunch } from './lib/library-copy-launch-check.mjs';
+import { assertPwaToastStability } from './lib/pwa-toast-stability-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
+import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
+import { assertPasteImportCancellation } from './lib/paste-import-cancel-check.mjs';
+import { assertPasteClipboardDraft } from './lib/paste-clipboard-draft-check.mjs';
+import { assertPasteSubmitKeyboard } from './lib/paste-submit-keyboard-check.mjs';
+import { assertClipboardCommandOrder } from './lib/clipboard-command-order-check.mjs';
+import { assertClipboardGameSelection } from './lib/clipboard-game-selection-check.mjs';
+import { assertDirectPasteOrder } from './lib/direct-paste-order-check.mjs';
+import { assertLocalFileOrder } from './lib/local-file-order-check.mjs';
+import { assertBoardSnapshotOrder } from './lib/board-snapshot-order-check.mjs';
+import { assertGameInfoNumericEdits } from './lib/game-info-fields-check.mjs';
+import { assertNumericEditorComposition } from './lib/numeric-editor-check.mjs';
+import { assertMetadataRecovery } from './lib/metadata-recovery-check.mjs';
+import { assertProGameReplacement } from './lib/pro-game-replacement-check.mjs';
+import { assertNoteDraftRecovery } from './lib/note-draft-recovery-check.mjs';
+import { assertCacheClearDialog } from './lib/cache-clear-dialog-check.mjs';
+import { assertNotificationInteraction } from './lib/notification-interaction-check.mjs';
+import { assertNotificationCopyOrder } from './lib/notification-copy-order-check.mjs';
+import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
+import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
+import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs';
+import { assertFastNavigation } from './lib/fast-navigation-check.mjs';
+import { assertNewGameBoard } from './lib/new-game-board-check.mjs';
+import { assertLessonPractice } from './lib/lesson-practice-check.mjs';
+import { assertLessonFeedback } from './lib/lesson-feedback-check.mjs';
+import { assertLessonProgressPeers } from './lib/lesson-progress-peer-check.mjs';
+import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
+import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
+import { assertBoardComposition } from './lib/board-composition-check.mjs';
+import { assertMoveTreeComposition } from './lib/move-tree-composition-check.mjs';
+import { assertReportGuideKeyboard } from './lib/report-guide-keyboard-check.mjs';
+import { assertReportPrintFocus } from './lib/report-print-focus-check.mjs';
+import { assertPhotoTraceKeyboard } from './lib/photo-trace-keyboard-check.mjs';
+import { assertGuessMoveKeyboard } from './lib/guess-move-keyboard-check.mjs';
+import { assertNoteLibrarySemantics } from './lib/note-library-semantics-check.mjs';
+import { assertProblemKeyboard } from './lib/problem-keyboard-check.mjs';
+import { assertProblemNegation } from './lib/problem-negation-check.mjs';
+import { assertCommandDialogFocus } from './lib/command-dialog-focus-check.mjs';
+import { assertLibraryRecency } from './lib/library-recency-check.mjs';
+import { assertLibraryRowKeyboard } from './lib/library-row-keyboard-check.mjs';
+import { assertLibraryTypeahead } from './lib/library-typeahead-check.mjs';
+import { assertLibrarySaveComposition } from './lib/library-save-composition-check.mjs';
+import { assertLibraryImportDestination } from './lib/library-import-destination-check.mjs';
+import { assertLibraryImportAfterClose } from './lib/library-import-after-close-check.mjs';
+import { assertLibraryReadRetry } from './lib/library-read-retry-check.mjs';
+import { assertLibraryRepeatImport } from './lib/library-repeat-import-check.mjs';
+import { assertLibraryShowMoreFocus } from './lib/library-show-more-focus-check.mjs';
+import { assertExpandedLibraryDepth } from './lib/library-expanded-depth-check.mjs';
+import { assertLibraryCopy } from './lib/library-copy-check.mjs';
+import { assertClipboardFallbackOrder } from './lib/clipboard-fallback-order-check.mjs';
+import { assertImageCopyOrder } from './lib/image-copy-order-check.mjs';
+import { assertEngineErrorCopy } from './lib/engine-error-copy-check.mjs';
+import { assertVariationCopy } from './lib/variation-copy-check.mjs';
+import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
+import { assertOgsSyncSave } from './lib/ogs-sync-save-check.mjs';
+import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
+import { assertPhotoTraceRaces } from './lib/photo-trace-race-check.mjs';
+import { assertCameraCaptureFocus } from './lib/camera-capture-focus-check.mjs';
+import { assertModelStorageOrdering } from './lib/model-storage-check.mjs';
+import { assertModelReplacement } from './lib/model-replacement-check.mjs';
+import { assertModelUrlCopy } from './lib/model-url-copy-check.mjs';
+import { assertShortcutRecording } from './lib/shortcut-recording-check.mjs';
+import { assertSettingsChoiceKeyboard } from './lib/settings-choice-keyboard-check.mjs';
+import { assertZipPathLimits } from './lib/zip-path-limit-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
 import {
-  chromePath,
+  closeBrowser, chromePath,
   chromeTarget,
   connectDevtools,
   evaluate,
@@ -142,6 +212,14 @@ const UNNAMED_CONTROL_AUDIT = `(() => {
 })()`;
 
 const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-viewport-check';
+
+function reportViewports(results, label) {
+  console.log(`${label} Screenshots: ${screenshotDir}`);
+  for (const result of results) {
+    const board = result.defaultBoard ?? result.board;
+    console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
+  }
+}
 
 /**
  * The board rendering is not the same thing as the app being usable.
@@ -446,10 +524,15 @@ function assertViewport(result) {
     if (!result.postMoveMobileStatus.turnVisible) {
       failures.push('mobile turn indicator disappears after a move');
     }
-    if (result.innerWidth <= 380 && result.postMoveMobileStatus.saveVisible) {
+    // In landscape, tabs share the dock and take 304px from the controls.
+    // The viewport width alone called the resulting 264px strip "568px of
+    // room" and required a badge CSS deliberately sheds to keep the turn
+    // stone and navigation targets visible. Measure the control strip itself.
+    const saveStatusFits = result.postMoveMobileStatus.controlsWidth > 380;
+    if (!saveStatusFits && result.postMoveMobileStatus.saveVisible) {
       failures.push('secondary mobile save badge remains visible on the narrowest phone layout');
     }
-    if (result.innerWidth > 380 && !result.postMoveMobileStatus.saveVisible) {
+    if (saveStatusFits && !result.postMoveMobileStatus.saveVisible) {
       failures.push('mobile save feedback is missing where it fits beside the turn indicator');
     }
     if (result.postMoveMobileStatus.overlaps.length > 0) {
@@ -670,16 +753,24 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
 
   for (const [width, height] of [[568, 320], [320, 480], [740, 360], [390, 844], [1440, 900]]) {
     await setViewport(cdp, { width, height, mobile: width < 768 });
-    await evaluate(cdp, `(() => {
-      localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
-      return 1;
-    })()`);
-    await navigate(cdp, appUrl);
+    // Seed the arriving document. The page being left flushes recovery on
+    // pagehide, so seeding it before navigation lets that flush clear or
+    // overwrite the fixture (reproduced on every second viewport).
+    const seed = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});`,
+    });
+    if (!seed.result?.identifier) throw new Error('Could not install recovery fixture');
+    try {
+      await navigate(cdp, appUrl);
+    } finally {
+      await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: seed.result.identifier });
+    }
     await waitForBoard(cdp);
     await sleep(900);
 
+    const recoveryOpen = await evaluate(cdp, `!!document.querySelector('[aria-labelledby="auto-save-recovery-title"]')`);
     const stranded = await evaluate(cdp, STRANDED_BUTTONS_PROBE);
-    if (stranded === 'NO_MODAL') {
+    if (!recoveryOpen || stranded === 'NO_MODAL') {
       // Without this the check is vacuous: it would pass on every viewport by
       // never finding the dialog it is supposed to be measuring.
       failures.push(`${width}x${height}: the recovery prompt did not open, so nothing was measured`);
@@ -965,6 +1056,7 @@ async function main() {
   const runDir = fs.mkdtempSync(path.resolve('node_modules/.web-katrain-viewport-'));
   let server;
   let chrome;
+  let cdp;
   try {
     server = await createServer({
       cacheDir: path.join(runDir, 'vite'),
@@ -1012,7 +1104,7 @@ async function main() {
     });
 
     const target = await chromeTarget(devtoolsPort);
-    const cdp = connectDevtools(target);
+    cdp = connectDevtools(target);
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
@@ -2585,13 +2677,13 @@ async function main() {
          */
         const openPhotoBoard = async () => {
           if (${viewport.mobile}) {
-            const toolsButton = findButtonByLabel('Tools');
-            if (!toolsButton) throw new Error('Tools button missing');
-            toolsButton.click();
-            const toolsDialog = await waitForSelector('[data-mobile-tools-dialog="true"]');
-            if (!toolsDialog) throw new Error('Tools dialog did not open');
-            const photoBoardButton = findPhotoBoardButton(toolsDialog);
-            if (!photoBoardButton) throw new Error('photo board action missing in tools');
+            const menuButton = findButtonByLabel('Menu');
+            if (!menuButton) throw new Error('Menu button missing');
+            menuButton.click();
+            const menu = await waitForSelector('[aria-labelledby="menu-title"]');
+            if (!menu) throw new Error('Mobile menu did not open');
+            const photoBoardButton = menu.querySelector('[aria-label="Open photo board"]');
+            if (!photoBoardButton) throw new Error('photo board action missing in menu');
             photoBoardButton.click();
             await waitForFrames(2);
             return;
@@ -2942,6 +3034,20 @@ async function main() {
           }
           if (!picker) {
             boardThemeSmokeFailures.push('board theme picker missing');
+            return;
+          }
+          const disclosure = picker.closest('[data-board-theme-disclosure]');
+          const summary = disclosure?.querySelector('summary');
+          if (!summary) {
+            boardThemeSmokeFailures.push('board theme disclosure missing');
+            return;
+          }
+          if (!disclosure.open) {
+            summary.click();
+            await waitForFrames(2);
+          }
+          if (!disclosure.open) {
+            boardThemeSmokeFailures.push('board theme disclosure did not open');
             return;
           }
           const choices = Array.from(picker.querySelectorAll('[data-board-theme-choice]'));
@@ -3487,6 +3593,14 @@ async function main() {
         const openViaPalette = (commandId) => async () => {
           dispatchShortcut('k', { ctrlKey: true });
           await waitForFrames(2);
+          const search = document.querySelector('[data-command-palette-search]');
+          for (const key of ['ArrowDown', 'Enter', 'Escape']) {
+            search?.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true }));
+          }
+          await waitForFrames(2);
+          if (!document.querySelector('[data-command-palette-search]')) {
+            throw new Error('a composition key dismissed or activated the command palette');
+          }
           document.querySelector('[data-command-palette-item="' + commandId + '"]')?.click();
           await waitForFrames(2);
         };
@@ -3502,7 +3616,13 @@ async function main() {
           name: 'lessons',
           selector: '[aria-labelledby="lessons-title"]',
           closeLabel: 'Close lessons',
-          open: openViaPalette('lessons'),
+          open: async () => {
+            for (const key of Object.keys(localStorage)) {
+              if (key.startsWith('web-katrain:lesson_progress:v2:')) localStorage.removeItem(key);
+            }
+            localStorage.removeItem('web-katrain:lesson_progress:v1');
+            await openViaPalette('lessons')();
+          },
           afterOpen: async (dialog) => {
             const capture = Array.from(dialog.querySelectorAll('.lessons-list button'))
               .find((button) => button.textContent.includes('Capturing a stone'));
@@ -3518,6 +3638,18 @@ async function main() {
             if (!dialog.contains(document.activeElement)) {
               throw new Error('advancing to the exercise lost keyboard focus outside the lesson');
             }
+            dialog.querySelector('.lessons-step button')?.click();
+            await waitForFrames(2);
+            const resume = dialog.querySelector('[data-lesson-id="capture"]');
+            if (!resume?.textContent.includes('Continue') || document.activeElement !== resume) {
+              throw new Error('returning to the lesson list lost resume progress or keyboard focus');
+            }
+            resume.click();
+            await waitForFrames(2);
+            if (!dialog.querySelector('.lessons-step')?.textContent.includes('Step 2') ||
+                !dialog.querySelector('.lessons-footer button:last-child')?.disabled) {
+              throw new Error('resuming did not return to the unanswered exercise');
+            }
             const answer = dialog.querySelector('.lessons-board circle[fill="transparent"][cx="4.7"][cy="4.7"]');
             if (!answer) throw new Error('capture lesson answer missing');
             answer.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -3531,6 +3663,21 @@ async function main() {
             }
             if (auditsModalContrast) {
               modalContrastFailures.push(...auditContrastAllThemes(dialog).map((entry) => 'solved lesson -- ' + entry));
+            }
+            dialog.querySelector('.lessons-footer button:last-child')?.click();
+            await waitForFrames(2);
+            const completed = dialog.querySelector('[data-lesson-id="capture"]');
+            if (!completed?.textContent.includes('Completed') || document.activeElement !== completed ||
+                !dialog.querySelector('.lessons-progress')?.textContent.includes('1 of 4')) {
+              throw new Error('finishing the lesson did not record completion and restore focus');
+            }
+            if (localStorage.getItem('web-katrain:lesson_progress:v2:capture:completed') !== '1') {
+              throw new Error('lesson completion was not persisted');
+            }
+            completed.click();
+            await waitForFrames(2);
+            if (!dialog.querySelector('.lessons-step')?.textContent.includes('Step 1')) {
+              throw new Error('reviewing a completed lesson did not start at the beginning');
             }
           },
         });
@@ -3551,9 +3698,22 @@ async function main() {
         });
         await smokeModal({
           name: 'save to library',
-          selector: '[aria-labelledby="save-to-library-title"]',
+          // Folder loading has the same visible title. Composition belongs to
+          // the ready naming form, after the cancellable read completes.
+          selector: '[aria-labelledby="save-to-library-title"]:has(#save-to-library-name)',
           closeLabel: 'Close save to Library',
           open: openViaPalette('save-library'),
+          afterOpen: async (dialog) => {
+            const name = dialog.querySelector('input');
+            for (const key of ['Enter', 'Escape']) {
+              name?.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true }));
+              name?.dispatchEvent(new KeyboardEvent('keydown', { key, keyCode: 229, bubbles: true, cancelable: true }));
+            }
+            await waitForFrames(2);
+            if (!dialog.isConnected || dialog.getAttribute('aria-busy') === 'true') {
+              throw new Error('confirming or canceling text composition submitted or closed Save Copy');
+            }
+          },
         });
         await smokeModal({
           name: 'paste SGF',
@@ -3854,9 +4014,10 @@ async function main() {
           ? {
               turnVisible: isVisibleBox(document.querySelector('[data-mobile-turn-chip="true"]')),
               saveVisible: isVisibleBox(document.querySelector('[data-mobile-save-status="true"]')),
+              controlsWidth: rect(document.querySelector('.mobile-bottom-controls'))?.width ?? 0,
               overlaps: auditMobileBottomControlOverlaps(),
             }
-          : { turnVisible: true, saveVisible: false, overlaps: [] };
+          : { turnVisible: true, saveVisible: false, controlsWidth: 0, overlaps: [] };
         const libraryPanel = document.querySelector('[data-layout-panel="library"]') || document.querySelector('.wk-dashboard .library');
         const sidePanel = document.querySelector('[data-layout-panel="side"]') || document.querySelector('.wk-dashboard .sidebar');
         // Every notification assertion below used to read an empty slot. Info
@@ -4103,36 +4264,102 @@ async function main() {
       results.push(result);
     }
     if (viewportFailures.length > 0) {
-      cdp.close();
       throw new Error(
         `${viewportFailures.length} viewport(s) failed:\n  - ${viewportFailures.join('\n  - ')}`,
       );
+    }
+    if (process.argv.includes('--layouts-only')) {
+      reportViewports(results, 'Layout checks passed (native workflows excluded).');
+      return;
     }
     await assertShellVariantApplies(cdp);
     await assertDialogsFitShortViewports(cdp);
     await assertLongMetadataStaysRecoverable(cdp);
     await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
     await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
+    await assertScoreQuizFocus(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertScoreQuizRequests(cdp);
     await assertStaticBoardScroll(cdp);
     await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryTags(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertEmptyLibraryPersists(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertPwaToastStability(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibrarySaveRecovery(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryRestoreSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryRestoreRead(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryRestorePeer(cdp, `http://127.0.0.1:${appPort}/`, devtoolsPort, screenshotDir);
+    await assertLibraryBackgroundSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryCopyLaunch(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
-    cdp.close();
-    console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
-    for (const result of results) {
-      const board = result.defaultBoard ?? result.board;
-      console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
-    }
+    await assertBoardTooltipsFit(cdp, screenshotDir);
+    await assertPasteImportCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPasteSubmitKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPasteClipboardDraft(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertClipboardCommandOrder(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertClipboardGameSelection(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertDirectPasteOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLocalFileOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertBoardSnapshotOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertFastNavigation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNewGameBoard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonFeedback(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonPractice(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonProgressPeers(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNumericEditorComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertMetadataRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertProGameReplacement(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNoteDraftRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertCacheClearDialog(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertSaveDialogLoading(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPendingSaveKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNotificationInteraction(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNotificationCopyOrder(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLazyModalInput(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryCrossTab(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryPendingNames(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLatestLibraryLoads(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertZipPathLimits(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertSettingsChoiceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertModelReplacement(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertModelUrlCopy(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertModelStorageOrdering(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertPhotoTraceRaces(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertCameraCaptureFocus(`http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertBotPickerKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertOgsSyncCancellation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertOgsSyncSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryCollectionSplit(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertBoardComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPhotoTraceKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertGuessMoveKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertNoteLibrarySemantics(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertProblemNegation(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertProblemKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertCommandDialogFocus(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryRecency(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryRowKeyboard(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryTypeahead(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibrarySaveComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryImportDestination(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryRepeatImport(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryShowMoreFocus(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertExpandedLibraryDepth(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryCopy(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertClipboardFallbackOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertImageCopyOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertEngineErrorCopy(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertVariationCopy(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertMoveTreeComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertReportPrintFocus(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertReportGuideKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryImportAfterClose(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryReadRetry(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    reportViewports(results, 'Viewport checks passed.');
   } finally {
-    if (chrome?.pid && chrome.exitCode === null && chrome.signalCode === null) {
-      const closed = new Promise((resolve) => chrome.once('exit', resolve));
-      chrome.kill('SIGTERM');
-      await closed;
-    }
+    await closeBrowser(cdp, chrome);
     await server?.close();
     fs.rmSync(runDir, { recursive: true, force: true });
   }

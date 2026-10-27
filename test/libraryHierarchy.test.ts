@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createLibraryItem, deleteLibraryItem, deleteLibraryItems, duplicateLibraryItem,
+  createLibraryItem, deleteLibraryItem, deleteLibraryItems, duplicateLibraryItem, duplicateLibraryItems,
   getLibrarySelectionIds, type LibraryFolder, type LibraryItem,
 } from '../src/utils/library';
 
@@ -12,6 +12,47 @@ const game = (id: string, parentId: string | null = null) => ({
 });
 
 describe('library hierarchy operations', () => {
+  it('copies a large selection with unique names, independent metadata, and unchanged originals', () => {
+    const template = { ...game('template'), name: 'Study.sgf' };
+    const items = Array.from({ length: 10000 }, (_, index) => Object.freeze({ ...template, id: `game-${index}` }));
+    const result = duplicateLibraryItems(items, items.map(item => item.id), 100);
+    expect(result.items).toHaveLength(20000);
+    expect(result.duplicatedIds).toHaveLength(10000);
+    expect(new Set(result.duplicatedIds).size).toBe(10000);
+    const copies = result.items.slice(0, 10000);
+    expect(new Set(copies.map(item => item.name.toLowerCase())).size).toBe(10000);
+    expect(result.duplicated?.name).toBe('Study (copy).sgf');
+    expect(copies[0]?.name).toBe('Study (copy) 10000.sgf');
+    expect(result.items.slice(10000)).toEqual(items);
+    const first = result.duplicated!;
+    if (first.type !== 'file') throw new Error('Missing copied game');
+    first.tags!.push('new tag');
+    first.metadata.event = 'Separate event';
+    expect(template.tags).toEqual(['review']);
+    expect(template.metadata.event).toBeUndefined();
+    expect(first).toMatchObject({ sgf: template.sgf, favorite: true, createdAt: 100, updatedAt: 100 });
+  });
+
+  it('reserves copy names independently in each folder, including existing case-insensitive collisions', () => {
+    const a = folder('a'), b = folder('b');
+    const first = { ...game('first', a.id), name: 'Study.sgf' };
+    const second = { ...game('second', b.id), name: 'Study.sgf' };
+    const existing = { ...game('existing', a.id), name: 'STUDY (COPY).SGF' };
+    const items = [first, existing, second, a, b];
+    const result = duplicateLibraryItems(items, [first.id, second.id]);
+    expect(result.items.slice(0, 2).map(item => [item.name, item.parentId])).toEqual([
+      ['Study (copy).sgf', b.id], ['Study (copy) 2.sgf', a.id],
+    ]);
+    expect(result.items.slice(2)).toEqual(items);
+  });
+
+  it('can copy a selected file whose malformed ancestors form a cycle', () => {
+    const a = folder('a', 'b'), b = folder('b', 'a'), leaf = game('leaf', a.id);
+    const result = duplicateLibraryItems([a, b, leaf], [leaf.id]);
+    expect(result.duplicated).toMatchObject({ name: 'leaf (copy)', parentId: a.id, sgf: leaf.sgf });
+    expect(result.duplicatedIds).toHaveLength(1);
+  });
+
   it('copies an unordered deep collection with independent IDs and intact record data', () => {
     const folders = Array.from({ length: 3000 }, (_, i) => folder(`folder-${i}`, i ? `folder-${i - 1}` : null));
     const games = folders.map((f, i) => game(`game-${i}`, f.id));

@@ -29,12 +29,14 @@ The Vite dev server sends the COOP/COEP headers required for threaded WASM.
 | `npm test` | Run all Vitest tests. Note this typechecks nothing — Vitest transpiles without checking, so a test can pass while failing to compile. With `CI` set, tests that run a real MCTS search are skipped: seconds locally, minutes on a shared runner. `ENGINE_TESTS=1 npm test` runs them regardless. |
 | `npm run typecheck` | Type-check the app and node projects. It runs `tsc -b`, and it has to: the root `tsconfig.json` has `"files": []` and only references the two project configs, so a bare `tsc --noEmit` here type-checks nothing at all and exits 0. |
 | `npm run test:typecheck` | Type-check the test project. |
-| `npm run test:viewport` | Check 11 desktop/mobile sizes and study workflows in Chrome with a fresh Vite cache and browser profile. Runs in CI and separately from `verify`; about 3 minutes locally. |
+| `npm run test:viewport` | Check 11 desktop/mobile sizes and study workflows in Chrome with a fresh Vite cache and browser profile. Runs in CI and separately from `verify`; runtime varies with the browser and storage fixtures. |
+| `npm run test:layouts` | Run the same 11 base viewport checks and screenshots, then stop before the native workflow helpers. Useful during CSS/UI iteration; this does not replace `test:viewport`. |
 | `npm run test:responsiveness` | Measure how fast the app answers a click: first board move, board-move median, warm dialog open, INP p98, worst long task. **~15s**. Needs a current `npm run build` — it measures `dist/` through `vite preview` and refuses to fall back to dev, where React's instrumentation changes the numbers by an order of magnitude. Not in `verify` or CI. |
 | `npm run test:analysis` | Stop real WASM analysis with Escape, require worker cancellation within 1 second, restart, and play a move. The obsolete search must cancel and the current position's evaluation must render within 2.5 seconds. Uses a production build, the bundled test model, and an isolated browser profile. Writes timing evidence and screenshots. Not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
-| `npm run test:study` | Reproduce large-study regressions in Chrome: marker edits, 12,000-node export and nested import, solution lookup, branch copy/paste, setup replay, and 10,000-entry library import naming. Uses an isolated profile and the dev store; reports operation timings separately from production INP. Not in `verify` or CI. |
-| `npm run test:offline` | Install the production service worker, put **every** target offline -- the worker's own included, since a page-level emulation leaves its fetches online -- and require the app to boot from cache with no failed request. Serves `dist/` without COOP/COEP so the deployed configuration is what is tested. Validated by its own negative control: with the caches deleted first, the offline navigation fails outright. Offline *analysis* is exercised online only; see the comment in the script. Not in `verify` or CI. |
+| `npm run test:study` | Reproduce large-study regressions in Chrome: marker edits, 12,000-node export and nested import, solution lookup, branch copy/paste, setup replay, 10,000-game library import/copy, numeric name and equal-time Recent sorting, wide/deep folder pickers, and 5,000-game accent matching. Uses an isolated profile and the dev store; reports operation timings separately from production INP. Not in `verify` or CI. |
+| `npm run test:offline` | Install the production service worker, analyze once online, then require a cold offline boot, cached dialogs, and fresh WASM analysis with a rendered win rate. Uses a fresh profile, disables HTTP caches, puts page/SW targets offline, and refuses all server responses after cutoff; new inference workers attach before execution. Deleting app caches must then make navigation fail. Serves `dist/` without COOP/COEP to match deployment. Not in `verify` or CI. |
+| `npm run test:report` | Print a report with ten known mistakes from desktop and phone layouts. Checks actual PDF page counts and that each board and all 24 correction moves fit their page; writes PDFs and a JSON result to `/tmp/web-katrain-report-print` (or `REPORT_PRINT_OUTPUT_DIR`). Uses an isolated profile and dev fixtures; not in `verify` or CI. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Run `tsc -b` and build Vite output into `dist/`. |
 | `npm run preview` | Serve `dist/` locally with preview headers. |
@@ -98,6 +100,7 @@ npm run test:responsiveness   # click-to-response budgets
 npm run test:analysis         # evaluation catches up after a move during search
 npm run test:study            # deep branch correctness and operation timings
 npm run test:offline          # the app boots from cache with the network down
+npm run test:report           # real report PDFs and complete correction pages
 ```
 
 Reach for `test:viewport` after a layout, breakpoint or board-sizing change, and
@@ -138,6 +141,12 @@ Browser state can affect manual testing. Useful storage locations:
 - Library: IndexedDB `web-katrain-library`, with a localStorage fallback.
 - Uploaded model: IndexedDB `web-katrain-models`.
 - Auto-save: web-katrain localStorage keys managed by `src/utils/autoSave.ts`.
+
+Library operations use a local request queue and, where available, the origin's
+`web-katrain-library` Web Lock. Keep the lock across the complete read/modify/write
+operation so another tab cannot overwrite a newer save. Without Web Locks, the
+local queue still preserves request order. The localStorage fallback compares its
+cached snapshot with current storage before reusing it.
 
 Use the app UI when possible to clear analysis cache or uploaded model state.
 For stubborn manual-test state, clear site data in browser devtools.

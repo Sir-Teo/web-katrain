@@ -1,4 +1,4 @@
-import { applySearchDialect } from './searchTerms';
+import { applySearchDialect, normalizeSearchText } from './searchTerms';
 import { type SettingsTabId } from './settingsTabs';
 import type { GameSettings } from '../types';
 
@@ -164,7 +164,7 @@ export function isSettingAvailable(entry: SettingsSearchEntry, aiStrategy: GameS
 }
 
 const normalize = (value: string) =>
-  applySearchDialect(value.toLowerCase()).replace(/[^a-z0-9]+/g, ' ').trim();
+  applySearchDialect(normalizeSearchText(value)).replace(/[^a-z0-9]+/g, ' ').trim();
 
 /**
  * Settings matching `query`, best first.

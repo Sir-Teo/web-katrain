@@ -30,8 +30,10 @@ export const createFakeIdb = (): FakeIdb => {
         };
         return {
           getAll: () => req(() => [...state.stores.get(n)!.values()].map((v) => structuredClone(v))),
+          get: (key: string) => req(() => structuredClone(state.stores.get(n)!.get(key))),
           clear: () => { ops.push(() => state.stores.get(n)!.clear()); },
-          put: (v: { id?: string; key?: string }) => { const c = structuredClone(v); ops.push(() => state.stores.get(n)!.set((c.id ?? c.key)!, c)); },
+          delete: (key: string) => { ops.push(() => state.stores.get(n)!.delete(key)); },
+          put: (v: { id?: string; key?: string }, key?: string) => { const c = structuredClone(v); ops.push(() => state.stores.get(n)!.set((key ?? c.id ?? c.key)!, c)); },
         };
       };
       tx.objectStore = objectStore;

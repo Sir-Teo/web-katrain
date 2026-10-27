@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../utils/clipboard';
 import { isAnswerHidden } from '../utils/mistakeDrill';
 import type { CandidateMove } from '../types';
 import { DEFAULT_EVAL_THRESHOLDS, getEvaluationClass } from '../utils/nodeAnalysis';
@@ -296,15 +296,26 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     <button
                       type="button"
                       className="cl-pv-action"
-                      onClick={() => {
-                        void copyTextToClipboard(move.pv!.join(' ')).then((ok) =>
-                          useGameStore.setState({ notification: { message: ok ? 'Variation copied.' : 'Could not copy the variation.', type: ok ? 'success' : 'error' } })
-                        );
+                      aria-label={`Copy variation starting at ${label}`}
+                      onClick={async () => {
+                        const request = beginClipboardWriteRequest();
+                        const ok = await copyTextToClipboard(move.pv!.join(' '), undefined, undefined, request);
+                        if (!isClipboardWriteRequestCurrent(request)) return;
+                        useGameStore.setState({ notification: {
+                          message: ok ? 'Variation copied.' : 'Could not copy the variation.',
+                          type: ok ? 'success' : 'error',
+                          operationId: 'variation-copy',
+                        } });
                       }}
                     >
                       Copy
                     </button>
-                    <button type="button" className="cl-pv-action" onClick={() => addPvVariation(move.pv ?? [])}>
+                    <button
+                      type="button"
+                      className="cl-pv-action"
+                      aria-label={`Keep in tree: variation starting at ${label}`}
+                      onClick={() => addPvVariation(move.pv ?? [])}
+                    >
                       Keep in tree
                     </button>
                   </span>

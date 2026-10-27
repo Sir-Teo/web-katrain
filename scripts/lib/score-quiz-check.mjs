@@ -44,6 +44,40 @@ async function checkScoreQuiz(moduleUrl) {
     const game = useGameStore.getState().rootNode;
     useGameStore.setState({ currentNode: game.children[0].children[0] });
     await open();
+    const setMargin = async (value) => {
+      const input = host.querySelector('input');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await settle();
+      return input;
+    };
+    for (const value of ['', '-3', '1e309']) {
+      const input = await setMargin(value);
+      check(button('Reveal score')?.disabled, `Invalid margin ${JSON.stringify(value)} enabled Reveal`);
+      check(input.getAttribute('aria-invalid') === 'true', 'Invalid margin was not identified accessibly');
+      check(!!host.querySelector('#score-quiz-margin-error'), 'Invalid margin has no explanation');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await settle();
+      check(requests.length === 0, 'Invalid margin started an evaluation');
+    }
+    const composingInput = await setMargin('5');
+    for (const init of [{ isComposing: true }, { keyCode: 229 }]) {
+      composingInput.dispatchEvent(new KeyboardEvent('keydown', { ...init, key: 'Enter', bubbles: true }));
+      await settle();
+      check(requests.length === 0, 'Composition Enter started an evaluation');
+      check(!!button('Reveal score') && !button('Reveal score').disabled, 'Composition left the quiz busy');
+    }
+    await setMargin('0');
+    check(!button('Reveal score').disabled, 'An explicit zero-point guess was rejected');
+    button('Reveal score').click();
+    await settle();
+    requests.at(-1).resolve({ rootScoreLead: 0, rootWinRate: 0.5 });
+    await settle();
+    check(dialog().textContent.includes('Perfect read') && dialog().textContent.includes('Even'), 'An explicit draw guess was graded incorrectly');
+    button('Close quiz').click();
+    await settle();
+    requests.length = 0;
+    await open();
     button('Reveal score').click();
     await settle();
     const input = host.querySelector('input');

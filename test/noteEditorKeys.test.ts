@@ -16,6 +16,12 @@ describe('note editor keyboard actions', () => {
     expect(getNoteEditorKeyAction({ key: 'Enter', isComposing: true })).toBe('none');
   });
 
+  it('leaves Safari final composition keys with the input method', () => {
+    for (const key of ['Enter', 'Escape', 's']) {
+      expect(getNoteEditorKeyAction({ key, keyCode: 229, ctrlKey: true })).toBe('none');
+    }
+  });
+
   it('leaves alternate enter chords alone for browser and platform text editing', () => {
     expect(getNoteEditorKeyAction({ key: 'Enter', altKey: true })).toBe('none');
     expect(getNoteEditorKeyAction({ key: 's', ctrlKey: true, altKey: true })).toBe('none');

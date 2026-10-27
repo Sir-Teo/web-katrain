@@ -21,6 +21,7 @@ const makeCameraPhotoFileName = () => `board-photo-${Date.now()}.jpg`;
 
 export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCapture, onClose }) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
   const closedRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -75,6 +76,14 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
   }, [onClose, stopCamera]);
   useEscapeToClose(handleClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  React.useLayoutEffect(() => {
+    if (!capturing && !error) return;
+    const dialog = dialogRef.current;
+    const active = document.activeElement;
+    if (active === document.body || active === dialog || (active instanceof HTMLElement && active.matches(':disabled'))) {
+      (error ? cancelRef.current : dialog)?.focus({ preventScroll: true });
+    }
+  }, [capturing, dialogRef, error]);
 
   const handleCapture = React.useCallback(() => {
     const video = videoRef.current;
@@ -121,6 +130,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
       role="dialog"
       aria-modal="true"
       aria-labelledby="camera-capture-title"
+      aria-busy={capturing}
       data-camera-capture-modal="true"
     >
       <div className="ui-panel flex h-full max-h-[720px] w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl">
@@ -164,6 +174,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ onCaptur
 
         <div className="ui-bar flex items-center justify-between gap-3 border-t border-[var(--ui-border)] px-3 py-3">
           <button
+            ref={cancelRef}
             type="button"
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
             onClick={handleClose}

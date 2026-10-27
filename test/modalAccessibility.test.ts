@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { AboutDialog } from '../src/components/AboutDialog';
 
 const modalSources = [
   { path: 'src/components/AboutDialog.tsx', titleId: 'about-title', escape: 'useEscapeToClose(onClose)' },
@@ -9,7 +12,7 @@ const modalSources = [
     escape: "window.addEventListener('keydown', handleKeyDown, true)",
   },
   { path: 'src/components/CommandPaletteModal.tsx', titleId: 'command-palette-title', escape: 'useEscapeToClose(onClose)' },
-  { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(onClose)' },
+  { path: 'src/components/PasteSgfModal.tsx', titleId: 'paste-sgf-title', escape: 'useEscapeToClose(close)' },
   { path: 'src/components/GameAnalysisModal.tsx', titleId: 'game-analysis-title', escape: 'useEscapeToClose(onClose)' },
   { path: 'src/components/GameReportModal.tsx', titleId: 'game-report-title', escape: 'useEscapeToClose(onClose, !showReportGuide)' },
   { path: 'src/components/KeyboardHelpModal.tsx', titleId: 'keyboard-help-title', escape: 'useEscapeToClose(onClose)' },
@@ -25,7 +28,7 @@ const modalSources = [
   },
   { path: 'src/components/SaveToLibraryDialog.tsx', titleId: 'save-to-library-title', escape: 'useEscapeToClose(onClose, open && !saving)' },
   { path: 'src/components/SettingsModal.tsx', titleId: 'settings-title', escape: 'useEscapeToClose(onClose)' },
-  { path: 'src/components/UnsavedChangesModal.tsx', titleId: 'unsaved-changes-title', escape: "useEscapeToClose(() => onChoice('cancel'))" },
+  { path: 'src/components/UnsavedChangesModal.tsx', titleId: 'unsaved-changes-title', escape: "window.addEventListener('keydown', handleKeyDown, true)" },
   { path: 'src/components/layout/MenuDrawer.tsx', titleId: 'menu-title', escape: 'useEscapeToClose(onClose, open)' },
   { path: 'src/components/MobileHome.tsx', titleId: 'mobile-home-title', escape: 'useEscapeToClose(onClose, open)' },
 ] as const;
@@ -79,12 +82,13 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain('flex flex-col items-stretch gap-3');
     expect(source).toContain('sm:flex-row sm:items-center sm:justify-between');
     expect(source).toContain('absolute right-3 top-3');
-    expect(source).toContain("const printActionLabel = canPrint ? 'Print kifu or save as PDF' : 'No moves to print';");
+    expect(source).toContain("? positionOnly ? 'Print position or save as PDF' : 'Print kifu or save as PDF'");
+    expect(source).toContain(": 'No moves to print';");
     expect(source).toContain('aria-label={printActionLabel}');
     expect(source).toContain('<span className="hidden lg:inline">Print / PDF</span>');
     expect(source).toContain('<span className="sm:hidden">All</span>');
     expect(source).toContain('<span className="hidden sm:inline">{opt.label}</span>');
-    expect(source).toContain('<span className="sr-only">Print Kifu: </span>');
+    expect(source).toContain("<span className=\"sr-only\">{positionOnly ? 'Print position: ' : 'Print Kifu: '}</span>");
   });
 
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
@@ -167,15 +171,14 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain("event.key !== 'Escape' || event.defaultPrevented");
   });
 
-  it('keeps the nested game report guide focus-contained while it is open', () => {
+  it('keeps the game report guide and its actions labeled', () => {
     const source = readFileSync('src/components/GameReportModal.tsx', 'utf8');
 
     expect(source).toContain('reportGuideButtonRef');
     expect(source).toContain('reportGuideCloseRef');
-    expect(source).toContain('reportGuideCloseRef.current?.focus({ preventScroll: true })');
-    expect(source).toContain('event.preventDefault();');
-    expect(source).toContain('event.stopPropagation();');
-    expect(source).toContain("window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0)");
+    expect(source).toContain('aria-labelledby="report-guide-title"');
+    expect(source).toContain('aria-label="Open report guide"');
+    expect(source).toContain('aria-label="Close report guide"');
     expect(source).toContain('ref={reportGuideButtonRef}');
     expect(source).toContain('ref={reportGuideCloseRef}');
   });
@@ -257,15 +260,11 @@ describe('modal accessibility semantics', () => {
 
 
   it('names the About dialog after what it is, not after the app', () => {
-    const source = readFileSync('src/components/AboutDialog.tsx', 'utf8');
-
-    // Its visible heading is the product name, which suits the panel but made
-    // the dialog announce as "Web KaTrain" — indistinguishable from the app,
-    // where Settings, Keyboard Shortcuts, Photo Board and the rest all say
-    // what they are. aria-label wins over the labelledby heading, and still
-    // contains the visible text, so the visible name is preserved.
-    expect(source).toContain('aria-label="About Web KaTrain"');
-    expect(source).toContain('aria-labelledby="about-title"');
-    expect(source).toContain('>\n              Web KaTrain\n            </h2>');
+    const html = renderToStaticMarkup(createElement(AboutDialog, { onClose: () => undefined }));
+    // aria-labelledby takes precedence over aria-label. Inspect the referenced
+    // heading text; checking a redundant aria-label missed the actual name.
+    expect(html).toContain('aria-labelledby="about-title"');
+    const heading = html.match(/<h2[^>]*id="about-title"[^>]*>([\s\S]*?)<\/h2>/)?.[1];
+    expect(heading?.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()).toBe('About Web KaTrain');
   });
 });

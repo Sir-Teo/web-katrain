@@ -4,6 +4,7 @@ import { readClipboardText } from '../utils/clipboard';
 import { getPasteSgfInputInfo, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 type PasteSgfStatusTone = 'info' | 'error';
 
@@ -14,7 +15,7 @@ type PasteSgfStatus = {
 
 interface PasteSgfModalProps {
   onClose: () => void;
-  onSubmit: (text: string) => Promise<PasteSgfSubmitResult>;
+  onSubmit: (text: string, signal: AbortSignal) => Promise<PasteSgfSubmitResult>;
   onOpenPhotoBoard?: () => void;
   returnFocus?: HTMLElement | null;
 }
@@ -25,8 +26,19 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   const [text, setText] = React.useState('');
   const [status, setStatus] = React.useState<PasteSgfStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const pendingImportRef = React.useRef<AbortController | null>(null);
+  const clipboardRevisionRef = React.useRef(0);
   const inputInfo = React.useMemo(() => getPasteSgfInputInfo(text), [text]);
-  useEscapeToClose(onClose);
+  const close = () => {
+    clipboardRevisionRef.current++;
+    pendingImportRef.current?.abort();
+    onClose();
+  };
+  useEscapeToClose(close);
+  React.useEffect(() => () => {
+    clipboardRevisionRef.current++;
+    pendingImportRef.current?.abort();
+  }, []);
   // The only dialog here that used to place its own initial focus, with a bare
   // `setTimeout(..., 0)` and no cleanup. The hook has `initialFocusRef` for
   // exactly this, and it defers by an animation frame rather than a task turn
@@ -37,6 +49,19 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
     returnFocus,
   });
 
+  React.useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (isSubmitting) {
+      if (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))) {
+        dialog.focus({ preventScroll: true });
+      }
+    } else if (active === dialog || active === document.body) {
+      textareaRef.current?.focus({ preventScroll: true });
+    }
+  }, [dialogRef, isSubmitting]);
+
   React.useEffect(() => {
     if (!status) return;
     const frame = window.requestAnimationFrame(() => {
@@ -46,13 +71,18 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
   }, [status]);
 
   const updateText = (nextText: string) => {
+    clipboardRevisionRef.current++;
     setText(nextText);
     setStatus(null);
   };
 
   const readClipboard = async () => {
+    if (pendingImportRef.current) return;
+    const revision = ++clipboardRevisionRef.current;
     setStatus(null);
     const clipboardText = await readClipboardText();
+    // Edits, another read, import, and dismissal all supersede this result.
+    if (revision !== clipboardRevisionRef.current) return;
     if (clipboardText === null) {
       setStatus({ text: 'Clipboard unavailable.', tone: 'error' });
       return;
@@ -63,19 +93,24 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
 
   const submit = async () => {
     const trimmed = text.trim();
-    if (!trimmed || isSubmitting) return;
+    if (!trimmed || pendingImportRef.current) return;
+    clipboardRevisionRef.current++;
+    const controller = new AbortController();
+    pendingImportRef.current = controller;
     setStatus({ text: inputInfo.submitStatus, tone: 'info' });
     setIsSubmitting(true);
     try {
-      const result = await onSubmit(trimmed);
-      if (result === 'loaded') onClose();
+      const result = await onSubmit(trimmed, controller.signal);
+      if (controller.signal.aborted) return;
+      if (result === 'loaded') close();
       else if (result === 'cancelled') {
         setStatus({ text: 'Import canceled. Your current game was left unchanged.', tone: 'info' });
       } else {
         setStatus({ text: inputInfo.errorStatus, tone: 'error' });
       }
     } finally {
-      setIsSubmitting(false);
+      pendingImportRef.current = null;
+      if (!controller.signal.aborted) setIsSubmitting(false);
     }
   };
 
@@ -98,7 +133,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           <h2 id="paste-sgf-title" className="text-lg font-semibold text-[var(--ui-text)]">Paste SGF / OGS</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
             aria-label="Close paste SGF"
           >
@@ -111,13 +146,23 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
             ref={textareaRef}
             value={text}
             onChange={(event) => updateText(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)
+                || event.altKey || event.shiftKey || isComposingKeyEvent(event)
+              ) return;
+              event.preventDefault();
+              event.stopPropagation();
+              if (!event.repeat) void submit();
+            }}
             className="paste-sgf-modal-textarea min-h-40 w-full resize-y rounded-lg border ui-input px-3 py-2 font-mono text-sm text-[var(--ui-text)] sm:min-h-[220px]"
             placeholder="(;GM[1]...) or https://online-go.com/game/12345"
             aria-label="SGF text or OGS game URL"
             aria-describedby="paste-sgf-helper paste-sgf-detection"
           />
           <div id="paste-sgf-helper" className="text-xs ui-text-faint">
-            Paste a complete SGF, a game tree snippet, or a public Online-Go game URL.
+            Paste SGF, a board diagram, a Web KaTrain share link, or a public Online-Go game URL.
+            <span className="block mt-1">Ctrl+Enter or ⌘+Enter to open.</span>
           </div>
           <div
             id="paste-sgf-detection"
@@ -143,14 +188,19 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
             <button
               type="button"
               onClick={readClipboard}
-              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+              disabled={isSubmitting}
+              className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="inline-flex items-center gap-2"><FaClipboard /> Read Clipboard</span>
             </button>
             {onOpenPhotoBoard && (
               <button
                 type="button"
-                onClick={onOpenPhotoBoard}
+                onClick={() => {
+                  clipboardRevisionRef.current++;
+                  pendingImportRef.current?.abort();
+                  onOpenPhotoBoard();
+                }}
                 className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
                 title="Use a board screenshot or camera photo"
                 data-paste-sgf-photo-board="true"
@@ -162,7 +212,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
           <div className="contents sm:flex sm:items-center sm:gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
               className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
             >
               Cancel
@@ -172,6 +222,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
               onClick={submit}
               disabled={!text.trim() || isSubmitting}
               aria-label="Open pasted SGF or OGS URL"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
               className="min-h-11 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-contrast)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Opening...' : 'Open'}

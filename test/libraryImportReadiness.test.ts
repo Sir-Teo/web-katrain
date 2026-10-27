@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
  * A source check, because the bug lives in effect ordering that
  * `renderToStaticMarkup` cannot exercise.
  *
- * `LibraryPanel` gates *saving* on its first read having published
- * (`didLoadLibraryRef`) but gates nothing on *mutating*. The file input and the
- * drop zone are live as soon as the panel mounts, so an import that landed in
- * that window called `setItems`, was overwritten by the snapshot that arrived
- * afterwards, and was never written back -- the file vanished with no error.
+ * The file input and drop zone are live before the first Library read
+ * publishes. An import originally called `setItems` in that window, then lost
+ * its new records when the initial snapshot arrived. Imports now commit
+ * through the storage queue; they still wait for the initial publication so
+ * the panel cannot replace their result with an older first snapshot.
  * Reproduced by holding IndexedDB's first open: without the wait the imported
  * game was absent and the library held only its 8 preloaded items.
  */
@@ -32,10 +32,10 @@ describe('an import cannot outrun the library it imports into', () => {
     it.each(EXPOSED)('%s waits for the first read before touching items', (name) => {
         const body = handlerBody(name);
         const wait = body.indexOf('await waitForInitialLibraryLoad()');
-        const mutate = body.indexOf('setItems(');
+        const mutate = body.indexOf('persistLibraryImports(');
 
         expect(wait, `${name} never waits for the first read`).toBeGreaterThan(-1);
-        expect(mutate, `${name} no longer calls setItems`).toBeGreaterThan(-1);
+        expect(mutate, `${name} no longer persists imports`).toBeGreaterThan(-1);
         expect(wait, `${name} mutates before waiting`).toBeLessThan(mutate);
     });
 

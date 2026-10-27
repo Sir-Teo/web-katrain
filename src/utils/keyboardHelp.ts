@@ -1,4 +1,4 @@
-import { toSearchTerms } from './searchTerms';
+import { normalizeSearchText, toSearchTerms } from './searchTerms';
 
 export function filterKeyboardReferenceItems<T extends { control: string; action: string }>(
   items: readonly T[],
@@ -7,7 +7,7 @@ export function filterKeyboardReferenceItems<T extends { control: string; action
   const terms = toSearchTerms(query);
   if (terms.length === 0) return [...items];
   return items.filter((item) => {
-    const haystack = `${item.control} ${item.action}`.toLowerCase();
+    const haystack = normalizeSearchText(`${item.control} ${item.action}`);
     return terms.every((term) => haystack.includes(term));
   });
 }

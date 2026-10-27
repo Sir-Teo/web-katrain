@@ -48,7 +48,7 @@ export async function evaluateNode(node: GameNode, settings: GameSettings): Prom
     currentPlayer: node.gameState.currentPlayer,
     moveHistory: node.gameState.moveHistory,
     repetitionHistory: repetitionHistoryForNode(node, settings.gameRules),
-    komi: komiWithHandicapBonus(rootBoardOf(node), settings.gameRules, node.gameState.komi),
+    komi: komiWithHandicapBonus(rootBoardOf(node), settings.gameRules, node.gameState.komi, node.gameState.moveHistory),
     rules: settings.gameRules,
     conservativePass: settings.katagoConservativePass,
   });

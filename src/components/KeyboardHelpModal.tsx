@@ -11,6 +11,7 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { filterKeyboardReferenceItems } from '../utils/keyboardHelp';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
@@ -40,6 +41,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const refresh = () => setOverrides(loadShortcutOverrides());
@@ -123,7 +125,9 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               size={12}
             />
             <input
+              ref={searchRef}
               type="search"
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               value={query}
               autoCapitalize="none"
               autoCorrect="off"
@@ -139,7 +143,10 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               <button
                 type="button"
                 className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  searchRef.current?.focus();
+                }}
                 aria-label="Clear shortcut search"
               >
                 <FaTimes aria-hidden="true" size={11} />
@@ -213,7 +220,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
             ))}
           </div>
           {normalizedQuery && visibleResultCount === 0 && (
-            <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-keyboard-help-empty="true">
+            <div className="ui-surface break-words rounded-lg border p-4 text-sm ui-text-muted" data-keyboard-help-empty="true">
               No shortcuts match "{query.trim()}".
             </div>
           )}

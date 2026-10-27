@@ -36,12 +36,15 @@ with a cold Vite cache: starting analysis discovered worker dependencies,
 reloaded the page, and caused the QA helper to replay its interrupted checks
 before the UI mounted. Startup optimization and explicit navigation readiness
 fix those causes. Each run now uses a fresh dependency cache and Chrome profile;
-CI retains screenshots on failure. The first GitHub-hosted run of this local
-fix remains unverified. See [the audit](continuous-audit.md) for evidence.
+CI retains screenshots on failure. The browser step uses production React
+while Vite still serves source modules for the interaction probes. The job has
+a 60-minute ceiling for verify plus the expanded browser sweep; individual
+assertion and clipboard timeout limits are unchanged. GitHub-hosted results
+appear in PR checks; [the audit](continuous-audit.md) records the local evidence.
 
 ```bash
-npm run test:viewport                        # about 3 minutes locally
-VIEWPORT_CPU_THROTTLE=6 npm run test:viewport  # optional slower-CPU diagnostic
+NODE_ENV=production npm run test:viewport    # full native sweep; allow about 30 minutes
+NODE_ENV=production VIEWPORT_CPU_THROTTLE=6 npm run test:viewport  # optional slower-CPU diagnostic
 ```
 
 `ci.yml` does now run on pushes to `main` as well as on pull requests, which is

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  chromePath, chromeTarget, connectDevtools, evaluate, freePort,
+  closeBrowser, chromePath, chromeTarget, connectDevtools, evaluate, freePort,
   navigate, setViewport, sleep, waitForHttp,
 } from './lib/browser.mjs';
 import { assertAiMoveCancellation } from './lib/ai-move-check.mjs';
@@ -78,6 +78,7 @@ async function main() {
       localStorage.setItem('web-katrain:library_open:v1', 'false');
       window.auditRequests = [];
       window.auditResponses = [];
+      window.auditCancels = [];
       const BaseWorker = window.Worker;
       window.Worker = class extends BaseWorker {
         postMessage(...args) {
@@ -86,6 +87,10 @@ async function main() {
             at: performance.now(), id: d.id, positionId: d.positionId,
             ply: d.moveHistory.length, visits: d.visits, group: d.analysisGroup,
             rules: d.rules, historyPositions: d.repetitionHistory?.length ?? 0,
+            batchSize: d.batchSize, maxTimeMs: d.maxTimeMs,
+          });
+          if (d.type === 'katago:cancel') window.auditCancels.push({
+            at: performance.now(), id: d.id, group: d.analysisGroup,
           });
           return super.postMessage(...args);
         }
@@ -241,8 +246,7 @@ async function main() {
     if (spawnErrors.length) console.error(spawnErrors.join('\n'));
     throw error;
   } finally {
-    cdp?.close();
-    await stopProcess(chrome);
+    await closeBrowser(cdp, chrome);
     await stopProcess(server);
     fs.rmSync(profile, { recursive: true, force: true });
   }

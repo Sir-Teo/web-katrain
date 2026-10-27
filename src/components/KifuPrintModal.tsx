@@ -9,7 +9,7 @@ import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { getCurrentLineNodes } from '../utils/branchNavigation';
 import { buildKifuDiagrams, type MovesPerDiagram } from '../utils/kifuDiagrams';
 import { printWindow } from '../utils/print';
-import { formatGameInfoPlayer, readRootInfoValue } from '../utils/gameInfoDisplay';
+import { formatGameInfoPlayer, formatKomiLabel, readRootInfoValue } from '../utils/gameInfoDisplay';
 import type { GameNode } from '../types';
 
 interface KifuPrintModalProps {
@@ -31,6 +31,12 @@ function rootPropertiesForNode(node: GameNode): Record<string, string[]> {
 }
 
 const KIFU_PRINT_STYLE = `
+  @media screen and (max-height: 520px) and (orientation: landscape) {
+    #kifu-print-title { -webkit-line-clamp: 1; }
+    .kifu-print > .kifu-controls { padding: 8px 12px; gap: 8px; }
+    .kifu-print .kifu-scroll { padding: 8px 12px; }
+    .kifu-print > .kifu-controls button { min-width: 44px; min-height: 44px; padding: 8px 12px; }
+  }
   @media print {
     @page { size: A4 portrait; margin: 12mm; }
     /* The dialog is portalled to <body> so everything else can leave the
@@ -68,6 +74,8 @@ const KIFU_PRINT_STYLE = `
     }
     .kifu-diagram-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     .kifu-diagram-caption { color: #334155 !important; }
+    .kifu-print-game-header { display: block !important; color: #0f172a !important; overflow-wrap: anywhere; }
+    .kifu-print-game-details { color: #334155 !important; }
     .kifu-print .kifu-diagram-repeats { color: #334155 !important; }
   }
 `;
@@ -94,17 +102,39 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
     };
   }, []);
 
-  const { diagrams, playerNames } = useMemo(() => {
+  const { diagrams, positionOnly, playerNames, gameTitle, gameDetails } = useMemo(() => {
     void treeVersion;
     const line = getCurrentLineNodes(currentNode, activeBranchChildIds);
     const moveNodes = line.filter((node) => node.move != null);
     const rootProps = rootPropertiesForNode(currentNode);
+    const boardSize = currentNode.gameState.board.length;
+    const positionOnly = moveNodes.length === 0 && currentNode.gameState.board.some(row => row.some(Boolean));
+    const diagrams = buildKifuDiagrams(moveNodes, movesPerDiagram);
+    if (positionOnly) {
+      diagrams.push({
+        index: 0,
+        startMove: 0,
+        endMove: 0,
+        board: currentNode.gameState.board.map(row => [...row]),
+        markers: [],
+        repeats: [],
+      });
+    }
     return {
-      diagrams: buildKifuDiagrams(moveNodes, movesPerDiagram),
+      diagrams,
+      positionOnly,
       playerNames: {
         black: formatGameInfoPlayer(readRootInfoValue(rootProps, 'PB'), readRootInfoValue(rootProps, 'BR'), 'Black'),
         white: formatGameInfoPlayer(readRootInfoValue(rootProps, 'PW'), readRootInfoValue(rootProps, 'WR'), 'White'),
       },
+      gameTitle: readRootInfoValue(rootProps, 'GN') || readRootInfoValue(rootProps, 'EV'),
+      gameDetails: [
+        readRootInfoValue(rootProps, 'DT'),
+        `${boardSize}×${boardSize}`,
+        readRootInfoValue(rootProps, 'RU'),
+        `Komi ${formatKomiLabel(currentNode.gameState.komi)}`,
+        readRootInfoValue(rootProps, 'RE'),
+      ].filter(Boolean).join(' · '),
     };
   }, [activeBranchChildIds, currentNode, movesPerDiagram, treeVersion]);
 
@@ -118,7 +148,9 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
       textColor: m.player === 'black' ? '#f9fafb' : '#0b0b0b',
     }));
   const canPrint = diagrams.length > 0;
-  const printActionLabel = canPrint ? 'Print kifu or save as PDF' : 'No moves to print';
+  const printActionLabel = canPrint
+    ? positionOnly ? 'Print position or save as PDF' : 'Print kifu or save as PDF'
+    : 'No moves to print';
 
   const dialog = (
     <div
@@ -132,37 +164,39 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
       <div className="kifu-print ui-panel flex max-h-[92dvh] w-[92vw] max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
         <div className="kifu-controls relative flex flex-col items-stretch gap-3 border-b border-[var(--ui-border)] px-3 py-3 ui-bar sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
           <div className="min-w-0 pr-12 sm:pr-0">
-            <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">Print kifu</div>
-            <h2 id="kifu-print-title" className="text-lg font-semibold text-[var(--ui-text)]">
-              <span className="sr-only">Print Kifu: </span>
+            <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">{positionOnly ? 'Print position' : 'Print kifu'}</div>
+            <h2 id="kifu-print-title" className="line-clamp-2 break-words text-lg font-semibold text-[var(--ui-text)]" title={`${playerNames.black} vs ${playerNames.white}`}>
+              <span className="sr-only">{positionOnly ? 'Print position: ' : 'Print Kifu: '}</span>
               {playerNames.black} vs {playerNames.white}
             </h2>
           </div>
-          <div className="flex min-w-0 w-full items-center gap-1 sm:w-auto sm:gap-2">
-            <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-[var(--ui-border)] sm:flex-none" role="group" aria-label="Moves per diagram">
-              {MOVES_PER_DIAGRAM_OPTIONS.map((opt) => {
-                const active = movesPerDiagram === opt.value;
-                return (
-                  <button
-                    key={String(opt.value)}
-                    type="button"
-                    onClick={() => setMovesPerDiagram(opt.value)}
-                    aria-pressed={active}
-                    className={[
-                      'min-h-11 min-w-11 flex-1 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-3 desktop-shell:min-h-0 desktop-shell:min-w-0',
-                      active ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
-                    ].join(' ')}
-                  >
-                    {opt.value === 'all' ? (
-                      <>
-                        <span className="sm:hidden">All</span>
-                        <span className="hidden sm:inline">{opt.label}</span>
-                      </>
-                    ) : opt.label}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex min-w-0 w-full items-center gap-1 sm:w-auto sm:shrink-0 sm:gap-2">
+            {!positionOnly && (
+              <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-[var(--ui-border)] sm:flex-none" role="group" aria-label="Moves per diagram">
+                {MOVES_PER_DIAGRAM_OPTIONS.map((opt) => {
+                  const active = movesPerDiagram === opt.value;
+                  return (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => setMovesPerDiagram(opt.value)}
+                      aria-pressed={active}
+                      className={[
+                        'min-h-11 min-w-11 flex-1 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-3 desktop-shell:min-h-0 desktop-shell:min-w-0',
+                        active ? 'bg-[var(--ui-accent-soft)] text-[var(--ui-accent)]' : 'text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]',
+                      ].join(' ')}
+                    >
+                      {opt.value === 'all' ? (
+                        <>
+                          <span className="sm:hidden">All</span>
+                          <span className="hidden sm:inline">{opt.label}</span>
+                        </>
+                      ) : opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => printWindow()}
@@ -186,27 +220,33 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
 
         <div className="kifu-scroll overflow-y-auto p-5">
           <div className="kifu-controls mb-4 text-xs ui-text-muted">
-            {diagrams.length === 0
+            {positionOnly ? 'Position diagram · no moves recorded.' : diagrams.length === 0
               ? 'No moves to print yet.'
               : `${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} · ${movesPerDiagram === 'all' ? 'all moves on one board' : `${movesPerDiagram} moves per diagram`}.`}
           </div>
           <div className="kifu-diagram-grid grid grid-cols-1 gap-6 sm:grid-cols-2">
             {diagrams.map((diagram) => (
               <div key={diagram.index} className="kifu-diagram-page flex flex-col items-center">
+                <div className="kifu-print-game-header mb-3 hidden w-full text-center">
+                  <div className="text-base font-semibold">{playerNames.black} vs {playerNames.white}</div>
+                  {gameTitle && <div className="text-sm">{gameTitle}</div>}
+                  <div className="kifu-print-game-details mt-1 text-xs">{gameDetails}</div>
+                </div>
                 <div className="kifu-diagram-caption mb-2 text-sm font-semibold text-[var(--ui-text)]">
-                  {diagram.startMove === diagram.endMove
+                  {positionOnly ? 'Position' : diagram.startMove === diagram.endMove
                     ? `Move ${diagram.startMove}`
                     : `Moves ${diagram.startMove}–${diagram.endMove}`}
                 </div>
                 <StaticBoard
                   board={diagram.board}
+                  appearance="paper"
                   markers={toStaticMarkers(diagram.markers)}
                   showCoordinates
                   // A cap, not a size: the board is `width: 100%`, so in the
                   // two-column preview its ~350px column still governs. It is
                   // the printed page's single column that this lets it fill.
                   maxPx={720}
-                  ariaLabel={`Kifu diagram moves ${diagram.startMove} to ${diagram.endMove}`}
+                  ariaLabel={positionOnly ? 'Kifu board position' : `Kifu diagram moves ${diagram.startMove} to ${diagram.endMove}`}
                 />
                 {diagram.repeats.length > 0 && (
                   /* The kifu convention for a point played twice in one

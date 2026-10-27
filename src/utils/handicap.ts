@@ -1,5 +1,5 @@
-import { handicapBonusForWhite } from './goRules';
-import type { BoardState, GameRules } from '../types';
+import { handicapBonusForWhite, rulesOf } from './goRules';
+import type { BoardState, GameRules, Move } from '../types';
 
 /**
  * KataGo's handicap compensation, ported from `numHandicapStonesOnBoardHelper` and
@@ -13,12 +13,25 @@ import type { BoardState, GameRules } from '../types';
  */
 
 /**
- * The number of handicap stones the starting position shows. KataGo's analysis
- * engine reads this from the setup stones alone: it does not treat a run of black
- * moves at the start of a game as handicap unless told to, and this app always
- * places handicap as setup stones anyway.
+ * KataGo's initial Black turn advantage: isolated White passes do not end
+ * placement, while consecutive White turns indicate an arranged position.
  */
-export function countHandicapStones(rootBoard: BoardState): number {
+export function countStartingBlackHandicapMoves(moves: readonly Move[]): number {
+  let count = 0;
+  for (let index = 0; index < moves.length; index++) {
+    const move = moves[index]!;
+    if (move.player === 'white') {
+      if (moves[index + 1]?.player === 'white') return 0;
+      if (move.x < 0 || move.y < 0) continue;
+      break;
+    }
+    if (move.x >= 0 && move.y >= 0) count++;
+  }
+  return count;
+}
+
+/** Count setup stones and, when supplied, the position's starting move history. */
+export function countHandicapStones(rootBoard: BoardState, moves: readonly Move[] = []): number {
   let black = 0;
   let white = 0;
   for (const row of rootBoard) {
@@ -30,9 +43,9 @@ export function countHandicapStones(rootBoard: BoardState): number {
   // A position that starts with white stones on it is somebody's problem diagram,
   // not a handicap game.
   if (white !== 0) return 0;
+  const total = black + countStartingBlackHandicapMoves(moves);
   // One stone is just a normal opening move.
-  if (black <= 1) return 0;
-  return black;
+  return total > 1 ? total : 0;
 }
 
 /**
@@ -49,6 +62,7 @@ export function whiteHandicapBonus(rules: GameRules, handicapStones: number): nu
  * The komi to hand the engine: the game's komi plus whatever the rules award white
  * for the handicap. Komi is counted in white's favour, so the bonus adds.
  */
-export function komiWithHandicapBonus(rootBoard: BoardState, rules: GameRules, komi: number): number {
-  return komi + whiteHandicapBonus(rules, countHandicapStones(rootBoard));
+export function komiWithHandicapBonus(rootBoard: BoardState, rules: GameRules, komi: number, moves: readonly Move[] = []): number {
+  if (rulesOf(rules).handicapBonus === 'zero') return komi;
+  return komi + whiteHandicapBonus(rules, countHandicapStones(rootBoard, moves));
 }

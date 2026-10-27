@@ -1,3 +1,5 @@
+import { readRootSgfProperties } from '../utils/sgfScan';
+
 export type PreloadedGame = {
   name: string;
   sgf: string;
@@ -50,30 +52,13 @@ const CURATED: Record<string, { name: string; source: string }> = {
   },
 };
 
-/**
- * The guard is a negative lookbehind, as in `boardSize.ts`, not "preceded by a
- * separator".
- *
- * Its only job is to stop `PB` matching the tail of a longer identifier, but
- * `[;\s]` also demanded that the property *start* a node or a line -- and SGF
- * is routinely written with no separators at all. On
- * `FF[4]PB[Lee Sedol]PW[Gu Li]` every lookup returned undefined, so a dropped
- * game pack fell back to its filename for the display name and to "public
- * domain" for the source. The bundled seven escape it only by being
- * line-wrapped, and they carry curated names anyway.
- */
-const readProp = (sgf: string, key: string): string | undefined => {
-  const match = sgf.match(new RegExp(`(?<![A-Za-z])${key}\\[([^\\]]*)\\]`));
-  return match ? match[1]!.trim() || undefined : undefined;
-};
-
 /** Build a human label from SGF headers when no curated name exists. */
-const deriveName = (sgf: string, basename: string): string => {
-  const black = readProp(sgf, 'PB');
-  const white = readProp(sgf, 'PW');
+const deriveName = (props: Record<string, string[]>, basename: string): string => {
+  const black = props.PB?.[0];
+  const white = props.PW?.[0];
   if (black && white) {
-    const event = readProp(sgf, 'EV');
-    const date = readProp(sgf, 'DT');
+    const event = props.EV?.[0];
+    const date = props.DT?.[0];
     const suffix = [event, date].filter(Boolean).join(', ');
     return suffix ? `${black} vs ${white} - ${suffix}` : `${black} vs ${white}`;
   }
@@ -83,10 +68,14 @@ const deriveName = (sgf: string, basename: string): string => {
 /** How one file presents itself in the list. Exported so it can be tested
  *  without a game pack on disk. */
 export const describePreloadedGame = (sgf: string, basename: string): { name: string; source: string } => {
-  const curated = CURATED[basename];
+  const curated = Object.hasOwn(CURATED, basename) ? CURATED[basename] : undefined;
+  if (curated) return { ...curated };
+  // Match the game that opens, including escaped values and old SGF IDs.
+  // Comments and later trees cannot supply its player names or provenance.
+  const props = readRootSgfProperties(sgf);
   return {
-    name: curated?.name ?? deriveName(sgf, basename),
-    source: curated?.source ?? readProp(sgf, 'SO') ?? 'public domain',
+    name: deriveName(props, basename),
+    source: props.SO?.[0] || 'public domain',
   };
 };
 

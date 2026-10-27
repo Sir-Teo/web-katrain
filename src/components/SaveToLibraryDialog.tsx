@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { formatLibraryFolderOptionLabel, type LibraryFolderOption } from '../utils/library';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 
 interface SaveToLibraryDialogProps {
   open: boolean;
@@ -34,6 +35,12 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   useEscapeToClose(onClose, open && !saving);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(open, { focusContainer: false, returnFocus });
 
+  useLayoutEffect(() => {
+    // Disabling the active Save button moves focus to body. Keep the pending
+    // dialog in charge of Tab while all of its controls are disabled.
+    if (saving) dialogRef.current?.focus();
+  }, [dialogRef, saving]);
+
   useEffect(() => {
     if (!open) return;
     window.setTimeout(() => {
@@ -61,7 +68,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
         aria-modal="true"
         aria-labelledby="save-to-library-title"
         aria-busy={saving}
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
           <h2 id="save-to-library-title" className="text-base font-semibold text-[var(--ui-text)]">
@@ -90,6 +97,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
                 event.stopPropagation();
+                if (isComposingKeyEvent(event)) return;
                 if (event.key === 'Enter') {
                   // Or the same Enter reaches the button focus returns to.
                   event.preventDefault();
@@ -112,6 +120,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               onChange={(event) => setFolderId(event.target.value || null)}
               onKeyDown={(event) => {
                 event.stopPropagation();
+                if (isComposingKeyEvent(event)) return;
                 if (event.key === 'Escape') onClose();
               }}
               className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none disabled:cursor-wait disabled:opacity-60 desktop-shell:min-h-0"

@@ -1,8 +1,8 @@
 import { readLocalStorage, writeLocalStorage } from './storage';
-import { applySearchDialect, MAX_SEARCH_QUERY_LENGTH } from './searchTerms';
+import { applySearchDialect, MAX_SEARCH_QUERY_LENGTH, normalizeSearchText } from './searchTerms';
 
 export const normalizeCommandQuery = (value: string): string =>
-  applySearchDialect(value.slice(0, MAX_SEARCH_QUERY_LENGTH).trim().toLowerCase());
+  applySearchDialect(normalizeSearchText(value.slice(0, MAX_SEARCH_QUERY_LENGTH).trim()));
 
 export const RECENT_COMMANDS_STORAGE_KEY = 'web-katrain:recent_commands:v1';
 /**
@@ -78,10 +78,9 @@ export const commandMatchesQuery = (parts: Array<string | undefined>, query: str
   const normalizedQuery = normalizeCommandQuery(query);
   if (!normalizedQuery) return true;
 
-  const haystack = parts
+  const haystack = applySearchDialect(normalizeSearchText(parts
     .filter((part): part is string => typeof part === 'string' && part.length > 0)
-    .join(' ')
-    .toLowerCase();
+    .join(' ')));
 
   return normalizedQuery
     .split(/\s+/)

@@ -1,7 +1,63 @@
 import { describe, expect, it } from 'vitest';
-import { countSgfGames, countSgfMoves, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
+import { countSgfGames, countSgfMoves, readRootSgfProperties, scanSgf, sgfHeaderText } from '../src/utils/sgfScan';
 import { parseSgf, type ParsedSgfNode } from '../src/utils/sgf';
 import { PRELOADED_GAMES } from '../src/data/preloadedGames';
+
+describe('readRootSgfProperties', () => {
+  it('preserves the ordered values of large repeated properties without sharing them with variations', () => {
+    const comments = Array.from({ length: 20_000 }, (_, i) => `Comment ${i}`);
+    const sgf = `(;GM[1]SZ[9]${comments.map(comment => `C[${comment}]`).join('')}AB[aa]AB[bb]AB[cc](;B[dd]C[Branch first]C[Branch second]))`;
+    const root = readRootSgfProperties(sgf);
+    const parsed = parseSgf(sgf);
+    expect(root.C).toEqual(comments);
+    expect(parsed.tree!.props.C).toEqual(comments);
+    expect(root.AB).toEqual(['aa', 'bb', 'cc']);
+    expect(parsed.tree!.children[0]!.props.C).toEqual(['Branch first', 'Branch second']);
+    expect(parsed.initialBoard[0]![0]).toBe('black');
+    expect(parsed.initialBoard[1]![1]).toBe('black');
+    expect(parsed.initialBoard[2]![2]).toBe('black');
+  });
+
+  it('appends a single large value list without exceeding function argument limits', () => {
+    const count = 160_000;
+    const sgf = `(;GM[1]C[first]C${'[x]'.repeat(count)}C[last])`;
+    for (const props of [readRootSgfProperties(sgf), parseSgf(sgf).tree!.props]) {
+      expect(props.C).toHaveLength(count + 2);
+      expect(props.C![0]).toBe('first');
+      expect(props.C![count]).toBe('x');
+      expect(props.C![count + 1]).toBe('last');
+    }
+  });
+
+  it('keeps comment contents, child nodes, and later games out of the root properties', () => {
+    const sgf = '(;C[Example SZ[5\\] and PB[Fake\\]; (;SZ[7\\])]SZ[19]PB[Real];PW[Child])(;PW[Other])';
+    expect(readRootSgfProperties(sgf)).toEqual({
+      C: ['Example SZ[5] and PB[Fake]; (;SZ[7])'], SZ: ['19'], PB: ['Real'],
+    });
+  });
+
+  it('matches the parser for old identifiers, repeated values, escaped brackets and continuations', () => {
+    const sgf = '( \n;SiZe [19]PlayerBlack[A\\\nlice]PW[Bo\\\r\nb]GN[Title\\\rgame]' +
+      'C[Bracket \\] and backslash \\\\]C[second]AB[aa]\n[bb]ignored[not a key];B[dd])';
+    expect(readRootSgfProperties(sgf)).toEqual(parseSgf(sgf).tree!.props);
+    expect(readRootSgfProperties(sgf)).toMatchObject({
+      SZ: ['19'], PB: ['Alice'], PW: ['Bob'], GN: ['Titlegame'],
+      C: ['Bracket ] and backslash \\', 'second'], AB: ['aa', 'bb'],
+    });
+  });
+
+  it('preserves a literal escaped backslash before a line break', () => {
+    const sgf = '(;PB[Alice\\\\\nSmith]SZ[19])';
+    expect(readRootSgfProperties(sgf).PB).toEqual(['Alice\\\nSmith']);
+    expect(readRootSgfProperties(sgf)).toEqual(parseSgf(sgf).tree!.props);
+  });
+
+  it('reads only closed values and requires the first tree to start with a root', () => {
+    expect(readRootSgfProperties('')).toEqual({});
+    expect(readRootSgfProperties('(invalid)(;SZ[5])')).toEqual({});
+    expect(readRootSgfProperties('(;PB[Alice]PW[unfinished')).toEqual({ PB: ['Alice'] });
+  });
+});
 
 describe('countSgfMoves', () => {
   it('counts a move whose node names another property first', () => {

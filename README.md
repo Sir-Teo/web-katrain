@@ -19,6 +19,8 @@ PWA. There is no analysis server to run.
   variation on the board; click it to play the move.
 - Quick, fast, and full-game analysis passes with per-position caching.
 - KaTrain-style move quality, phase summaries, and game reports.
+- Print mistake reports with each board diagram and its correction sequence
+  together on one page, including coordinates and move-marker explanations.
 - "Play elsewhere?" prices the point: the engine evaluates the position again
   after a pass, so you can see what the move here is worth and where the
   opponent would go if you ignored it.
@@ -67,10 +69,19 @@ PWA. There is no analysis server to run.
   "climb the ranks" tournament ladder against calibrated bots, and a
   searchable pro game library. Open any of them from the menu's Study &
   Practice section or the command palette.
+- Lessons remember your progress across tabs on this device, offer unfinished exercises
+  to resume, and mark completed lessons for review. Open a 9×9 practice board
+  from Lessons to try placing stones and making captures with both colors.
+- Guess the next move in a loaded game, with keyboard answers and a player
+  filter. Start again after the final answer to repeat the drill with a fresh score.
+- Practice recorded tsumego branches with automatic opponent replies and
+  keyboard controls for answering, retrying and moving between problems.
 
 **Load and save**
 
 - Import SGF files by picker, paste, drag and drop, or Online-Go game URL.
+  Paste a Web KaTrain share link to open its embedded game.
+  In the paste editor, Ctrl+Enter or ⌘+Enter opens the record; Enter adds a new line.
   File and library ZIP imports honor SGF charset declarations, including
   Shift-JIS, EUC-KR, GBK, and Latin-1; downloads preserve text as UTF-8.
 - Import board positions from a photo or live camera capture, or by pasting a
@@ -79,8 +90,26 @@ PWA. There is no analysis server to run.
   share link that carries the whole game in the URL, the board as a PNG, a
   numbered kifu as PDF, or the position as a text diagram. Every one is in the
   command palette, and all but the file save sit together under File.
+  Setup-only records print as an unnumbered board diagram; search **Print position**
+  in the palette to print a problem or handicap setup without recording a move.
 - Store games in an IndexedDB library with folders, bundled famous games, and
-  zip backup/restore.
+  zip backup/restore. Search titles, players, dates, results, and tags;
+  `joseki` and `eloise` also find “Jōseki” and “Éloïse”.
+- Library imports keep saving after the panel closes. Reopening it shows the
+  ongoing import; leaving the page asks for confirmation while work is pending.
+- Use **Copy SGF** in a saved game's menu to copy its complete record without
+  replacing the game on the board. Collections keep all of their games.
+- Sync recent finished OGS games into Library. Renamed studies stay recognized
+  on later syncs, and their source IDs survive JSON backups and library duplication.
+  Use **Open on OGS** in a synced or URL-imported study's menu to open its original game in a new tab.
+- Browse Library games and folders with Up/Down and Home/End, then Enter to
+  open. Left/Right collapse, expand or move between a folder and its children.
+  Press Down in the search field to focus its first result and continue browsing.
+  Type a name prefix to jump to a visible row, or repeat a letter to cycle
+  matches. Screen readers receive folder depth and navigation instructions.
+- Split a multi-game SGF collection into a numbered Library folder from its
+  actions menu. Each game keeps its comments and variations, and the original
+  collection stays available.
 - Auto-save the current session and recover after a crash or reload.
 
 **Use it anywhere**
@@ -116,9 +145,11 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm test` | Run the Vitest suite. Typechecks nothing on its own — Vitest transpiles without checking, so a test can pass while failing to compile. |
 | `npm run typecheck` | Type-check the app. Runs `tsc -b`; a bare `tsc --noEmit` checks nothing here, because the root config is a solution file with `"files": []`. |
 | `npm run test:typecheck` | Type-check the tests. Needed separately: `tsc -b` builds the app and node projects, and neither includes `test/`. |
-| `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. About 3 minutes locally. |
+| `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. Runtime varies with the browser and storage fixtures. |
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
-| `npm run test:study` | Chrome benchmarks for marker edits and 12,000-node export, nested import, solution lookup, copy/paste, and setup replay. Measures dev-store operations separately from production INP; not in `verify` or CI. |
+| `npm run test:study` | Chrome benchmarks for deep study operations, 10,000-game library import/copy, numeric name and equal-time Recent sorting, wide/deep folder pickers, and 5,000-game accent matching. Measures dev-store operations separately from production INP; not in `verify` or CI. |
+| `npm run test:report` | Export real desktop and phone report PDFs; check page counts, complete diagrams, and all 24 correction moves per mistake. Writes PDFs to `/tmp/web-katrain-report-print`; not in `verify` or CI. |
+| `npm run test:offline` | Check a cold offline boot, dialogs and fresh WASM analysis after one online analysis. HTTP caches are disabled and the server refuses new requests; deleting app caches must prevent navigation. Uses `dist/`, so build first; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |

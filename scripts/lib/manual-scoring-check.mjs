@@ -33,6 +33,13 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
       // A real four-stone handicap setup, followed by a White move and passes.
       position: 'HA[4]AB[cg][gg][cc][gc];W[ee];B[];W[]', komi: 0.5,
     })),
+    ...[
+      ['chinese', 'Chinese', 'W+1.5', '3.5', '2'],
+      ['aga', 'AGA', 'W+0.5', '2.5', '1'],
+    ].map(([rules, ru, result, whiteTotal, bonus]) => ({
+      id: `${rules}-free-handicap`, rules, ru, result, totals: ['2', whiteTotal], bonus,
+      position: 'HA[2];B[gc];B[cg];W[gg];B[];W[]', komi: 0.5, moves: 5,
+    })),
     { id: 'official-result', rules: 'chinese', ru: 'Chinese', result: 'B+14.0', totals: ['51', '37'], officialResult: 'W+R' },
   ];
   const preload = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
@@ -109,7 +116,7 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
           assert.ok(!imported.error, JSON.stringify(imported.error));
           await wait(`manualScoreCheckStore.getState().rootNode.properties.GN?.[0]===${JSON.stringify(stem)}`);
           await key('End', 35);
-          await wait(`manualScoreCheckStore.getState().moveHistory.length===${fixture.position ? 3 : 2}`);
+          await wait(`manualScoreCheckStore.getState().moveHistory.length===${fixture.moves ?? (fixture.position ? 3 : 2)}`);
           if (await evaluate(cdp, `!!(${visible('button[aria-label="Dismiss notification"]')})`)) {
             await click('button[aria-label="Dismiss notification"]');
           }
@@ -209,7 +216,9 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
               return b.contains(document.elementFromPoint(x,y))?{x,y}:false;
             })()`);
             await press(point);
-            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+84.0'`);
+            // Lifting Black joins White through its territory: 81 area + 7
+            // komi - one two-point group tax, matching manualScorePanel.test.
+            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+86.0'`);
             await click('.manual-score-actions button[title="Clear dead stones"]');
             await wait(`document.querySelector('.manual-score-result>span')?.textContent==='B+16.0'`);
           }
@@ -242,6 +251,14 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
             return parseSgf(${JSON.stringify(saved)}).tree.props.RE?.[0];
           })()`);
           assert.equal(roundTrip, expectedResult, `${stem}: exported result round trip`);
+          if (fixture.id.endsWith('-free-handicap')) {
+            const restored = await evaluate(cdp, `(async()=>{const url=${loadedModuleUrl.toString()},{parseSgf}=await import(url('/src/utils/sgf.ts'));const parsed=parseSgf(${JSON.stringify(saved)});return{moves:parsed.moves,setup:parsed.tree.props.AB??[],player:parsed.tree.props.PL?.[0]}})()`);
+            assert.deepEqual(restored.moves, [
+              { x: 6, y: 2, player: 'black' }, { x: 2, y: 6, player: 'black' },
+              { x: 6, y: 6, player: 'white' }, { x: -1, y: -1, player: 'black' }, { x: -1, y: -1, player: 'white' },
+            ], `${stem}: exported handicap moves must retain their exact order`);
+            assert.deepEqual(restored.setup, []); assert.notEqual(restored.player, 'W');
+          }
           reports.push({ width, height, id: fixture.id, ...snapshot, editor, details, recorded, roundTrip });
         } catch (error) {
           const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });

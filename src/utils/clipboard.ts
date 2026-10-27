@@ -2,6 +2,18 @@ import { restoreFocusIfUnclaimed } from './focusRestore';
 
 export const CLIPBOARD_OPERATION_TIMEOUT_MS = 1200;
 
+export interface ClipboardWriteRequest { readonly id: number }
+let latestClipboardWriteRequest = 0;
+
+/** Keep one copy request through preparation, modern writing and fallback. */
+export function beginClipboardWriteRequest(): ClipboardWriteRequest {
+  return { id: ++latestClipboardWriteRequest };
+}
+
+export function isClipboardWriteRequestCurrent(request: ClipboardWriteRequest): boolean {
+  return request.id === latestClipboardWriteRequest;
+}
+
 export function getClipboard(target?: Navigator | null): Clipboard | null {
   const source = target ?? (typeof navigator !== 'undefined' ? navigator : null);
   if (!source) return null;
@@ -32,7 +44,8 @@ function withClipboardTimeout<T>(operation: Promise<T>, timeoutMs = CLIPBOARD_OP
   });
 }
 
-export async function writeClipboardText(text: string, target?: Navigator | null): Promise<boolean> {
+export async function writeClipboardText(text: string, target?: Navigator | null, request = beginClipboardWriteRequest()): Promise<boolean> {
+  if (!isClipboardWriteRequestCurrent(request)) return false;
   const clipboard = getClipboard(target);
   if (typeof clipboard?.writeText !== 'function') return false;
   try {
@@ -43,7 +56,8 @@ export async function writeClipboardText(text: string, target?: Navigator | null
   }
 }
 
-export async function writeClipboardImage(blob: Blob, target?: Navigator | null): Promise<boolean> {
+export async function writeClipboardImage(blob: Blob, target?: Navigator | null, request = beginClipboardWriteRequest()): Promise<boolean> {
+  if (!isClipboardWriteRequestCurrent(request)) return false;
   const clipboard = getClipboard(target);
   if (typeof clipboard?.write !== 'function') return false;
   const ClipboardItemCtor = typeof globalThis !== 'undefined'
@@ -97,7 +111,8 @@ function getLegacyCopyDocument(target?: LegacyCopyDocument | null): LegacyCopyDo
  * refused, so it is the browser least likely to recover gracefully. The restore
  * is the app's usual one: put focus back only if nothing else has claimed it.
  */
-export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocument | null): boolean {
+export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocument | null, request = beginClipboardWriteRequest()): boolean {
+  if (!isClipboardWriteRequestCurrent(request)) return false;
   const source = getLegacyCopyDocument(target);
   if (!source?.body) return false;
 
@@ -134,7 +149,9 @@ export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocume
   }
 }
 
-export async function copyTextToClipboard(text: string, target?: Navigator | null, legacyTarget?: LegacyCopyDocument | null): Promise<boolean> {
-  if (await writeClipboardText(text, target)) return true;
-  return writeClipboardTextLegacy(text, legacyTarget);
+export async function copyTextToClipboard(text: string, target?: Navigator | null, legacyTarget?: LegacyCopyDocument | null, request = beginClipboardWriteRequest()): Promise<boolean> {
+  if (await writeClipboardText(text, target, request)) return true;
+  // A delayed failure must not copy old text over a more recent request.
+  if (!isClipboardWriteRequestCurrent(request)) return false;
+  return writeClipboardTextLegacy(text, legacyTarget, request);
 }

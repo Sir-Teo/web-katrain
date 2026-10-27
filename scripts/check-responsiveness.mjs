@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  chromePath,
+  closeBrowser, chromePath,
   chromeTarget,
   connectDevtools,
   evaluate,
@@ -67,6 +67,7 @@ async function main() {
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let chrome;
+  let cdp;
   try {
     await waitForHttp(`http://127.0.0.1:${appPort}/`);
     const ciChromeFlags = process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
@@ -76,7 +77,7 @@ async function main() {
       `--remote-debugging-port=${devtoolsPort}`, '--window-size=1280,900', 'about:blank',
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
-    const cdp = connectDevtools(await chromeTarget(devtoolsPort));
+    cdp = connectDevtools(await chromeTarget(devtoolsPort));
     await cdp.ready;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
@@ -104,12 +105,31 @@ async function main() {
     await evaluate(cdp, `(() => {
       window.__lt = [];
       window.__events = [];
+      window.__longTaskDetails = [];
+      window.__interactionDetails = [];
       try {
-        new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt.push(e.duration); })
+        new PerformanceObserver((l) => {
+          for (const e of l.getEntries()) {
+            window.__lt.push(e.duration);
+            window.__longTaskDetails.push({ start: e.startTime, duration: e.duration });
+          }
+        })
           .observe({ entryTypes: ['longtask'] });
         new PerformanceObserver((l) => {
           for (const e of l.getEntries()) {
-            if (e.interactionId > 0) window.__events.push(e.duration);
+            if (e.interactionId > 0) {
+              window.__events.push(e.duration);
+              const target = e.target?.closest?.('button') ?? e.target;
+              window.__interactionDetails.push({
+                event: e.name,
+                start: e.startTime,
+                duration: e.duration,
+                inputDelay: e.processingStart - e.startTime,
+                processing: e.processingEnd - e.processingStart,
+                interactionId: e.interactionId,
+                target: (target?.getAttribute?.('aria-label') || target?.title || target?.textContent || target?.tagName || '').slice(0, 100),
+              });
+            }
           }
         }).observe({ type: 'event', durationThreshold: 16, buffered: true });
       } catch {}
@@ -206,6 +226,8 @@ async function main() {
       return JSON.stringify({
         inp: durs.length ? +durs[Math.max(0, Math.ceil(durs.length * 0.98) - 1)].toFixed(1) : null,
         interactions: durs.length,
+        slowInteractions: (window.__interactionDetails || []).sort((a, b) => b.duration - a.duration).slice(0, 8),
+        longTasks: (window.__longTaskDetails || []).sort((a, b) => b.duration - a.duration).slice(0, 8),
         worstLongTask: lt.length ? +Math.max(...lt).toFixed(1) : 0,
       });
     })()`));
@@ -215,13 +237,16 @@ async function main() {
     record('INP (p98, trusted input)', tail.inp, BUDGETS.inpP98Ms);
     record('worst long task', tail.worstLongTask, BUDGETS.worstLongTaskMs);
 
-    cdp.close();
     if (failures.length > 0) {
+      console.log('Responsiveness failure details:', JSON.stringify({
+        slowInteractions: tail.slowInteractions,
+        longTasks: tail.longTasks,
+      }, null, 2));
       throw new Error(`${failures.length} responsiveness budget(s) exceeded:\n  - ${failures.join('\n  - ')}`);
     }
     console.log('Responsiveness checks passed.');
   } finally {
-    await stopProcess(chrome);
+    await closeBrowser(cdp, chrome);
     await stopProcess(server);
   }
 }

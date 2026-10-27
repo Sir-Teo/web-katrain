@@ -223,10 +223,26 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const printRequestRef = useRef<object | null>(null);
+  const printButtonRef = useRef<HTMLButtonElement>(null);
+  const wasPreparingPdfRef = useRef(false);
   const [pdfSnapshots, setPdfSnapshots] = useState<Array<{ id: string; dataUrl: string | null; entry: MoveReportEntry }>>([]);
   const [showReportGuide, setShowReportGuide] = useState(false);
   useEscapeToClose(onClose, !showReportGuide);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  React.useLayoutEffect(() => () => {
+    printRequestRef.current = null;
+  }, []);
+  React.useLayoutEffect(() => {
+    const wasPreparing = wasPreparingPdfRef.current;
+    wasPreparingPdfRef.current = isPreparingPdf;
+    if (!isPreparingPdf && !wasPreparing) return;
+    const dialog = dialogRef.current;
+    const active = document.activeElement;
+    if (active === document.body || active === dialog || (active instanceof HTMLElement && active.matches(':disabled'))) {
+      (isPreparingPdf ? dialog : printButtonRef.current)?.focus({ preventScroll: true });
+    }
+  }, [isPreparingPdf, dialogRef]);
   const reportGuideButtonRef = useRef<HTMLButtonElement>(null);
   const reportGuideCloseRef = useRef<HTMLButtonElement>(null);
   const snapshotTimerRef = useRef<number | null>(null);
@@ -295,11 +311,22 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           background: transparent !important;
         }
         .app-root {
+          display: block !important;
           height: auto !important;
           min-height: auto !important;
           overflow: visible !important;
         }
+        /* Hidden app chrome still occupies space with visibility:hidden and
+           produced blank pages after the report. Keep only this print flow. */
+        .app-root > :not(.report-overlay) {
+          display: none !important;
+        }
+        .report-overlay {
+          display: block !important;
+          padding: 0 !important;
+        }
         .report-print {
+          display: block !important;
           position: static !important;
           left: auto !important;
           top: auto !important;
@@ -308,12 +335,16 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           height: auto !important;
           overflow: visible !important;
           background: #ffffff !important;
+          max-width: none !important;
+          border: 0 !important;
+          border-radius: 0 !important;
           /* No 'Source Serif 4' ahead of these: this app ships no web font and
              loads none -- there is a test holding it to that -- so naming one
              only described a fallback as a choice. Times is what prints. */
           font-family: 'Times New Roman', Times, serif !important;
         }
         .report-print .report-scroll {
+          padding: 0 !important;
           overflow: visible !important;
           max-height: none !important;
           height: auto !important;
@@ -352,6 +383,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           color: #64748b !important;
         }
         .report-print .pdf-page {
+          margin: 0 !important;
           break-after: page !important;
           page-break-after: always !important;
           padding: 8mm !important;
@@ -364,6 +396,30 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           min-height: calc(100vh - 24mm) !important;
           display: flex !important;
           flex-direction: column !important;
+        }
+        /* A 70vh board followed by up to 24 vertical PV moves cannot fit one
+           landscape sheet. Give the diagram and its correction one row. */
+        .report-print .pdf-mistake-page {
+          display: grid !important;
+          grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) !important;
+          grid-template-rows: auto minmax(0, 1fr) !important;
+          gap: 4mm 8mm !important;
+          height: 185mm !important;
+          min-height: 0 !important;
+          break-inside: avoid !important;
+        }
+        .report-print .pdf-mistake-header {
+          grid-column: 1 / -1 !important;
+        }
+        .report-print .pdf-mistake-page .pdf-board-wrap,
+        .report-print .pdf-correction {
+          margin-top: 0 !important;
+          min-height: 0 !important;
+          min-width: 0 !important;
+        }
+        .report-print .pdf-mistake-page .pdf-board {
+          height: 100% !important;
+          max-height: 100% !important;
         }
         .report-print .pdf-page:last-child {
           break-after: auto !important;
@@ -715,7 +771,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
   }, [boardSize, phaseFilter]);
 
   const preparePrint = async () => {
-    if (isPreparingPdf) return;
+    if (printRequestRef.current) return;
+    const request = {};
+    printRequestRef.current = request;
     setIsPreparingPdf(true);
     try {
       const snapshots = pdfMistakes.map((entry) => ({
@@ -729,11 +787,15 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       }));
       setPdfSnapshots(snapshots);
       await afterAnimationFrames(2);
+      if (printRequestRef.current !== request) return;
       if (!printWindow()) {
         setTimedNotification('Print dialog unavailable in this browser.', 'error');
       }
     } finally {
-      setIsPreparingPdf(false);
+      if (printRequestRef.current === request) {
+        printRequestRef.current = null;
+        setIsPreparingPdf(false);
+      }
     }
   };
 
@@ -971,24 +1033,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
 
   useEffect(() => () => setReportHoverMove(null), [setReportHoverMove]);
 
-  useEffect(() => {
-    if (!showReportGuide) return;
-    reportGuideCloseRef.current?.focus({ preventScroll: true });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      setShowReportGuide(false);
-      window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showReportGuide]);
-
-  const closeReportGuide = () => {
-    setShowReportGuide(false);
-    window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
-  };
+  const closeReportGuide = () => setShowReportGuide(false);
+  useEscapeToClose(closeReportGuide, showReportGuide);
+  const reportGuideDialogRef = useInitialDialogFocus<HTMLDivElement>(showReportGuide, {
+    initialFocusRef: reportGuideCloseRef,
+    returnFocus: reportGuideButtonRef.current,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
@@ -999,8 +1049,9 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-report-title"
+        aria-busy={isPreparingPdf}
       >
-        <div className="game-report-modal-header flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar">
+        <div className="game-report-modal-header flex items-center justify-between px-5 py-4 border-b border-[var(--ui-border)] ui-bar print-hide">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">KaTrain Report</div>
             <h2 id="game-report-title" className="text-lg font-semibold text-[var(--ui-text)]">
@@ -2155,8 +2206,8 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 ? pdfSnapshots
                 : pdfMistakes.map((entry) => ({ id: entry.node.id, dataUrl: null, entry }))
               ).map(({ id, dataUrl, entry }, idx) => (
-                <div key={id} className="pdf-page">
-                  <div className="flex items-start justify-between gap-6">
+                <div key={id} className="pdf-page pdf-mistake-page">
+                  <div className="pdf-mistake-header flex items-start justify-between gap-6">
                     <div>
                       <div className="pdf-section-title">
                         Mistake {idx + 1} of {pdfMistakes.length}
@@ -2167,6 +2218,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       <div className="text-sm text-slate-700">
                         Played {entry.move} · Best {entry.topMove ?? NO_VALUE} · Loss {fmtNum(entry.pointsLost, 2)} · Win {fmtWinSwing(entry.winRateSwing)}
                       </div>
+                      <div className="mt-1 text-xs text-slate-600">Red ring: played move · Green square: engine suggestion</div>
                     </div>
                     <div className="text-xs text-slate-600">
                       Phase: {phaseLabel}
@@ -2179,7 +2231,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       <div className="text-[0.625rem] text-slate-500">Snapshot missing</div>
                     )}
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-4 pdf-correction">
                     <div className="pdf-section-title">Correct Move Tree</div>
                     <div className="mt-2">{renderPvTree(entry)}</div>
                   </div>
@@ -2198,6 +2250,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
               <button
                 type="button"
                 onClick={handlePrintReport}
+                ref={printButtonRef}
                 className="min-h-11 px-4 py-2 bg-[var(--ui-surface-2)] not-disabled:hover:brightness-110 text-[var(--ui-text)] border border-[var(--ui-border)] rounded-lg font-semibold disabled:opacity-60"
                 disabled={isPreparingPdf}
               >
@@ -2218,11 +2271,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       </div>
       {showReportGuide && (
         <div
+          ref={reportGuideDialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 print-hide"
           role="dialog"
           aria-modal="true"
           aria-labelledby="report-guide-title"
-          onMouseDown={(event) => {
+          onClick={(event) => {
             if (event.target === event.currentTarget) closeReportGuide();
           }}
         >

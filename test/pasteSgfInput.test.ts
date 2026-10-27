@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { encodeSgfToFragment } from '../src/utils/shareLink';
 import { getDirectGameImportText, getPasteSgfInputInfo } from '../src/utils/pasteSgfInput';
 
 const SGF = '(;GM[1]FF[4]SZ[19];B[pd];W[dd])';
@@ -51,6 +52,32 @@ describe('recognising what was pasted', () => {
     expect(info.helper).toContain('12345');
     expect(info.submitStatus).toContain('12345');
     expect(info.errorStatus).toContain('12345');
+  });
+
+  it('recognizes embedded shared games without calling them unsupported URLs', () => {
+    const link = `https://study.example/app/#${encodeSgfToFragment(SGF)}`;
+    const info = getPasteSgfInputInfo(`  ${link}  `);
+    expect(info.kind).toBe('share');
+    expect(info.helper).toContain('embedded game');
+    expect(info.submitStatus).toBe('Opening shared game...');
+    expect(getDirectGameImportText(link)).toBe(SGF);
+  });
+
+  it.each(['', 'not-valid-compressed-data'])('offers share-specific recovery for damaged payload %j', (payload) => {
+    const link = `https://study.example/app/#sgf=${payload}`;
+    const info = getPasteSgfInputInfo(link);
+    expect(info.kind).toBe('share');
+    expect(info.errorStatus).toContain('complete share link');
+    expect(getDirectGameImportText(link)).toBeNull();
+  });
+
+  it.each([
+    'https://study.example/?sgf=payload#section',
+    'https://study.example/#sgf-extra=payload',
+    'file:///study.html#sgf=payload',
+    'Notes: https://study.example/#sgf=payload',
+  ])('keeps unrelated URLs and text out of share guidance: %s', (text) => {
+    expect(getPasteSgfInputInfo(text).kind).not.toBe('share');
   });
 
   it('tells the reader other links are not downloaded', () => {

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DEFAULT_BOARD_THEME_ID, getBoardTheme } from '../src/utils/boardThemes';
 
 type Listener = (event: never) => void;
 
@@ -172,6 +173,19 @@ function runFetch(options: {
 }
 
 describe('service worker install', () => {
+  it('precaches every image used by the default board before that first page is controlled', async () => {
+    const { added } = await runInstall();
+    const theme = getBoardTheme(DEFAULT_BOARD_THEME_ID);
+    const assets = [theme.board.texture, theme.stones.black.image, theme.stones.white.image,
+      ...(theme.stones.black.imageVariations ?? []), ...(theme.stones.white.imageVariations ?? [])];
+    for (const asset of assets) {
+      if (!asset) continue;
+      const localPath = /\/((?:themes|katrain)\/.+)$/.exec(asset)?.[1];
+      expect(localPath, asset).toBeTruthy();
+      expect(added).toContain(`./${localPath}`);
+    }
+  });
+
   it('caches the whole list when every request succeeds', async () => {
     const { added } = await runInstall();
 
@@ -398,7 +412,7 @@ describe('service worker activation', () => {
     // GitHub Pages serves several apps from one origin, and CacheStorage is
     // per origin: the old filter deleted everything but our own.
     const listeners = new Map<string, Listener>();
-    const existing = ['web-chess-v1:runtime', 'web-katrain-v2:shell', 'web-katrain-v3:shell', 'web-katrain-v30:shell'];
+    const existing = ['web-chess-v1:runtime', 'web-katrain-v2:shell', 'web-katrain-v3:shell', 'web-katrain-v30:shell', 'web-katrain-library-data-v1', 'web-katrain-library-data-v2'];
     const deleted: string[] = [];
     const selfStub = {
       addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
@@ -423,7 +437,51 @@ describe('service worker activation', () => {
 });
 
 describe('bundles reported across deployments', () => {
-  it('keeps this deployment\'s and lets earlier ones go', async () => {
+  it('does not let a delayed older report prune bundles from a newer report', async () => {
+    const store = new Map<string, FakeResponse>([['./index.html', response(BUILT_INDEX_HTML)]]);
+    const a = 'https://example.test/assets/dialog-A.js';
+    const b = 'https://example.test/assets/dialog-B.js';
+    let release!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    let firstStarted = false;
+    const cache = {
+      match: (url: string) => Promise.resolve(store.get(url)),
+      add: async (url: string) => {
+        if (url === a && !firstStarted) {
+          firstStarted = true;
+          await blocked;
+        }
+        store.set(url, response('fetched'));
+      },
+      keys: () => Promise.resolve([...store.keys()].map(url => ({ url: new URL(url, 'https://example.test/').href }))),
+      delete: (request: { url: string }) => Promise.resolve(store.delete(request.url)),
+    };
+    const listeners = new Map<string, Listener>();
+    const self = {
+      addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
+      location: { origin: 'https://example.test', href: 'https://example.test/' },
+    };
+    const caches = { open: () => Promise.resolve(cache) };
+    new Function('self', 'caches', readFileSync('public/sw.js', 'utf8'))(self, caches);
+    const message = listeners.get('message') as unknown as (event: { data: unknown; waitUntil: (promise: Promise<unknown>) => void }) => void;
+    const report = (urls: string[]) => {
+      let pending!: Promise<unknown>;
+      message({ data: { type: 'CACHE_USED_ASSETS', urls }, waitUntil: promise => { pending = promise; } });
+      return pending;
+    };
+    const older = report([a]);
+    await vi.waitFor(() => expect(firstStarted).toBe(true));
+    let newerDone = false;
+    const newer = report([a, b]).then(() => { newerDone = true; });
+    // Let every ready cache promise run while A's network request stays held.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    try { expect(newerDone).toBe(false); } finally { release(); }
+    await Promise.all([older, newer]);
+    expect(store.has(a)).toBe(true);
+    expect(store.has(b)).toBe(true);
+  });
+
+  it.each([0, 120])('retains unreported dialogs while bounding older bundles (%i old entries)', async (olderEntries) => {
     const store = new Map<string, FakeResponse>([
       ['./index.html', response(BUILT_INDEX_HTML)],
       ['https://example.test/assets/main-CCC.js', response('entry')],
@@ -437,6 +495,9 @@ describe('bundles reported across deployments', () => {
       keys: () => Promise.resolve([...store.keys()].map((url) => ({ url: new URL(url, 'https://example.test/').href }))),
       delete: (request: { url: string }) => Promise.resolve(store.delete(request.url)),
     };
+    for (let i = 0; i < olderEntries; i++) {
+      store.set(`https://example.test/assets/Unused-${i}.js`, response('older cached bundle'));
+    }
     const listeners = new Map<string, Listener>();
     const selfStub = {
       addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
@@ -454,8 +515,11 @@ describe('bundles reported across deployments', () => {
 
     expect(store.has('https://example.test/assets/Dashboard-NEW.js')).toBe(true);
     expect(store.has('https://example.test/assets/main-CCC.js')).toBe(true);
-    expect(store.has('https://example.test/assets/Dashboard-OLD.js')).toBe(false);
-    expect(store.has('https://example.test/assets/Dashboard-OLD.css')).toBe(false);
+    expect(store.has('https://example.test/assets/Dashboard-OLD.js')).toBe(olderEntries === 0);
+    expect(store.has('https://example.test/assets/Dashboard-OLD.css')).toBe(olderEntries === 0);
     expect(store.has('https://example.test/assets/board-texture-OLD.png')).toBe(true);
+    if (olderEntries > 0) {
+      expect([...store.keys()].filter(url => /\/assets\/.*\.(?:js|css)$/.test(url))).toHaveLength(100);
+    }
   });
 });

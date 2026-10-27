@@ -43,6 +43,29 @@ describe('naming a dropped game pack', () => {
         });
     });
 
+    it('uses actual root properties rather than lookalike text in comments or later games', () => {
+        const sgf = '(;C[Example PB[Wrong\\] PW[Wrong white\\] SO[wrong.example\\]]'
+          + 'PB[Alice]PW[Bob]SO[Club archive];B[dd])';
+        expect(describePreloadedGame(sgf, 'pack-game')).toEqual({name:'Alice vs Bob',source:'Club archive'});
+        expect(describePreloadedGame('(;PB[Alice];B[dd])(;PW[Other player]SO[Other archive])', 'pack-game'))
+          .toEqual({name:'pack game',source:'public domain'});
+    });
+
+    it('reads old identifiers, spaced values, and SGF escapes the same way as the opened game', () => {
+        const sgf = '( ;PlayerBlack [Al\\\nice]PlayerWhite [Bob]EV [Final\\] round]DT [2026-10-25]SO [Club archive])';
+        expect(describePreloadedGame(sgf, 'pack-game')).toEqual({
+            name:'Alice vs Bob - Final] round, 2026-10-25',source:'Club archive',
+        });
+    });
+
+    it('does not treat inherited object keys as curated game names', () => {
+        for (const basename of ['constructor','toString','__proto__']) {
+            expect(describePreloadedGame(COMPACT, basename)).toEqual({
+                name:'Lee Sedol vs Gu Li - LG Cup, 2005-10-19',source:'go4go.net',
+            });
+        }
+    });
+
     it('still ships every bundled game with a real name', () => {
         expect(PRELOADED_GAMES.length).toBeGreaterThan(0);
         for (const game of PRELOADED_GAMES) {

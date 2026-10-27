@@ -50,6 +50,23 @@ describe('loading handicap records', () => {
     expect(mainLineLength()).toBe(1);
   });
 
+  it.each([
+    [';B[pd];B[dp];W[pp]', 3],
+    ['B[pd];B[dp];W[pp]', 3],
+    [';B[pd];W[];B[dp];W[pp]', 4],
+  ])('keeps free handicap placement: %s', (line, length) => {
+    const state = load(`(;GM[1]FF[4]SZ[19]HA[2]RU[Chinese]${line})`);
+    expect(stones(state.rootNode.gameState.board, 'black')).toBe(0);
+    expect(state.rootNode.properties?.AB).toBeUndefined();
+    expect(state.rootNode.gameState.currentPlayer).toBe('black');
+    expect(state.rootNode.properties?.PL).toBeUndefined();
+    expect(mainLineLength()).toBe(length);
+    let node = state.rootNode;
+    while (node.children[0]) node = node.children[0];
+    expect(stones(node.gameState.board, 'black')).toBe(2);
+    expect(stones(node.gameState.board, 'white')).toBe(1);
+  });
+
   it('gives HA[1] no handicap compensation in the manual count', () => {
     const state = load('(;GM[1]SZ[19]HA[1]RU[Chinese]KM[0.5];B[pd])');
     expect(countRootHandicapStones(state.rootNode)).toBe(0);

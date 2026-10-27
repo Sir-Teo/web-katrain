@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 import {
   classifyProblemNode,
   findChildForMove,
@@ -50,6 +51,8 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const [cursor, setCursor] = useState<GameNode | null>(start);
   const [status, setStatus] = useState<Status>('solving');
   const [message, setMessage] = useState<string | null>(null);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearReplyTimer = () => {
@@ -79,6 +82,16 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   // Whose problem it is: the side to move at the start, not at the cursor.
   const solver = start ? problemSideToMove(start) : undefined;
 
+  useEffect(() => {
+    if (status === 'replying') return;
+    const selector = status === 'solving'
+      ? '[data-static-board-interactive="true"]'
+      : status !== 'wrong' && safeIndex < problems.length - 1
+        ? '[aria-label="Next problem"]'
+        : '[data-problem-retry]';
+    dialogRef.current?.querySelector<SVGSVGElement | HTMLButtonElement>(selector)?.focus({ preventScroll: true });
+  }, [status, start?.id, safeIndex, problems.length, attempt, dialogRef]);
+
   // Resolves the position if it carries an explicit verdict or ends a line.
   // Returns true when the round is decided, false when play should continue.
   const settleAt = (next: GameNode): boolean => {
@@ -105,6 +118,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     if (!node || status !== 'solving') return;
     const child = findChildForMove(node, x, y);
     if (!child) {
+      // Repeating an unrecorded move keeps the same text, but must reveal
+      // the hint again if the learner scrolled back to the board.
+      setFeedbackRevision(value => value + 1);
       setMessage("That move isn't part of this problem — try another point.");
       return;
     }
@@ -128,6 +144,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
 
   const handleRetry = () => {
     clearReplyTimer();
+    setAttempt(value => value + 1);
     setCursor(start);
     setStatus('solving');
     setMessage(null);
@@ -148,6 +165,17 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     if (next < 0 || next >= problems.length) return;
     setProblemIndex(next);
   };
+
+  React.useLayoutEffect(() => {
+    const body = dialogRef.current?.querySelector<HTMLElement>('.problem-body');
+    if (!body) return;
+    if (!message) {
+      body.scrollTop = 0;
+      return;
+    }
+    const feedback = body.querySelector<HTMLElement>('[data-problem-message]');
+    if (feedback) revealPaneFeedback(feedback, body);
+  }, [message, feedbackRevision, start?.id, attempt, dialogRef]);
 
   const markers: StaticBoardMarker[] = [];
   if (node?.move && node.move.x >= 0) {
@@ -220,6 +248,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
 
               <div className="problem-board mx-auto w-full max-w-[340px]">
                 <StaticBoard
+                  key={`${start?.id}:${attempt}`}
                   board={node.gameState.board}
                   lastMove={lastMove}
                   markers={markers}

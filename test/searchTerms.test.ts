@@ -19,6 +19,17 @@ describe('search terms', () => {
     expect(matchesSearchTerms(haystack, toSearchTerms('sedol 2003'))).toBe(false);
   });
 
+  it('finds Latin names and study terms without requiring accent marks', () => {
+    expect(toSearchTerms('Jōseki Éloïse')).toEqual(['joseki','eloise']);
+    expect(matchesSearchTerms('Éloïse studies Jōseki',toSearchTerms('eloise joseki'))).toBe(true);
+    expect(matchesSearchTerms('Jose\u0301',toSearchTerms('José'))).toBe(true);
+  });
+
+  it('keeps meaningful marks in Japanese and other writing systems', () => {
+    expect(toSearchTerms('がく 강희')).toEqual(['がく','강희']);
+    expect(matchesSearchTerms('がく',toSearchTerms('かく'))).toBe(false);
+  });
+
   /**
    * The slip this guards against is a paste into the filter rather than the
    * importer. Every term has to match, so an unbounded query is terms x

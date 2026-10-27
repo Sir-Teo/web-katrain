@@ -1,3 +1,5 @@
+import { normalizeSearchText } from './searchTerms';
+
 export type LibraryRowKind = 'file' | 'folder';
 
 export type LibraryRowKeyAction = 'activate' | 'expand' | 'collapse' | 'context-menu' | 'none';
@@ -56,4 +58,26 @@ export function getLibraryMenuNavigationIndex(args: LibraryMenuNavigationArgs): 
 
 export function isLibraryMenuCloseKey(key: string): boolean {
   return key === 'Escape';
+}
+
+/** Match visible row names without activating, selecting, or loading a game. */
+export function getLibraryTypeaheadMatch(args: {
+  key: string;
+  query: string;
+  names: readonly string[];
+  currentIndex: number;
+}): { query: string; index: number | null } | null {
+  if (Array.from(args.key).length !== 1 || !args.key.trim()) return null;
+  const key = normalizeSearchText(args.key);
+  const previous = normalizeSearchText(args.query);
+  const cycling = previous === key;
+  const query = cycling ? key : previous + key;
+  const start = Math.max(0, args.currentIndex + (previous && !cycling ? 0 : 1));
+  for (let offset = 0; offset < args.names.length; offset++) {
+    const index = (start + offset + args.names.length) % args.names.length;
+    if (normalizeSearchText(args.names[index]!.trimStart()).startsWith(query)) {
+      return { query, index };
+    }
+  }
+  return { query, index: null };
 }

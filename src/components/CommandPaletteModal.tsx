@@ -1,4 +1,6 @@
 import React from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { FaSearch, FaTimes } from 'react-icons/fa';
 import {
   getShortcutBindings,
@@ -36,8 +38,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   useEscapeToClose(onClose);
   const [query, setQuery] = React.useState('');
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const updateQuery = (next: string) => {
+    setQuery(next);
+    setActiveIndex(0);
+  };
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [commandOpener] = React.useState<HTMLElement | null>(() =>
+    typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null
+  );
   const listboxId = React.useId();
   // The search field is the right landing spot here, so only the Tab wrap and the
   // focus restore are wanted from the dialog focus hook.
@@ -99,10 +108,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   );
 
   React.useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
-  React.useEffect(() => {
     if (activeIndex >= filteredCommands.length) {
       setActiveIndex(Math.max(0, filteredCommands.length - 1));
     }
@@ -111,15 +116,26 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
     if (command.disabledReason) return;
     writeRecentCommandIds(addRecentCommandId(command.id));
+    // A destination dialog captures its opener while rendering. Give it the
+    // original connected control before the palette's temporary input/item
+    // disappears, so closing that dialog can return to the same place.
+    if (commandOpener?.isConnected) commandOpener.focus?.({ preventScroll: true });
     onClose();
     command.run();
-  }, [onClose]);
+  }, [onClose, commandOpener]);
 
   const activeCommand = filteredCommands[activeIndex] ?? null;
   const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
 
+  React.useEffect(() => {
+    if (!activeOptionId) return;
+    // Focus stays in the combobox; aria-activedescendant alone does not scroll
+    // its selected result into view, including after a new query resets it.
+    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionId, activeCommand?.id, query]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">
+    <div className="command-palette-overlay fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -128,6 +144,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         aria-modal="true"
         aria-labelledby="command-palette-title"
         onKeyDown={(event) => {
+          if (isComposingKeyEvent(event)) return;
           if (event.key === 'ArrowDown') {
             event.preventDefault();
             setActiveIndex((index) => Math.min(Math.max(0, filteredCommands.length - 1), index + 1));
@@ -149,7 +166,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         }}
         data-command-palette="true"
       >
-        <div className="ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
+        <div className="command-palette-header ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
           <div className="min-w-0">
             <h2 id="command-palette-title" className="text-lg font-semibold text-[var(--ui-text)]">
               Command Palette
@@ -167,7 +184,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             <FaTimes aria-hidden="true" />
           </button>
         </div>
-        <div className="shrink-0 p-3">
+        <div className="command-palette-search-row shrink-0 p-3">
           <label className="relative block">
             <FaSearch
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-faint)]"
@@ -178,6 +195,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               ref={inputRef}
               type="search"
               role="combobox"
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               value={query}
               // A query is not a sentence. Left to itself a phone capitalises
               // the first letter and autocorrects the rest, so "sgf" arrives
@@ -187,7 +205,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              onChange={(event) => setQuery(event.currentTarget.value)}
+              onChange={(event) => updateQuery(event.currentTarget.value)}
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"
               aria-label="Search commands"
@@ -201,7 +219,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               <button
                 type="button"
                 className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  updateQuery('');
+                  inputRef.current?.focus();
+                }}
                 aria-label="Clear command search"
               >
                 <FaTimes aria-hidden="true" size={11} />
@@ -211,7 +232,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         </div>
         <div id={listboxId} className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
           {filteredCommands.length === 0 ? (
-            <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
+            <div className="ui-surface break-words rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
               No commands match "{query.trim()}".
             </div>
           ) : (
@@ -225,6 +246,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"
+                    tabIndex={-1}
                     aria-label={[
                       command.label,
                       command.disabledReason ? `Unavailable: ${command.disabledReason}` : '',

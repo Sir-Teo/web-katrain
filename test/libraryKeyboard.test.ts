@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getLibraryMenuNavigationIndex,
   getLibraryRowKeyAction,
+  getLibraryTypeaheadMatch,
   isLibraryMenuCloseKey,
 } from '../src/utils/libraryKeyboard';
 
@@ -46,6 +47,56 @@ describe('library row keyboard actions', () => {
       hasChildren: true,
       isExpanded: false,
     })).toBe('activate');
+  });
+});
+
+describe('library row name navigation', () => {
+  const names = ['Alpha studies', 'Alpine game', 'Beta game', 'Another game'];
+  const match = (key: string, query = '', currentIndex = 0, rows = names) =>
+    getLibraryTypeaheadMatch({ key, query, currentIndex, names: rows });
+
+  it('jumps to the next matching name and wraps through repeated letters', () => {
+    expect(match('a')).toEqual({ query: 'a', index: 1 });
+    expect(match('a', 'a', 1)).toEqual({ query: 'a', index: 3 });
+    expect(match('a', 'a', 3)).toEqual({ query: 'a', index: 0 });
+  });
+
+  it('extends a prefix from the current match instead of skipping it', () => {
+    expect(match('l', 'a', 1)).toEqual({ query: 'al', index: 1 });
+    expect(match('h', 'alp', 1)).toEqual({ query: 'alph', index: 0 });
+  });
+
+  it('uses case-insensitive names and normalized Unicode', () => {
+    expect(match('B')).toEqual({ query: 'b', index: 2 });
+    expect(match('é', '', 0, ['Elsewhere', 'E\u0301tude'])).toEqual({ query: 'e', index: 1 });
+    expect(match('e', '', 0, ['Elsewhere', 'Éloïse'])).toEqual({ query: 'e', index: 1 });
+    expect(match('囲', '', 0, ['Alpha', '囲碁研究'])).toEqual({ query: '囲', index: 1 });
+    expect(match('か', '', 0, ['Alpha', 'がく'])).toEqual({ query: 'か', index: null });
+  });
+
+  it('can match punctuation and ignore leading whitespace in a label', () => {
+    expect(match('#', '', 0, ['Alpha', '  #12 review'])).toEqual({ query: '#', index: 1 });
+  });
+
+  it('retains an unmatched prefix without moving to an unrelated row', () => {
+    expect(match('z')).toEqual({ query: 'z', index: null });
+    expect(match('b', 'z')).toEqual({ query: 'zb', index: null });
+  });
+
+  it('handles single-row and empty lists', () => {
+    expect(match('a', '', 0, ['Alpha'])).toEqual({ query: 'a', index: 0 });
+    expect(match('a', '', -1, [])).toEqual({ query: 'a', index: null });
+    expect(match('a', '', -1)).toEqual({ query: 'a', index: 0 });
+  });
+
+  it('can reach the final match in a large visible tree without changing labels', () => {
+    const rows = Object.freeze([...Array.from({ length: 12000 }, (_, index) => `Study ${index}`), 'Final review']);
+    expect(getLibraryTypeaheadMatch({ key: 'f', query: '', currentIndex: 0, names: rows }))
+      .toEqual({ query: 'f', index: 12000 });
+  });
+
+  it.each([' ', 'Enter', 'ArrowDown', 'Tab', 'Dead', 'Process'])('leaves %s to its existing action', key => {
+    expect(match(key)).toBeNull();
   });
 });
 

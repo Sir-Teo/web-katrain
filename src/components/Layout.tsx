@@ -28,6 +28,7 @@ import {
   suggestLibraryItemNameFromSgf,
   updateLibraryFileSgf,
   type LibraryFile,
+  type LibraryLoadResult,
   type LibraryFolderOption,
   nextUntitledGameName,
   selectRecentLibraryFiles,
@@ -46,6 +47,7 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary, LazyModalFallback } from './LazyModalBoundary';
+import { SaveToLibraryLoadingDialog } from './SaveToLibraryLoadingDialog';
 import {
   createIdleScheduler,
   shouldWarmChunks,
@@ -62,6 +64,7 @@ import {
   isUnsupportedPhotoBoardImageFile,
 } from '../utils/photoBoard';
 import { countRootHandicapStones } from '../utils/handicapAi';
+import { countHandicapStones } from '../utils/handicap';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
@@ -89,6 +92,7 @@ import { AutoSaveRecoveryModal } from './AutoSaveRecoveryModal';
 import { AboutDialog } from './AboutDialog';
 import type { CommandPaletteCommand } from './CommandPaletteModal';
 import { getDirectGameImportText, type PasteSgfSubmitResult } from '../utils/pasteSgfInput';
+import { createTextImportRequests, type TextImportRequest } from '../utils/textImportRequests';
 import {
   type UiMode,
   type UiState,
@@ -118,12 +122,13 @@ import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery'
 import { PREFERS_DARK_MEDIA_QUERY, getResolvedUiTheme } from '../utils/uiThemes';
 import { syncThemeColorMeta } from '../utils/themeColor';
 import { buildDocumentTitle } from '../utils/documentTitle';
-import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent, readClipboardText } from '../utils/clipboard';
 import { formatBoardTextDiagram } from '../utils/boardTextDiagram';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut } from '../utils/shortcuts';
+import { isComposingKeyEvent } from '../utils/compositionKey';
 import { dispatchMoveTreeCommand, type MoveTreeCommand } from '../utils/moveTreeCommands';
 import { ANALYSIS_VISIT_PRESETS, formatVisitCount, visitPresetDescription, visitPresetLabel } from '../utils/visitPresets';
 import { getDroppedSgfOrOgsText, getFirstDraggedFile, hasDraggedFiles, hasPotentialGameImportDrag } from '../utils/dragImport';
@@ -254,6 +259,7 @@ const LAYOUT_SHORTCUT_IDS = [
 type LoadedExternalFile = { name: string; kind: 'file' | 'ogs' | 'pasted' };
 type SaveToLibraryDialogState = {
   sgf: string;
+  gameId: string;
   initialName: string;
   initialFolderId: string | null;
   folderOptions: LibraryFolderOption[];
@@ -283,6 +289,17 @@ const UNREADABLE_SHARE_LINK_MESSAGE =
 /** How often, at most, a streaming tree change re-checks for unsaved changes. */
 const DIRTY_CHECK_INTERVAL_MS = 1500;
 
+function finishPendingGameEdits(): void {
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused.closest('[data-game-info-edit-form]')) focused.blur();
+  // Notes have an explicit Save button, so blurring does not commit them.
+  // Capture their live values before serialization or replacing the tree.
+  for (const editor of document.querySelectorAll<HTMLTextAreaElement>('[data-note-editor]')) {
+    const nodeId = editor.dataset.noteNodeId;
+    if (nodeId) useGameStore.getState().setNodeNote(nodeId, editor.value);
+  }
+}
+
 export const Layout: React.FC = () => {
   const {
     startNewGame,
@@ -295,6 +312,7 @@ export const Layout: React.FC = () => {
     aiColor,
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateToMove,
     pinnedVariations,
     pinCurrentVariation,
@@ -384,6 +402,7 @@ export const Layout: React.FC = () => {
       aiColor: state.aiColor,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
+      navigateByNodes: state.navigateByNodes,
       navigateToMove: state.navigateToMove,
       pinnedVariations: state.pinnedVariations,
       pinCurrentVariation: state.pinCurrentVariation,
@@ -479,6 +498,7 @@ export const Layout: React.FC = () => {
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const cacheClearReturnFocusRef = useRef<HTMLElement | null>(null);
   const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
   const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
   // A previewed candidate belongs to the position it came from. Kept across a
@@ -508,10 +528,21 @@ export const Layout: React.FC = () => {
   const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
+  const newGameReturnHomeRef = useRef(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
+  const [textImportRequests] = useState(() => createTextImportRequests(() => useGameStore.getState().rootNode.id));
+  useEffect(() => () => textImportRequests.cancel(), [textImportRequests]);
   const [saveToLibraryDialog, setSaveToLibraryDialog] = useState<SaveToLibraryDialogState | null>(null);
+  const [isOpeningSaveToLibrary, setIsOpeningSaveToLibrary] = useState(false);
+  const saveToLibraryOpenRequestRef = useRef<object | null>(null);
+  useEffect(() => () => { saveToLibraryOpenRequestRef.current = null; }, []);
+  const closeSaveToLibraryDialog = useCallback(() => {
+    saveToLibraryOpenRequestRef.current = null;
+    setIsOpeningSaveToLibrary(false);
+    setSaveToLibraryDialog(null);
+  }, []);
   const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
   const [isClearAnalysisCacheConfirmOpen, setIsClearAnalysisCacheConfirmOpen] = useState(false);
@@ -726,6 +757,9 @@ export const Layout: React.FC = () => {
   // reads the result while scoring is off: the panel renders only its launcher
   // and the board ignores `scoreTerritory`. Computing it on every navigation
   // anyway was the second-largest cost of stepping through a game.
+  const scoringHandicap = scoringMode
+    ? countHandicapStones(rootNode.gameState.board, currentNode.gameState.moveHistory)
+    : 0;
   const manualScoreEstimate = useMemo(
     () =>
       scoringMode
@@ -736,10 +770,10 @@ export const Layout: React.FC = () => {
             capturedWhite,
             deadStones: manualDeadStones,
             rules: settings.gameRules,
-            handicapStones: handicap,
+            handicapStones: scoringHandicap,
           })
         : NO_MANUAL_SCORE_ESTIMATE,
-    [board, capturedBlack, capturedWhite, handicap, komi, manualDeadStones, scoringMode, settings.gameRules]
+    [board, capturedBlack, capturedWhite, scoringHandicap, komi, manualDeadStones, scoringMode, settings.gameRules]
   );
   const manualScoreOwnership = useMemo(() => {
     if (!currentNode.analysis || (currentNode.analysis.ownershipMode ?? 'root') === 'none') return null;
@@ -980,6 +1014,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (!scoringMode) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyEvent(event)) return;
       if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (event.key === 'Escape') setScoringMode(false);
     };
@@ -991,6 +1026,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyEvent(event)) return;
       if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
         event.preventDefault();
@@ -1039,6 +1075,7 @@ export const Layout: React.FC = () => {
     },
     [sgfExportOptions]
   );
+  const getCurrentGameId = useCallback(() => useGameStore.getState().rootNode.id, []);
 
   // Whether the game differs from its last saved form. Kept in state rather
   // than read during render: the read serializes the whole tree, and analysis
@@ -1136,6 +1173,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      finishPendingGameEdits();
       if (!hasUnsavedChanges()) return;
       event.preventDefault();
       event.returnValue = '';
@@ -1149,7 +1187,7 @@ export const Layout: React.FC = () => {
   // callbacks. Refreshed every render below.
   const pwaOpenHandlersRef = useRef<{
     openText: (text: string) => unknown;
-    openFile: (file: File) => unknown;
+    openFile: (getFile: () => Promise<File>) => Promise<PasteSgfSubmitResult>;
   } | null>(null);
 
   const sharedLinkCheckedRef = useRef(false);
@@ -1240,8 +1278,8 @@ export const Layout: React.FC = () => {
         void (async () => {
           for (const handle of handles) {
             try {
-              const file = await handle.getFile();
-              await pwaOpenHandlersRef.current?.openFile(file);
+              const result = await pwaOpenHandlersRef.current?.openFile(() => handle.getFile());
+              if (result === 'cancelled') return;
             } catch (error) {
               toast(withFailureReason('Could not open the file.', error), 'error');
             }
@@ -1269,10 +1307,11 @@ export const Layout: React.FC = () => {
     if (currentGameDirtyRef.current) {
       setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     }
-    let written = false;
+    let writtenVersion: number | null = null;
     const writeNow = () => {
-      if (written) return;
-      written = true;
+      const version = useGameStore.getState().treeVersion;
+      if (writtenVersion === version) return;
+      writtenVersion = version;
       if (!hasUnsavedChanges()) {
         clearAutoSavedGame();
         setAutoSaveStatus(null);
@@ -1304,14 +1343,18 @@ export const Layout: React.FC = () => {
     // A phone or installed app can be put away, and then killed, inside that
     // half second; the edit made just before would never reach recovery.
     // Leaving the page writes it at once.
-    const writeOnHide = () => {
-      if (document.visibilityState === 'hidden') writeNow();
+    const writeBeforeLeaving = () => {
+      finishPendingGameEdits();
+      writeNow();
     };
-    window.addEventListener('pagehide', writeNow);
+    const writeOnHide = () => {
+      if (document.visibilityState === 'hidden') writeBeforeLeaving();
+    };
+    window.addEventListener('pagehide', writeBeforeLeaving);
     document.addEventListener('visibilitychange', writeOnHide);
     return () => {
       window.clearTimeout(timeout);
-      window.removeEventListener('pagehide', writeNow);
+      window.removeEventListener('pagehide', writeBeforeLeaving);
       document.removeEventListener('visibilitychange', writeOnHide);
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
@@ -1338,8 +1381,14 @@ export const Layout: React.FC = () => {
     }
   }, [autoSaveRecovery, loadGame, navigateEnd, setLoadedLibraryFile, toast]);
 
+  const generateCurrentSgfForSave = useCallback(() => {
+    finishPendingGameEdits();
+    return generateCurrentSgf();
+  }, [generateCurrentSgf]);
+
   /** Whether the game is now saved. `false` means the game is still only here. */
   const handleSaveCurrentSgf = useCallback(async (): Promise<boolean> => {
+    finishPendingGameEdits();
     const sgf = generateCurrentSgf();
     if (await saveLoadedLibraryFile(sgf)) return true;
     try {
@@ -1354,10 +1403,17 @@ export const Layout: React.FC = () => {
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
   const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
+    if (saveToLibraryOpenRequestRef.current) return;
+    const request = {};
+    saveToLibraryOpenRequestRef.current = request;
     modalReturnFocusRef.current = returnFocus ?? null;
-    const sgf = generateCurrentSgf();
+    setIsOpeningSaveToLibrary(true);
     try {
+      finishPendingGameEdits();
+      const sgf = generateCurrentSgf();
+      const gameId = getCurrentGameId();
       const items = await loadLibrary();
+      if (saveToLibraryOpenRequestRef.current !== request) return;
       const initialFolderId = getLibrarySaveTargetFolderId({
         items,
         loadedLibraryFileId,
@@ -1366,15 +1422,22 @@ export const Layout: React.FC = () => {
       const fallbackName = loadedLibraryFileName ?? loadedExternalFile?.name ?? nextUntitledGameName(items);
       setSaveToLibraryDialog({
         sgf,
+        gameId,
         initialName: suggestLibraryItemNameFromSgf(sgf, fallbackName),
         initialFolderId,
         folderOptions: getLibraryFolderOptions(items),
       });
     } catch (error) {
+      if (saveToLibraryOpenRequestRef.current !== request) return;
       toast(withFailureReason('Failed to open Library save dialog.', error), 'error');
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    } finally {
+      if (saveToLibraryOpenRequestRef.current === request) {
+        saveToLibraryOpenRequestRef.current = null;
+        setIsOpeningSaveToLibrary(false);
+      }
     }
-  }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
+  }, [generateCurrentSgf, getCurrentGameId, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
 
   const handleOpenSaveToLibraryDialog = useCallback((returnFocus?: HTMLElement | null) => {
     void openSaveToLibraryDialog(returnFocus);
@@ -1382,6 +1445,7 @@ export const Layout: React.FC = () => {
 
   const handleSaveCopyToLibrary = useCallback(async (name: string, folderId: string | null): Promise<boolean> => {
     const sgf = saveToLibraryDialog?.sgf ?? generateCurrentSgf();
+    const gameId = saveToLibraryDialog?.gameId ?? getCurrentGameId();
     const itemName = name.trim().replace(GAME_RECORD_EXTENSION, '').trim() || 'Untitled';
     try {
       const newItem = await updateStoredLibrary((items) => {
@@ -1391,10 +1455,14 @@ export const Layout: React.FC = () => {
         const item = createLibraryItem(uniqueName, sgf, targetFolderId);
         return { items: [item, ...items], result: item };
       });
-      setLoadedLibraryFile(newItem.id, newItem.name);
+      // An OS file launch can replace the board while this copy is writing.
+      // Persist the requested snapshot, but acknowledge only its original game.
+      if (getCurrentGameId() === gameId) {
+        setLoadedLibraryFile(newItem.id, newItem.name);
+        markCurrentGameCleanAndClearAutoSave(sgf);
+      }
       setExternalLibraryItemCreate({ item: newItem, updatedAt: newItem.updatedAt });
       setLibraryVersion((prev) => prev + 1);
-      markCurrentGameCleanAndClearAutoSave(sgf);
       toast(`Saved "${newItem.name}" to Library.`, 'success');
       setSaveToLibraryDialog(null);
       return true;
@@ -1402,7 +1470,7 @@ export const Layout: React.FC = () => {
       toast(withFailureReason('Failed to save game to Library.', error), 'error');
       return false;
     }
-  }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
+  }, [generateCurrentSgf, getCurrentGameId, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.gameId, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
     if (!hasUnsavedChanges()) return 'discard';
@@ -1413,6 +1481,10 @@ export const Layout: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   const prepareForGameReplacement = useCallback(async () => {
+    // A drop or delayed download need not blur an editor. Commit its draft
+    // to the current game before deciding whether that game is safe to leave.
+    finishPendingGameEdits();
+    const gameId = useGameStore.getState().rootNode.id;
     const choice = await confirmReplaceCurrentGame();
     if (choice === 'cancel') return false;
     // Choosing Save and having it fail is not consent to lose the game. The
@@ -1421,8 +1493,18 @@ export const Layout: React.FC = () => {
     // Stopping here leaves the board untouched and the reason on screen, with
     // Discard still there for anyone who meant it.
     if (choice === 'save' && !(await handleSaveCurrentSgf())) return false;
+    // Another draft edit can begin while IndexedDB is saving, just as a
+    // board move can. Include it in the newer-changes guard below.
+    finishPendingGameEdits();
+    // Saving to IndexedDB can take long enough for another move or edit.
+    // The save acknowledgement deliberately keeps those newer edits dirty;
+    // do not replace them on the strength of the earlier Save choice.
+    if (gameId !== useGameStore.getState().rootNode.id || (choice === 'save' && hasUnsavedChanges())) {
+      toast('The game changed while saving. Your latest changes are still here; try again when ready.', 'info');
+      return false;
+    }
     return true;
-  }, [confirmReplaceCurrentGame, handleSaveCurrentSgf]);
+  }, [confirmReplaceCurrentGame, handleSaveCurrentSgf, hasUnsavedChanges, toast]);
 
   const handleUnsavedChangesChoice = useCallback((choice: UnsavedChangesChoice) => {
     setIsUnsavedChangesOpen(false);
@@ -1953,6 +2035,7 @@ export const Layout: React.FC = () => {
     if (isMobile) {
       openRightPanelForTab('info');
     } else {
+      setFocusMode(false);
       setShowSidebar(true);
       setRightPanelOpen(true);
     }
@@ -2029,13 +2112,16 @@ export const Layout: React.FC = () => {
       toast(error, 'error');
       return false;
     }
+    let modelUrl: string;
     try {
-      updateSettings({ katagoModelUrl: createUploadedModelUrl(file, settings.katagoModelUrl) });
+      modelUrl = createUploadedModelUrl(file, settings.katagoModelUrl);
+      updateSettings({ katagoModelUrl: modelUrl });
     } catch (uploadError) {
       toast(uploadError instanceof Error ? uploadError.message : 'Could not load this model file.', 'error');
       return false;
     }
     const persisted = await savePersistedUploadedModel(file);
+    if (useGameStore.getState().settings.katagoModelUrl !== modelUrl) return true;
     toast(
       persisted
         ? `Loaded and saved KataGo model weights "${file.name}".`
@@ -2046,31 +2132,59 @@ export const Layout: React.FC = () => {
   }, [settings.katagoModelUrl, toast, updateSettings]);
 
   const openNewGameWithGuard = useCallback(async () => {
+    newGameReturnHomeRef.current = mobileHomeOpen;
     setMenuOpen(false);
-    if (!(await prepareForGameReplacement())) return;
+    if (!(await prepareForGameReplacement())) {
+      if (newGameReturnHomeRef.current) setMobileHomeOpen(true);
+      newGameReturnHomeRef.current = false;
+      return;
+    }
     setIsNewGameOpen(true);
-  }, [prepareForGameReplacement]);
+  }, [mobileHomeOpen, prepareForGameReplacement]);
 
-  const startQuickNewGame = useCallback(async () => {
+  const revealNewGameBoard = useCallback((focusBoard = true) => {
+    setMobileHomeOpen(false);
+    if (isMobile) {
+      setMobileTab('board');
+      setLibraryOpen(false);
+      setRightPanelOpen(false);
+    }
+    if (focusBoard) requestAnimationFrameSafe(() => {
+      if (!document.querySelector('[role="dialog"]')) {
+        document.querySelector<HTMLElement>('[data-board-snapshot]')?.focus({ preventScroll: true });
+      }
+    });
+  }, [isMobile]);
+
+  const startQuickNewGame = useCallback(async (options: { boardSize?: BoardSize; handicap?: number } = {}) => {
+    const returnHome = mobileHomeOpen;
     setMenuOpen(false);
     setMobileHomeOpen(false);
     setIsNewGameOpen(false);
-    if (!(await prepareForGameReplacement())) return;
+    if (!(await prepareForGameReplacement())) {
+      if (returnHome) setMobileHomeOpen(true);
+      return false;
+    }
+    const boardSize = options.boardSize ?? settings.defaultBoardSize;
     startNewGame({
       komi,
       rules: settings.gameRules,
-      boardSize: settings.defaultBoardSize,
-      handicap: settings.defaultHandicap,
+      boardSize,
+      handicap: options.handicap ?? settings.defaultHandicap,
     });
     setLoadedLibraryFile(null);
     setScoringMode(false);
     setManualDeadStones(new Set());
     markCurrentGameCleanAndClearAutoSave();
-    toast(`Started ${settings.defaultBoardSize}×${settings.defaultBoardSize} game.`, 'success');
+    toast(`Started ${boardSize}×${boardSize} game.`, 'success');
+    revealNewGameBoard();
+    return true;
   }, [
     komi,
     markCurrentGameCleanAndClearAutoSave,
+    mobileHomeOpen,
     prepareForGameReplacement,
+    revealNewGameBoard,
     settings.defaultBoardSize,
     settings.defaultHandicap,
     settings.gameRules,
@@ -2078,6 +2192,25 @@ export const Layout: React.FC = () => {
     setLoadedLibraryFile,
     toast,
   ]);
+
+  const startLessonPractice = async () => {
+    // Close Lessons so the existing unsaved-game choice can take focus.
+    setIsLessonsOpen(false);
+    if (!(await startQuickNewGame({ boardSize: 9, handicap: 0 }))) {
+      setIsLessonsOpen(true);
+      return;
+    }
+    setLessonsReturnHome(false);
+    setMobileHomeOpen(false);
+    setMobileTab('board');
+    setLibraryOpen(false);
+    setRightPanelOpen(false);
+    requestAnimationFrameSafe(() => {
+      if (!document.querySelector('[role="dialog"]')) {
+        document.querySelector<HTMLElement>('[data-board-snapshot]')?.focus({ preventScroll: true });
+      }
+    });
+  };
 
   // Only 9, 13 and 19 are supported, so any other declared size quietly became
   // a 19x19 board with the stones scattered across it. Call after loadGame:
@@ -2092,21 +2225,48 @@ export const Layout: React.FC = () => {
     return `Board size ${declared} is not supported, so it opened as ${opened}×${opened}.`;
   };
 
-  const loadLocalSgfText = async (text: string, sourceName: string): Promise<boolean> => {
-    const parsed = parseSgf(text);
-    if (!(await prepareForGameReplacement())) return false;
-    loadGame(parsed);
-    const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
-    setLoadedLibraryFile(null);
-    setLoadedExternalFile({ kind: 'file', name: sourceName || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
-    markCurrentGameCleanAndClearAutoSave();
-    const sizeNotice = boardSizeCoercionNotice(text);
-    toast(
-      appendRestoredAnalysisSummary(`Loaded "${sourceName || 'SGF'}".`, restoredAnalysisCount)
-        + (sizeNotice ? ` ${sizeNotice}` : ''),
-      sizeNotice ? 'info' : 'success'
+  const openLocalGameFile = async (
+    file: File,
+    failureMessage: string,
+    existingRequest?: TextImportRequest,
+  ): Promise<PasteSgfSubmitResult> => {
+    const request = existingRequest ?? textImportRequests.begin();
+    let replacementStarted = false;
+    const isCancelled = () => !textImportRequests.isCurrent(request) || (
+      !replacementStarted && useGameStore.getState().rootNode.id !== request.rootId
     );
-    return true;
+    try {
+      if (isCancelled()) return 'cancelled';
+      const sizeError = getSgfImportSizeError(file.size);
+      if (sizeError) {
+        toast(sizeError, 'error');
+        return 'failed';
+      }
+      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
+      if (isCancelled()) return 'cancelled';
+      const parsed = parseSgf(text);
+      if (!(await prepareForGameReplacement())) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
+      replacementStarted = true;
+      loadGame(parsed);
+      const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
+      setLoadedLibraryFile(null);
+      setLoadedExternalFile({ kind: 'file', name: file.name || getImportedSgfNameFromProperties(parsed.tree?.props, 'Loaded SGF') });
+      markCurrentGameCleanAndClearAutoSave();
+      const sizeNotice = boardSizeCoercionNotice(text);
+      toast(
+        appendRestoredAnalysisSummary(`Loaded "${file.name || 'SGF'}".`, restoredAnalysisCount)
+          + (sizeNotice ? ` ${sizeNotice}` : ''),
+        sizeNotice ? 'info' : 'success'
+      );
+      return 'loaded';
+    } catch (error) {
+      if (isCancelled()) return 'cancelled';
+      toast(withFailureReason(failureMessage, error), 'error');
+      return 'failed';
+    } finally {
+      if (!existingRequest) textImportRequests.finish(request);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2130,13 +2290,7 @@ export const Layout: React.FC = () => {
         toast('Choose an SGF, GIB, or NGF game, board photo, or KataGo model weights.', 'error');
         return;
       }
-      const sizeError = getSgfImportSizeError(file.size);
-      if (sizeError) {
-        toast(sizeError, 'error');
-        return;
-      }
-      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-      await loadLocalSgfText(text, file.name);
+      await openLocalGameFile(file, `Could not open "${file.name}".`);
     } catch (error) {
       toast(withFailureReason(`Could not open "${file.name}".`, error), 'error');
     } finally {
@@ -2154,10 +2308,34 @@ export const Layout: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [currentNode, loadedLibraryFileId]);
 
-  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean> => {
+  const handleLoadFromLibrary = async (sgfText: string, itemId?: string): Promise<boolean | LibraryLoadResult> => {
     try {
-      const parsed = parseSgf(sgfText);
+      let textToLoad = sgfText;
+      let parsed = parseSgf(textToLoad);
       if (!(await prepareForGameReplacement())) return false;
+      let loadedFile: LibraryFile | undefined;
+      if (itemId) {
+        const { rootNode: previousRoot, treeVersion: previousVersion } = useGameStore.getState();
+        const previousId = previousRoot.id;
+        // Save can update the very file being reopened; another tab can also
+        // have edited it since this row or Recent entry was rendered.
+        const latest = (await loadLibrary()).find(item => item.id === itemId);
+        finishPendingGameEdits();
+        const current = useGameStore.getState();
+        if (current.rootNode.id !== previousId || (current.treeVersion !== previousVersion && hasUnsavedChanges())) {
+          toast('The game changed while loading. Your latest changes are still here; try again when ready.', 'info');
+          return false;
+        }
+        if (!latest || latest.type !== 'file') {
+          toast('That game is no longer in the Library.', 'info');
+          return false;
+        }
+        loadedFile = latest;
+        if (latest.sgf !== textToLoad) {
+          textToLoad = latest.sgf;
+          parsed = parseSgf(textToLoad);
+        }
+      }
       loadGame(parsed);
       // Back to where this game was left, not move 0.
       const savedPath = itemId ? readLibraryPosition(itemId) : null;
@@ -2167,7 +2345,8 @@ export const Layout: React.FC = () => {
         if (node) store.jumpToNode(node);
       }
       markCurrentGameCleanAndClearAutoSave();
-      const sizeNotice = boardSizeCoercionNotice(sgfText);
+      const sizeNotice = boardSizeCoercionNotice(textToLoad);
+      if (loadedFile) return { item: loadedFile, notice: sizeNotice || undefined };
       if (sizeNotice) toast(sizeNotice, 'info');
       return true;
     } catch (error) {
@@ -2176,15 +2355,18 @@ export const Layout: React.FC = () => {
     }
   };
 
-  const handleCopySgf = async () => {
-    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
-    if (await copyTextToClipboard(sgf)) {
+  const handleCopySgf = useCallback(async () => {
+    const sgf = generateCurrentSgfForSave();
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(sgf, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied SGF to clipboard.', 'success');
       return;
     }
 
     toast('Copy failed (clipboard unavailable).', 'error');
-  };
+  }, [generateCurrentSgfForSave, toast]);
 
   const handleCopyBoardText = async () => {
     const node = useGameStore.getState().currentNode;
@@ -2195,7 +2377,10 @@ export const Layout: React.FC = () => {
       komi,
       captured: { black: capturedBlack, white: capturedWhite },
     });
-    if (await copyTextToClipboard(text)) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(text, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied the position as text.', 'success');
       return;
     }
@@ -2212,7 +2397,10 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopyBoardImage = async () => {
-    if (await copyBoardImage()) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyBoardImage(request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied board image to clipboard.', 'success');
       return;
     }
@@ -2220,9 +2408,10 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopyShareLink = async () => {
+    finishPendingGameEdits();
     // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
     // game a 385,000-character link, past what an opening app will read.
-    const sgf = generateSgfFromTree(rootNode, {
+    const sgf = generateSgfFromTree(useGameStore.getState().rootNode, {
       ...sgfExportOptions,
       trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
     });
@@ -2231,7 +2420,10 @@ export const Layout: React.FC = () => {
       toast('This game is too large for a share link. Save it to the Library or download the SGF instead.', 'error');
       return;
     }
-    if (!(await copyTextToClipboard(url))) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(url, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (!copied) {
       toast('Copy failed (clipboard unavailable).', 'error');
       return;
     }
@@ -2310,13 +2502,23 @@ export const Layout: React.FC = () => {
 
   const handleOpenSgfFromText = useCallback(async (
     text: string,
-    options: { notifyFailure?: boolean } = {}
+    options: { notifyFailure?: boolean; signal?: AbortSignal; request?: TextImportRequest } = {}
   ): Promise<PasteSgfSubmitResult> => {
+    const request = options.request ?? textImportRequests.begin(options.signal);
+    // Our own load changes the root; the identity guard applies while waiting.
+    let replacementStarted = false;
+    const isCancelled = () => !textImportRequests.isCurrent(request) || (
+      !replacementStarted && useGameStore.getState().rootNode.id !== request.rootId
+    );
     try {
-      const result = await loadSgfOrOgs(text);
+      if (isCancelled()) return 'cancelled';
+      const result = await loadSgfOrOgs(text, { signal: request.signal });
+      if (isCancelled()) return 'cancelled';
       if (!result.sgf.trim()) return 'failed';
       const parsed = parseSgf(result.sgf);
       if (!(await prepareForGameReplacement())) return 'cancelled';
+      if (isCancelled()) return 'cancelled';
+      replacementStarted = true;
       loadGame(parsed);
       const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
       setLoadedLibraryFile(null);
@@ -2346,47 +2548,55 @@ export const Layout: React.FC = () => {
       );
       return 'loaded';
     } catch (error) {
+      if (isCancelled()) return 'cancelled';
       if (options.notifyFailure !== false) {
         toast(withFailureReason('Could not load that SGF or OGS link.', error), 'error');
       }
       return 'failed';
+    } finally {
+      if (!options.request) textImportRequests.finish(request);
     }
-  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, toast]);
+  }, [markCurrentGameCleanAndClearAutoSave, prepareForGameReplacement, loadGame, setLoadedLibraryFile, textImportRequests, toast]);
 
   // Plain function (not memoised): only consumed via the handler ref assigned
   // below during render, so it never feeds an effect/callback dependency list.
-  const handleOpenLaunchFile = async (file: File) => {
-    if (isPhotoBoardImageFile(file)) {
-      openPhotoBoard(file);
-      toast('Opened photo board from shared image.', 'info');
-      return;
-    }
-    if (isGameRecordFile(file)) {
-      try {
-        const sizeError = getSgfImportSizeError(file.size);
-        if (sizeError) {
-          toast(sizeError, 'error');
-          return;
-        }
-        const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-        await loadLocalSgfText(text, file.name);
-      } catch (error) {
-        toast(withFailureReason('Failed to open the game file.', error), 'error');
+  const handleOpenLaunchFile = async (getFile: () => Promise<File>): Promise<PasteSgfSubmitResult> => {
+    const request = textImportRequests.begin();
+    const isCancelled = () => !textImportRequests.isCurrent(request)
+      || useGameStore.getState().rootNode.id !== request.rootId;
+    try {
+      const file = await getFile();
+      if (isCancelled()) return 'cancelled';
+      if (isPhotoBoardImageFile(file)) {
+        openPhotoBoard(file);
+        toast('Opened photo board from shared image.', 'info');
+        return 'loaded';
       }
-      return;
+      if (isGameRecordFile(file)) {
+        return await openLocalGameFile(file, 'Failed to open the game file.', request);
+      }
+      toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
+      return 'failed';
+    } catch (error) {
+      if (isCancelled()) return 'cancelled';
+      toast(withFailureReason('Could not open the file.', error), 'error');
+      return 'failed';
+    } finally {
+      textImportRequests.finish(request);
     }
-    toast('Unsupported file type. Open an SGF, GIB, or NGF game or board image.', 'error');
   };
 
   // Keep the startup-effect handler ref pointed at the current callbacks.
   pwaOpenHandlersRef.current = { openText: handleOpenSgfFromText, openFile: handleOpenLaunchFile };
 
   const handleOpenRecent = async (item: LibraryFile) => {
-    const loaded = await handleLoadFromLibrary(item.sgf);
+    const loaded = await handleLoadFromLibrary(item.sgf, item.id);
     if (!loaded) return;
+    const loadedItem = typeof loaded === 'object' ? loaded.item : item;
+    const notice = typeof loaded === 'object' ? loaded.notice : undefined;
     const restoredAnalysisCount = useGameStore.getState().analysisCacheSize;
-    setLoadedLibraryFile(item.id, item.name);
-    toast(appendRestoredAnalysisSummary(`Loaded "${item.name}".`, restoredAnalysisCount), 'success');
+    setLoadedLibraryFile(loadedItem.id, loadedItem.name);
+    toast(appendRestoredAnalysisSummary(`Loaded "${loadedItem.name}".`, restoredAnalysisCount) + (notice ? ` ${notice}` : ''), notice ? 'info' : 'success');
   };
 
   useEffect(() => {
@@ -2412,18 +2622,24 @@ export const Layout: React.FC = () => {
   }, [handleOpenSgfFromText, openPhotoBoard, toast]);
 
   const handlePasteSgfShortcut = useCallback(async () => {
+    const request = textImportRequests.begin();
     setViewMenuOpen(false);
     setMenuOpen(false);
 
-    const clipboardText = await readClipboardText();
-    const importText = getDirectGameImportText(clipboardText);
-    if (importText) {
-      await handleOpenSgfFromText(importText);
-      return;
-    }
+    try {
+      const clipboardText = await readClipboardText();
+      if (!textImportRequests.isCurrent(request) || useGameStore.getState().rootNode.id !== request.rootId) return;
+      const importText = getDirectGameImportText(clipboardText);
+      if (importText) {
+        await handleOpenSgfFromText(importText, { request });
+        return;
+      }
 
-    setIsPasteSgfOpen(true);
-  }, [handleOpenSgfFromText]);
+      setIsPasteSgfOpen(true);
+    } finally {
+      textImportRequests.finish(request);
+    }
+  }, [handleOpenSgfFromText, textImportRequests]);
 
   const handlePhotoBoardImport = async (sgfText: string) => {
     try {
@@ -2577,17 +2793,7 @@ export const Layout: React.FC = () => {
       toast('Drop an SGF, GIB, or NGF game, OGS URL, board photo, or KataGo model weights here.', 'error');
       return;
     }
-    try {
-      const sizeError = getSgfImportSizeError(file.size);
-      if (sizeError) {
-        toast(sizeError, 'error');
-        return;
-      }
-      const text = await readGameRecordFile(file, settings.legacyGameEncoding);
-      await loadLocalSgfText(text, file.name);
-    } catch (error) {
-      toast(withFailureReason('Failed to load the dropped game file.', error), 'error');
-    }
+    await openLocalGameFile(file, 'Failed to load the dropped game file.');
   };
 
   useEffect(() => () => {
@@ -2618,7 +2824,7 @@ export const Layout: React.FC = () => {
   // Keyboard shortcuts
   useKeyboardShortcuts({
     mode,
-    sgfExportOptions,
+    copySgf: handleCopySgf,
     saveSgf: handleSaveCurrentSgf,
     saveCopyToLibrary: handleOpenSaveToLibraryDialog,
     openSgf: handleLoadClick,
@@ -2744,7 +2950,7 @@ export const Layout: React.FC = () => {
         label: 'Print kifu (PDF)',
         category: 'File',
         run: () => openSimpleModal(() => setIsKifuPrintOpen(true)),
-        keywords: ['print', 'pdf', 'diagram', 'kifu', 'export', 'moves per diagram'],
+        keywords: ['print', 'pdf', 'diagram', 'kifu', 'export', 'moves per diagram', 'position', 'setup', 'problem', 'handicap'],
       },
       {
         id: 'paste-sgf',
@@ -2814,7 +3020,7 @@ export const Layout: React.FC = () => {
         category: 'Navigation',
         shortcutId: 'nav-back-10',
         disabledReason: historyNavigation.back ? undefined : 'Already at the first move',
-        run: () => { for (let i = 0; i < 10; i++) navigateBack(); },
+        run: () => navigateByNodes(-10),
         keywords: ['rewind'],
       },
       {
@@ -2823,7 +3029,7 @@ export const Layout: React.FC = () => {
         category: 'Navigation',
         shortcutId: 'nav-forward-10',
         disabledReason: historyNavigation.forward ? undefined : 'Already at the last move',
-        run: () => guardNavigation(() => { for (let i = 0; i < 10; i++) navigateForward(); }),
+        run: () => guardNavigation(() => navigateByNodes(10)),
         keywords: ['advance'],
       },
       {
@@ -3518,10 +3724,10 @@ export const Layout: React.FC = () => {
   })();
 
   const jumpBack = (n: number) => {
-    for (let i = 0; i < n; i++) navigateBack();
+    navigateByNodes(-n);
   };
   const jumpForward = (n: number) => {
-    for (let i = 0; i < n; i++) navigateForward();
+    navigateByNodes(n);
   };
 
   const blackName = getRootProp('PB') || 'Black';
@@ -3593,12 +3799,13 @@ export const Layout: React.FC = () => {
     setPendingResignPlayer(null);
   }, []);
 
-  const requestClearAnalysisCache = useCallback(() => {
+  const requestClearAnalysisCache = useCallback((returnFocus?: HTMLElement | null) => {
     if (isGameAnalysisRunning) return;
     if (analysisCacheSize <= 0) {
       clearAnalysisCache();
       return;
     }
+    cacheClearReturnFocusRef.current = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     setIsClearAnalysisCacheConfirmOpen(true);
   }, [analysisCacheSize, clearAnalysisCache, isGameAnalysisRunning]);
 
@@ -3695,6 +3902,7 @@ export const Layout: React.FC = () => {
     isPhotoBoardOpen ||
     isPasteSgfOpen ||
     saveToLibraryDialog ||
+    isOpeningSaveToLibrary ||
     pendingResignPlayer ||
     isClearAnalysisCacheConfirmOpen ||
     menuOpen ||
@@ -3869,11 +4077,14 @@ export const Layout: React.FC = () => {
           />
         )}
         {isLessonsOpen && (
-          <LessonsModal onClose={() => {
-            setIsLessonsOpen(false);
-            if (lessonsReturnHome) setMobileHomeOpen(true);
-            setLessonsReturnHome(false);
-          }} />
+          <LessonsModal
+            onPractice={() => void startLessonPractice()}
+            onClose={() => {
+              setIsLessonsOpen(false);
+              if (lessonsReturnHome) setMobileHomeOpen(true);
+              setLessonsReturnHome(false);
+            }}
+          />
         )}
         {isGuessMoveOpen && (
           <GuessMoveModal
@@ -3911,7 +4122,7 @@ export const Layout: React.FC = () => {
         {isPasteSgfOpen && (
           <PasteSgfModal
             onClose={() => setIsPasteSgfOpen(false)}
-            onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}
+            onSubmit={(text, signal) => handleOpenSgfFromText(text, { notifyFailure: false, signal })}
             onOpenPhotoBoard={() => {
               const returnFocus = modalReturnFocusRef.current;
               setIsPasteSgfOpen(false);
@@ -3920,13 +4131,16 @@ export const Layout: React.FC = () => {
             returnFocus={modalReturnFocusRef.current}
           />
         )}
+        {isOpeningSaveToLibrary && (
+          <SaveToLibraryLoadingDialog onClose={closeSaveToLibraryDialog} returnFocus={modalReturnFocusRef.current} />
+        )}
         {saveToLibraryDialog && (
           <SaveToLibraryDialog
             open
             initialName={saveToLibraryDialog.initialName}
             folderOptions={saveToLibraryDialog.folderOptions}
             initialFolderId={saveToLibraryDialog.initialFolderId}
-            onClose={() => setSaveToLibraryDialog(null)}
+            onClose={closeSaveToLibraryDialog}
             onSave={handleSaveCopyToLibrary}
             returnFocus={modalReturnFocusRef.current}
           />
@@ -3934,7 +4148,11 @@ export const Layout: React.FC = () => {
         {isNewGameOpen && (
           <NewGameModal
             teachModeOn={isTeachMode}
-            onClose={() => setIsNewGameOpen(false)}
+            onClose={() => {
+              setIsNewGameOpen(false);
+              if (newGameReturnHomeRef.current) setMobileHomeOpen(true);
+              newGameReturnHomeRef.current = false;
+            }}
             defaultSetupPosition={{
               enabled: false,
               untilMove: settings.setupPositionMove,
@@ -3942,6 +4160,8 @@ export const Layout: React.FC = () => {
             }}
             onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap, setupPosition, teachMode }) => {
             startNewGame({ komi: nextKomi, rules, boardSize: nextBoardSize, handicap: nextHandicap });
+            setScoringMode(false);
+            setManualDeadStones(new Set());
             if (setupPosition.enabled) {
               updateSettings({ setupPositionMove: setupPosition.untilMove, setupPositionAdvantage: setupPosition.targetAdvantage });
               generateSetupPosition({ untilMove: setupPosition.untilMove, targetAdvantage: setupPosition.targetAdvantage });
@@ -4040,7 +4260,9 @@ export const Layout: React.FC = () => {
               after.scheduleAiMove();
             }
             markCurrentGameCleanAndClearAutoSave();
+            newGameReturnHomeRef.current = false;
             setIsNewGameOpen(false);
+            revealNewGameBoard(!setupPosition.enabled);
           }}
             defaultKomi={komi}
             defaultRules={settings.gameRules}
@@ -4235,6 +4457,7 @@ export const Layout: React.FC = () => {
             loadedFileName={loadedLibraryFileName ?? loadedExternalFile?.name ?? null}
             dirty={currentGameDirty}
             currentNode={currentNode}
+            noteFocusRequest={noteFocusRequest}
             treeVersion={treeVersion}
             drillHidesAnswer={drillHidesAnswer}
             hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
@@ -4274,7 +4497,8 @@ export const Layout: React.FC = () => {
                   open
                   onClose={handleCloseLibrary}
                   docked
-                  getCurrentSgf={generateCurrentSgf}
+                  getCurrentSgf={generateCurrentSgfForSave}
+                  getCurrentGameId={getCurrentGameId}
                   legacyGameEncoding={settings.legacyGameEncoding}
                   onLoadSgf={handleLoadFromLibrary}
                   onToast={toast}
@@ -4382,7 +4606,8 @@ export const Layout: React.FC = () => {
               onClose={handleCloseLibrary}
               docked={isDesktop}
               width={leftPanelWidth}
-              getCurrentSgf={generateCurrentSgf}
+              getCurrentSgf={generateCurrentSgfForSave}
+              getCurrentGameId={getCurrentGameId}
               legacyGameEncoding={settings.legacyGameEncoding}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}
@@ -4800,6 +5025,7 @@ export const Layout: React.FC = () => {
       )}
       {isClearAnalysisCacheConfirmOpen && (
         <AnalysisCacheClearConfirmModal
+          returnFocus={cacheClearReturnFocusRef.current}
           count={analysisCacheSize}
           onCancel={cancelClearAnalysisCache}
           onConfirm={confirmClearAnalysisCache}

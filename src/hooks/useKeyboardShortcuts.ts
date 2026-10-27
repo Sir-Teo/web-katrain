@@ -1,19 +1,17 @@
 import { useEffect } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
-import { generateSgfFromTree, type KaTrainSgfExportOptions } from '../utils/sgf';
 import type { UiMode } from '../components/layout/types';
 import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut, isNativePasteShortcutEvent, loadShortcutOverrides } from '../utils/shortcuts';
 import { toggleAppFullscreen } from '../utils/fullscreen';
 import { shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
-import { copyTextToClipboard } from '../utils/clipboard';
 import type { MoveTreeCommand } from '../utils/moveTreeCommands';
 import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
-  sgfExportOptions: KaTrainSgfExportOptions;
+  copySgf: () => void | Promise<void>;
   saveSgf: () => void;
   saveCopyToLibrary: () => void;
   openSgf: () => void;
@@ -40,7 +38,7 @@ interface UseKeyboardShortcutsOptions {
 
 export function useKeyboardShortcuts({
   mode,
-  sgfExportOptions,
+  copySgf,
   saveSgf,
   saveCopyToLibrary,
   openSgf,
@@ -69,6 +67,7 @@ export function useKeyboardShortcuts({
     rotateBoard,
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateStart,
     navigateEnd,
     switchBranch,
@@ -95,7 +94,6 @@ export function useKeyboardShortcuts({
     setEditTool,
     selfplayToEnd,
     makeAiMove,
-    rootNode,
     settings,
     updateSettings,
   } = useGameStore(
@@ -104,6 +102,7 @@ export function useKeyboardShortcuts({
       rotateBoard: state.rotateBoard,
       navigateBack: state.navigateBack,
       navigateForward: state.navigateForward,
+      navigateByNodes: state.navigateByNodes,
       navigateStart: state.navigateStart,
       navigateEnd: state.navigateEnd,
       switchBranch: state.switchBranch,
@@ -130,7 +129,6 @@ export function useKeyboardShortcuts({
       setEditTool: state.setEditTool,
       selfplayToEnd: state.selfplayToEnd,
       makeAiMove: state.makeAiMove,
-      rootNode: state.rootNode,
       settings: state.settings,
       updateSettings: state.updateSettings,
     }),
@@ -146,20 +144,10 @@ export function useKeyboardShortcuts({
       const matches = (id: string) => eventMatchesShortcut(e, id, overrides);
 
       const jumpBack = (n: number) => {
-        for (let i = 0; i < n; i++) navigateBack();
+        navigateByNodes(-n);
       };
       const jumpForward = (n: number) => {
-        for (let i = 0; i < n; i++) navigateForward();
-      };
-
-      const copySgfToClipboard = async () => {
-        const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
-        if (await copyTextToClipboard(sgf)) {
-          toast('Copied SGF to clipboard.', 'success');
-          return;
-        }
-
-        toast('Copy failed (clipboard unavailable).', 'error');
+        navigateByNodes(n);
       };
 
       // File operations
@@ -190,7 +178,7 @@ export function useKeyboardShortcuts({
       }
       if (matches('copy-sgf')) {
         e.preventDefault();
-        void copySgfToClipboard();
+        void copySgf();
         return;
       }
       if (matches('paste-sgf')) {
@@ -582,6 +570,7 @@ export function useKeyboardShortcuts({
   }, [
     navigateBack,
     navigateForward,
+    navigateByNodes,
     navigateStart,
     navigateEnd,
     toggleContinuousAnalysis,
@@ -602,7 +591,6 @@ export function useKeyboardShortcuts({
     settings.analysisPolicyMetric,
     settings.analysisShowOwnership,
     makeAiMove,
-    rootNode,
     findMistake,
     analyzeExtra,
     resetCurrentAnalysis,
@@ -624,7 +612,7 @@ export function useKeyboardShortcuts({
     redoEdit,
     editUndoCount,
     editRedoCount,
-    sgfExportOptions,
+    copySgf,
     saveSgf,
     saveCopyToLibrary,
     openSgf,

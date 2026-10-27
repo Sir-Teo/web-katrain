@@ -25,7 +25,7 @@ describe('the featured pro-game chips', () => {
   it('leaves the chips that clear 24px on their own padding alone', () => {
     // The search field and Surprise me button are py-2 and text-sm; their own
     // box is already past the floor, so they keep the plain min-h-0.
-    expect(modal).toContain('py-2 pl-9 pr-3 text-sm text-[var(--ui-text)] desktop-shell:min-h-0');
+    expect(modal).toContain('py-2 pl-9 text-sm text-[var(--ui-text)] desktop-shell:min-h-0');
     expect(modal).toContain('px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)] desktop-shell:min-h-0');
   });
 });
@@ -44,7 +44,7 @@ describe('the sweep opens dialogs that have no shortcut', () => {
     ]) {
       expect(sweep, name).toContain(`name: '${name}',`);
       expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]',`);
-      expect(sweep, name).toContain(`open: openViaPalette('${id}'),`);
+      expect(sweep, name).toContain(`openViaPalette('${id}')`);
     }
   });
 
@@ -52,12 +52,12 @@ describe('the sweep opens dialogs that have no shortcut', () => {
     // The print preview renders the kifu it would print and the save dialog
     // writes to the library only when its form is submitted, so opening and
     // closing either leaves the board as it was.
-    for (const [name, title, id] of [
+    for (const [name, title, id, readySelector = ''] of [
       ['kifu print', 'kifu-print-title', 'print-kifu'],
-      ['save to library', 'save-to-library-title', 'save-library'],
+      ['save to library', 'save-to-library-title', 'save-library', ':has(#save-to-library-name)'],
     ]) {
       expect(sweep, name).toContain(`name: '${name}',`);
-      expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]',`);
+      expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]${readySelector}',`);
       expect(sweep, name).toContain(`open: openViaPalette('${id}'),`);
     }
   });

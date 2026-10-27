@@ -25,7 +25,20 @@ export async function assertHeaderNotificationsFit(devtoolsPort, appUrl, runDir,
       if (value) return value;
       await sleep(100);
     }
-    throw new Error(`Header notification check timed out: ${expression}`);
+    const state = await evaluate(cdp, `({
+      viewport: [innerWidth, innerHeight],
+      message: document.querySelector('.notification-toast-message')?.title,
+      active: document.activeElement?.getAttribute('aria-label'),
+      dialogs: [...document.querySelectorAll('[role=dialog]')].map(e => e.textContent.slice(0, 180)),
+      dismiss: [...document.querySelectorAll('button[aria-label="Dismiss notification"]')].map(e => {
+        const r = e.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height,
+          covering: document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.outerHTML.slice(0, 300) };
+      }),
+    })`);
+    const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(screenshotDir, `header-notification-failure-${state.viewport[0]}.png`), Buffer.from(screenshot.result.data, 'base64'));
+    throw new Error(`Header notification check timed out: ${expression} | ${JSON.stringify(state)}`);
   };
   const click = async selector => {
     const point = await wait(`(()=>{

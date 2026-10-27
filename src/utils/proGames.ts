@@ -1,9 +1,10 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
-import { parseSgf } from './sgf';
-import { applyCapturesInPlace } from './gameLogic';
+import { expandSgfPointList, parseSgf, sgfCoordToXy } from './sgf';
+import { applyCapturesInPlace, applySelfCaptureInPlace, getLiberties } from './gameLogic';
 import type { BoardState } from '../types';
-import { toSearchTerms } from './searchTerms';
-import { sgfHeaderText } from './sgfScan';
+import { normalizeSearchText, toSearchTerms } from './searchTerms';
+import { readRootSgfProperties } from './sgfScan';
+import { isSuicideLegal, rulesFromSgf } from './goRules';
 
 export interface ProGameMeta {
   id: string;
@@ -40,46 +41,32 @@ const PRO_GAME_EDITORIALS: Record<string, string> = {
     'A curiosity from the Korean League: Shin Jinseo as a 15-year-old 3-dan, years before he became the world\'s top player. The record ends with a rare "Void" result — the game itself is a snapshot of a prodigy already playing well beyond his rank.',
 };
 
-/** Read a single SGF property value from the root-node header. */
-const readHeaderProp = (header: string, key: string): string | undefined => {
-  // A property usually follows the previous value's `]` directly
-  // (`KM[6.5]RE[B+R]`). Requiring a `;` or whitespace before it missed RE,
-  // BR and WR in every bundled game, so no result or rank ever showed. The
-  // lookbehind still keeps `PB` from matching inside a longer name.
-  const match = header.match(new RegExp(`(?<![A-Za-z])${key}\\[([^\\]]*)\\]`));
-  return match ? match[1]!.trim() || undefined : undefined;
-};
-
 const parseProGameMeta = (game: { name: string; source: string; sgf: string }, index: number): ProGameMeta => {
-  // Not `/;[BW]\[/`: that requires the move to be its node's first property,
-  // which SGF does not promise. The bundled games all happen to satisfy it; a
-  // corpus from anywhere else would not.
-  const header = sgfHeaderText(game.sgf);
-  const size = Number(readHeaderProp(header, 'SZ') ?? '19');
+  const props = readRootSgfProperties(game.sgf);
+  const size = Number(props.SZ?.[0] || '19');
   return {
     id: `pro-${index}`,
     name: game.name,
     source: game.source,
     sgf: game.sgf,
-    black: readHeaderProp(header, 'PB') ?? 'Black',
-    white: readHeaderProp(header, 'PW') ?? 'White',
-    blackRank: readHeaderProp(header, 'BR'),
-    whiteRank: readHeaderProp(header, 'WR'),
-    event: readHeaderProp(header, 'EV'),
-    date: readHeaderProp(header, 'DT'),
-    result: readHeaderProp(header, 'RE'),
+    black: props.PB?.[0] || 'Black',
+    white: props.PW?.[0] || 'White',
+    blackRank: props.BR?.[0] || undefined,
+    whiteRank: props.WR?.[0] || undefined,
+    event: props.EV?.[0] || undefined,
+    date: props.DT?.[0] || undefined,
+    result: props.RE?.[0] || undefined,
     boardSize: Number.isFinite(size) ? size : 19,
-    editorial: PRO_GAME_EDITORIALS[game.name],
+    editorial: Object.hasOwn(PRO_GAME_EDITORIALS, game.name) ? PRO_GAME_EDITORIALS[game.name] : undefined,
   };
 };
 
 export const PRO_GAMES: ProGameMeta[] = PRELOADED_GAMES.map(parseProGameMeta);
 
 const proGameSearchText = (game: ProGameMeta): string =>
-  [game.black, game.white, game.event, game.date, game.result, game.name, game.editorial]
+  normalizeSearchText([game.black, game.white, game.event, game.date, game.result, game.name, game.editorial]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
+    .join(' '));
 
 /**
  * Free-text filter across players, event, date, result, and editorial.
@@ -98,14 +85,38 @@ export const filterProGames = (games: ProGameMeta[], query: string): ProGameMeta
   });
 };
 
-/** Replay every move to produce the final board position (for previews). */
+/** Replay the first variation, including position edits, for its preview. */
 export const buildFinalBoard = (sgf: string): { board: BoardState; moveCount: number } => {
   const parsed = parseSgf(sgf);
   const board = parsed.initialBoard.map((row) => [...row]);
-  for (const mv of parsed.moves) {
-    if (mv.x < 0 || mv.y < 0) continue; // pass
-    board[mv.y]![mv.x] = mv.player;
-    applyCapturesInPlace(board, mv.x, mv.y, mv.player);
+  const suicideLegal = isSuicideLegal(rulesFromSgf(parsed.tree?.props.RU?.[0]) ?? 'japanese');
+  let node = parsed.tree;
+  while (node) {
+    const black = node.props.B?.[0];
+    const white = node.props.W?.[0];
+    const coord = typeof black === 'string' ? black : white;
+    if (typeof coord === 'string') {
+      const {x,y} = sgfCoordToXy(coord);
+      if (x >= 0 && y >= 0) {
+        const player = typeof black === 'string' ? 'black' : 'white';
+        board[y]![x] = player;
+        const captured = applyCapturesInPlace(board, x, y, player);
+        if (suicideLegal && captured.length === 0) {
+          const {liberties,group} = getLiberties(board,x,y);
+          if (liberties === 0 && group.length > 1) applySelfCaptureInPlace(board,x,y);
+        }
+      }
+    }
+    // A setup or clear node is part of the position, even when it carries a
+    // pass or no move at all. The flattened moves list loses those changes.
+    for (const key of ['AB','AW','AE'] as const) {
+      for (const value of node.props[key] ?? []) {
+        for (const {x,y} of expandSgfPointList(value,board.length)) {
+          board[y]![x] = key === 'AB' ? 'black' : key === 'AW' ? 'white' : null;
+        }
+      }
+    }
+    node = node.children[0];
   }
   return { board, moveCount: parsed.moves.length };
 };

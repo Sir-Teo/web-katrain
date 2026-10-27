@@ -10,6 +10,9 @@ function makeCanvasContext() {
     drawImage: vi.fn(),
     fillRect: vi.fn(),
     scale: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    fillText: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -17,6 +20,7 @@ function stubSnapshotDom(options: {
   createElement?: () => unknown;
   getComputedStyle?: (element: Element) => Partial<CSSStyleDeclaration>;
   toDataURL?: () => string;
+  coordinates?: HTMLElement[];
 } = {}) {
   const context = makeCanvasContext();
   const canvas = {
@@ -30,7 +34,7 @@ function stubSnapshotDom(options: {
   } as unknown as HTMLCanvasElement;
   const board = {
     getBoundingClientRect: vi.fn(() => makeRect(10, 12, 100, 90)),
-    querySelectorAll: vi.fn(() => [layer]),
+    querySelectorAll: vi.fn((selector: string) => selector === 'canvas' ? [layer] : options.coordinates ?? []),
   } as unknown as HTMLElement;
 
   vi.stubGlobal('document', {
@@ -77,6 +81,49 @@ describe('board snapshots', () => {
 
     await expect(captureBoardSnapshot()).resolves.toBe('data:image/png;base64,ok');
     expect(context.fillRect).toHaveBeenCalledWith(0, 0, 100, 90);
+  });
+
+  it('includes visible coordinate labels with their displayed text and position', async () => {
+    const column = { textContent: 'D', getBoundingClientRect: () => makeRect(44, 92, 12, 10) } as unknown as HTMLElement;
+    const row = { textContent: '9', getBoundingClientRect: () => makeRect(12, 42, 8, 10) } as unknown as HTMLElement;
+    const { context } = stubSnapshotDom({
+      coordinates: [column, row],
+      getComputedStyle: () => ({ backgroundColor: '#d1b17c', backgroundImage: 'none', font: '700 10px Arial', color: 'rgb(50, 40, 30)', zIndex: '4' }),
+    });
+    await expect(captureBoardSnapshot()).resolves.toBe('data:image/png;base64,ok');
+    expect(context.fillText).toHaveBeenCalledWith('D', 40, 85);
+    expect(context.fillText).toHaveBeenCalledWith('9', 6, 35);
+  });
+
+  it.each(['load', 'error'])('freezes the chosen position and geometry before a delayed texture %s', async outcome => {
+    const { board, context, layer } = stubSnapshotDom();
+    vi.stubGlobal('window', {
+      devicePixelRatio: 2,
+      getComputedStyle: (element: Element) => element === board
+        ? { backgroundColor: '#d1b17c', backgroundImage: 'url(texture.png)' }
+        : { zIndex: '4' },
+    });
+    const images: Array<{ onload: (() => void) | null; onerror: ((error: Error) => void) | null }> = [];
+    vi.stubGlobal('Image', class {
+      crossOrigin = '';
+      src = '';
+      onload: (() => void) | null = null;
+      onerror: ((error: Error) => void) | null = null;
+      constructor() { images.push(this); }
+    });
+    let position = 'chosen position';
+    const captured: string[] = [];
+    vi.mocked(context.drawImage).mockImplementation(source => {
+      if (source === layer) captured.push(position);
+    });
+    const snapshot = captureBoardSnapshot();
+    position = 'later move';
+    vi.mocked(layer.getBoundingClientRect).mockReturnValue(makeRect(30, 40, 40, 30));
+    if (outcome === 'load') images[0]!.onload!();
+    else images[0]!.onerror!(new Error('texture unavailable'));
+    await expect(snapshot).resolves.toBe('data:image/png;base64,ok');
+    expect(captured).toEqual(['chosen position']);
+    expect(context.drawImage).toHaveBeenCalledWith(layer, 4, 6, 80, 60);
   });
 
   it('returns null when canvas creation or export is blocked', async () => {

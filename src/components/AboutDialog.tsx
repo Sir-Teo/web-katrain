@@ -47,12 +47,6 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      // The visible heading is the product name, which is right for the panel
-      // but announces this dialog as "Web KaTrain" — indistinguishable from the
-      // app itself, where every sibling dialog says what it is. Name it after
-      // the command that opens it; the heading still reads as before, and the
-      // accessible name contains it.
-      aria-label="About Web KaTrain"
       aria-labelledby="about-title"
       onClick={onClose}
     >
@@ -63,7 +57,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose, returnFocus }
         <div className="about-dialog-header ui-bar flex items-start justify-between gap-3 border-b border-[var(--ui-border)] px-4 py-4">
           <div className="min-w-0">
             <h2 id="about-title" className="text-lg font-semibold text-[var(--ui-text)]">
-              Web KaTrain
+              <span className="sr-only">About </span>Web KaTrain
             </h2>
             <p className="mt-1 text-sm ui-text-muted">Browser Go review, training, and KataGo analysis.</p>
           </div>

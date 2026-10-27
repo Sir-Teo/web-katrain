@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { isDialogOpen } from '../utils/keyboardTarget';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
 import {
   FaTimes,
@@ -24,6 +26,7 @@ import {
   FaRegStar,
   FaTag,
   FaEllipsisH,
+  FaExternalLinkAlt,
 } from 'react-icons/fa';
 import {
   LIBRARY_CURRENT_FOLDER_STORAGE_KEY,
@@ -44,12 +47,11 @@ import {
   getLibraryStats,
   getLibrarySelectionIds,
   getUniqueLibraryItemName,
-  libraryItemMatchesQuery,
+  libraryItemMatchesSearchTerms,
   librarySgfDownloadFilename,
   updateStoredLibrary,
   nextLibraryGameSaveRequestId,
   moveLibraryItems,
-  prependLibraryImports,
   parseLibraryBackup,
   saveLibrary,
   suggestLibraryItemNameFromSgf,
@@ -60,11 +62,22 @@ import {
   getAllLibraryTags,
   type LibraryItem,
   type LibraryFile,
+  type LibraryLoadResult,
   type LibraryFolder,
   nextUntitledGameName,
   compareLibraryNames,
+  compareLibraryRecency,
 } from '../utils/library';
 import { applyLibraryChanges, getLibraryChanges, type LibraryEditBatch } from '../utils/libraryEdits';
+import {
+  beginLibraryImport,
+  getLibraryImportCount,
+  persistLibraryImports,
+  persistOgsLibraryImports,
+  subscribeLibraryImportActivity,
+  subscribeLibraryImports,
+} from '../utils/libraryImports';
+import { withFailureReason } from '../utils/importSummary';
 import { tagsFromResult } from '../utils/narrativeTags';
 
 /**
@@ -72,11 +85,12 @@ import { tagsFromResult } from '../utils/narrativeTags';
  * `W+R` is a resignation, `W+T` a timeout, and a draw prints as such.
  */
 const RESULT_RESTATING_TAGS = new Set(['resign', 'time', 'draw']);
-import { createLibraryZipBlob, importLibraryItemsFromZip } from '../utils/libraryZip';
+import { createLibraryZipBlob, importLibraryItemsFromZip, LibraryZipPathError } from '../utils/libraryZip';
 import { assertValidLibrarySgfImport } from '../utils/libraryImportValidation';
 import { describeLibraryImport, describeLibraryImportFailure } from '../utils/libraryImportSummary';
 import { describeLibraryClear, describeLibraryReplacement } from '../utils/libraryPrompts';
 import { countSgfGames } from '../utils/sgfScan';
+import { splitLibraryCollection } from '../utils/libraryCollection';
 import { stripUnsafeFilenameControls } from '../utils/filename';
 import {
   PHOTO_BOARD_IMAGE_ACCEPT,
@@ -91,30 +105,32 @@ import { downloadBlob as downloadBlobFile } from '../utils/objectUrl';
 import { getDroppedSgfOrOgsText, hasPotentialGameImportDrag } from '../utils/dragImport';
 import { createLibraryItemFromSgfOrOgsText } from '../utils/libraryTextImport';
 import { ogsSyncFileName, ogsSyncFolderName, type OgsSyncedGame } from '../utils/ogsSync';
-import { mergeOgsLibraryImports } from '../utils/libraryOgsImport';
+import { getOgsGameId } from '../utils/ogsGameIdentity';
+import { getVisibleLibraryTreeRows, libraryTreeIndent } from '../utils/libraryTreeRows';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../utils/clipboard';
 import { OgsSyncModal } from './OgsSyncModal';
 import {
   getLibraryMenuNavigationIndex,
   getLibraryRowKeyAction,
+  getLibraryTypeaheadMatch,
   isLibraryMenuCloseKey,
 } from '../utils/libraryKeyboard';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
-import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { MAX_SEARCH_QUERY_LENGTH, toSearchTerms } from '../utils/searchTerms';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
 
-/** Library rows mounted before "Show more". Matches web-chess and web-xiangqi. */
+/** Rows mounted before "Show more"; phones use fewer to keep search responsive. */
 const LIBRARY_PAGE_SIZE = 100;
+const MOBILE_LIBRARY_PAGE_SIZE = 30;
 
 type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
 type LibraryItemsAction =
   | { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> }
-  | { type: 'saved'; items: LibraryItem[]; revision: number }
-  | { type: 'restore'; items: LibraryItem[] };
+  | { type: 'saved'; items: LibraryItem[]; revision: number };
 const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
-  if (action.type === 'restore') return { ...state, items: action.items, edits: [] };
   if (action.type === 'saved') {
     const edits = state.edits.filter(batch => batch.revision > action.revision);
     const items = edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
@@ -209,10 +225,10 @@ const LibraryTextDialog: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-text-dialog-title"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
-          <h2 id="library-text-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
+          <h2 id="library-text-dialog-title" className="min-w-0 break-words text-base font-semibold text-[var(--ui-text)]">
             {dialog.title}
           </h2>
           <button
@@ -233,6 +249,7 @@ const LibraryTextDialog: React.FC<{
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
+                if (isComposingKeyEvent(e)) return;
                 if (e.key === 'Enter') {
                   // Unhandled, the same Enter went on to the button focus
                   // returns to and opened the dialog again: a second Enter
@@ -254,6 +271,7 @@ const LibraryTextDialog: React.FC<{
                 onChange={(e) => setFolderId(e.target.value || null)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
+                  if (isComposingKeyEvent(e)) return;
                   if (e.key === 'Escape') onClose();
                 }}
                 className="min-h-11 w-full ui-input border rounded px-3 py-2 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)] outline-none desktop-shell:min-h-0"
@@ -310,7 +328,8 @@ const LibraryConfirmDialog: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-confirm-dialog-title"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        aria-describedby="library-confirm-dialog-description"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
           <h2 id="library-confirm-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
@@ -326,7 +345,7 @@ const LibraryConfirmDialog: React.FC<{
           </button>
         </div>
         <div className="p-4 space-y-4">
-          <p className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
+          <p id="library-confirm-dialog-description" className="break-words text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
             <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel
@@ -354,8 +373,9 @@ interface LibraryPanelProps {
   showCloseButtonOnDesktop?: boolean;
   isMobile?: boolean;
   getCurrentSgf: () => string;
-  /** `itemId` names the Library game, so the host can reopen it where it was left. */
-  onLoadSgf: (sgf: string, itemId?: string) => boolean | Promise<boolean>;
+  getCurrentGameId: () => string;
+  /** `itemId` identifies the saved record/resume point; the host may return its refreshed file metadata. */
+  onLoadSgf: (sgf: string, itemId?: string) => boolean | LibraryLoadResult | Promise<boolean | LibraryLoadResult>;
   onToast: (msg: string, type: 'info' | 'error' | 'success', copyText?: string, operationId?: string) => void;
   onOpenPhotoBoard?: (file: File) => void;
   onLibraryUpdated?: () => void;
@@ -376,6 +396,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   showCloseButtonOnDesktop = false,
   isMobile = false,
   getCurrentSgf,
+  getCurrentGameId,
   onLoadSgf,
   onToast,
   onOpenPhotoBoard,
@@ -390,20 +411,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [{ items, revision: itemsRevision, edits }, dispatchItems] = useReducer(reduceLibraryItems, { items: [], revision: 0, edits: [] });
   const setItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'edit', update }), []);
   const syncItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'sync', update }), []);
-  const saveStateRef = useRef({ items, edits });
-  useLayoutEffect(() => { saveStateRef.current = { items, edits }; }, [items, edits]);
+  const importingCount = useSyncExternalStore(subscribeLibraryImportActivity, getLibraryImportCount, () => 0);
+  const saveStateRef = useRef({ items, edits, revision: itemsRevision });
+  useLayoutEffect(() => { saveStateRef.current = { items, edits, revision: itemsRevision }; }, [items, edits, itemsRevision]);
   const saveEdits = useMemo(createLibraryEditSaver, []);
-  const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast });
+  const latestPanelSaveRef = useRef<object | null>(null);
+  const saveCallbacksRef = useRef({ getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId });
   useLayoutEffect(() => {
-    saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast };
-  }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
+    saveCallbacksRef.current = { getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId };
+  }, [getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
-  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [libraryError, setLibraryError] = useState<{ message: string; operation: 'load' | 'save' } | null>(null);
+  const [loadRetry, setLoadRetry] = useState(0);
   const [saveRetry, setSaveRetry] = useState(0);
   const localGameSaveRequestsRef = useRef(new Map<string, number>());
   const pendingGameSaveRef = useRef<{
     id: string;
     sgf: string;
+    gameId: string;
     isNew: boolean;
     operationId: string;
   } | null>(null);
@@ -444,10 +469,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  const breadcrumbRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const libraryTreeRef = useRef<HTMLDivElement>(null);
+  const rowTypeaheadRef = useRef<{ query: string; time: number; row: HTMLElement } | null>(null);
+  const libraryRetryFocusPendingRef = useRef(false);
+  const libraryKeyboardHelpId = useId();
+  const closeContextMenu = useCallback(() => {
+    if (contextMenuOpenerRef.current?.isConnected) {
+      contextMenuOpenerRef.current.focus({ preventScroll: true });
+    }
+    setContextMenu(null);
+  }, []);
   const didLoadLibraryRef = useRef(false);
   /**
    * Settles when the library's own first read has published its snapshot.
@@ -461,6 +499,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * this panel fail intermittently on CI and never on a fast machine.
    */
   const initialLoadRef = useRef<Promise<unknown> | null>(null);
+  useEffect(() => subscribeLibraryImports((saved) => {
+    // Rebase pending panel edits without acknowledging any of their revisions.
+    dispatchItems({ type: 'saved', items: saved, revision: 0 });
+    if (!saveStateRef.current.edits.length) {
+      didLoadLibraryRef.current = true;
+      setLibraryStatus('ready');
+      setLibraryError(null);
+    }
+  }), []);
   const lastExternalFileUpdateRef = useRef<string | null>(null);
   const lastExternalItemCreateRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -515,16 +562,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       .catch((error) => {
         if (cancelled) return;
         setLibraryStatus('error');
-        setLibraryError(error instanceof Error ? error.message : 'Failed to load library.');
+        setLibraryError({
+          message: error instanceof Error ? error.message : 'Failed to load library.',
+          operation: didLoadLibraryRef.current ? 'save' : 'load',
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [hadStoredFolderExpansion, syncItems]);
+  }, [hadStoredFolderExpansion, syncItems, loadRetry]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || (itemsRevision === 0 && saveRetry === 0)) return;
     let cancelled = false;
+    const request = {};
+    latestPanelSaveRef.current = request;
     const { items, edits } = saveStateRef.current;
     const pendingGameSave = pendingGameSaveRef.current;
     setLibraryStatus('saving');
@@ -534,18 +586,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     void saving
       .then(({ items: savedItems, revision }) => {
         dispatchItems({ type: 'saved', items: savedItems, revision });
-        if (cancelled) return;
-        const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast } = saveCallbacksRef.current;
-        setLibraryStatus('ready');
+        // Closing the panel ends its UI updates, but its latest game save
+        // still owns an acknowledgement. Superseded requests must stay quiet.
+        if (latestPanelSaveRef.current !== request) return;
+        const { getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId } = saveCallbacksRef.current;
+        if (!cancelled) setLibraryStatus('ready');
         onLibraryUpdated?.();
+        // A concurrent save can reserve the requested name first. Publish the
+        // acknowledged name for the currently loaded game, even after a rename.
+        const loadedItem = savedItems.find(item => item.id === loadedFileId);
+        if (!cancelled && loadedItem?.type === 'file') onLoadedFileChange?.(loadedItem.id, loadedItem.name);
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           pendingGameSaveRef.current = null;
           const savedItem = savedItems.find(item => item.id === pendingGameSave.id);
           if (!savedItem || !isFile(savedItem) || savedItem.sgf !== pendingGameSave.sgf) return;
           // The board can change while storage is writing. A saved older
           // snapshot must not clear recovery data for the current position.
-          if (getCurrentSgf() === pendingGameSave.sgf) {
-            if (pendingGameSave.isNew) onLoadedFileChange?.(savedItem.id, savedItem.name);
+          if (getCurrentGameId() === pendingGameSave.gameId && getCurrentSgf() === pendingGameSave.sgf) {
+            if (pendingGameSave.isNew || cancelled) onLoadedFileChange?.(savedItem.id, savedItem.name);
             onCurrentSaved?.(pendingGameSave.sgf);
           }
           onToast(
@@ -555,9 +613,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         }
       })
       .catch((error) => {
-        if (cancelled) return;
-        setLibraryStatus('error');
-        setLibraryError(error instanceof Error ? error.message : 'Failed to save library.');
+        if (latestPanelSaveRef.current !== request) return;
+        if (!cancelled) {
+          setLibraryStatus('error');
+          setLibraryError({ message: error instanceof Error ? error.message : 'Failed to save library.', operation: 'save' });
+        }
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error', undefined, pendingGameSave.operationId);
         }
@@ -568,6 +628,21 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     // Only local edits and Retry enqueue writes. Mirrors and callback changes
     // must not save old snapshots or cancel a pending acknowledgement.
   }, [itemsRevision, saveRetry, saveEdits]);
+
+  useLayoutEffect(() => {
+    if (!libraryRetryFocusPendingRef.current || libraryStatus === 'loading' || libraryStatus === 'saving') return;
+    libraryRetryFocusPendingRef.current = false;
+    // Retry's button disappears during I/O. Restore only focus lost with it;
+    // keep a search field or another control the person chose while waiting.
+    if (document.activeElement !== document.body) return;
+    const tree = libraryTreeRef.current;
+    if (!tree?.getClientRects().length) return;
+    const target = tree.querySelector<HTMLElement>(
+      '[data-library-retry], [data-library-row], [data-library-reset-filters], [data-library-empty-import]'
+    );
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [libraryError, libraryStatus]);
 
   useEffect(() => {
     if (!didLoadLibraryRef.current || !externalFileUpdate) return;
@@ -636,43 +711,52 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
     const close = () => setContextMenu(null);
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key !== 'Escape' || isComposingKeyEvent(event) || isDialogOpen(document)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeContextMenu();
     };
 
-    // Capture, so a scroll inside any of the panel's own scrollers closes the
-    // menu too -- scroll does not bubble. Passive because it never prevents
+    const closeOnOutsideScroll = (event: Event) => {
+      if (event.target instanceof Node && contextMenuRef.current?.contains(event.target)) return;
+      const target = event.target;
+      const opener = contextMenuOpenerRef.current;
+      if (target === window || target === libraryTreeRef.current || (target instanceof Node && opener && target.contains(opener))) close();
+    };
+    // Close when scrolling can move the anchor, while unrelated scrollers
+    // (including a breadcrumb settling after folder navigation) leave it open.
+    // Its own scroller stays usable when actions exceed the available height.
+    // Scroll does not bubble. Passive because this listener never prevents
     // anything: a blocking listener on window in the capture phase applies to
     // every scroller in the app, and takes scrolling off the compositor's fast
     // path for as long as the menu is open.
     const scrollOptions = { capture: true, passive: true } as const;
     window.addEventListener('pointerdown', close);
-    window.addEventListener('scroll', close, scrollOptions);
+    window.addEventListener('scroll', closeOnOutsideScroll, scrollOptions);
     window.addEventListener('resize', close);
-    window.addEventListener('keydown', closeOnEscape);
+    // The menu owns Escape even if focus returns to its opener. Capture it
+    // before the workspace shortcut can close the entire Library.
+    window.addEventListener('keydown', closeOnEscape, true);
     return () => {
       window.removeEventListener('pointerdown', close);
-      window.removeEventListener('scroll', close, { capture: true });
+      window.removeEventListener('scroll', closeOnOutsideScroll, { capture: true });
       window.removeEventListener('resize', close);
-      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('keydown', closeOnEscape, true);
     };
-  }, [contextMenu]);
+  }, [contextMenu, closeContextMenu]);
 
   useEffect(() => {
     if (!headerMenuOpen) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      headerMenuRef.current
-        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-        ?.focus({ preventScroll: true });
-    });
     const closeOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (headerMenuRef.current?.contains(target) || headerMenuButtonRef.current?.contains(target)) return;
       setHeaderMenuOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (!isLibraryMenuCloseKey(event.key)) return;
+      if (!isLibraryMenuCloseKey(event.key) || isComposingKeyEvent(event) || isDialogOpen(document)) return;
       event.preventDefault();
+      event.stopPropagation();
       setHeaderMenuOpen(false);
       headerMenuButtonRef.current?.focus({ preventScroll: true });
     };
@@ -683,25 +767,28 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     const closeMenu = () => setHeaderMenuOpen(false);
     window.addEventListener('pointerdown', closeOnOutsidePointer);
     window.addEventListener('resize', closeMenu);
-    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', closeOnEscape, true);
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener('pointerdown', closeOnOutsidePointer);
       window.removeEventListener('resize', closeMenu);
-      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('keydown', closeOnEscape, true);
     };
   }, [headerMenuOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!headerMenuOpen) return;
+    const menu = headerMenuRef.current;
+    if (!menu || menu.contains(document.activeElement)) return;
+    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+  }, [headerMenuOpen]);
+
+  useLayoutEffect(() => {
     if (!contextMenu) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      contextMenuRef.current
-        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-        ?.focus();
-    });
-
-    return () => window.cancelAnimationFrame(frame);
+    // Own navigation before another key or pointer event can arrive. A later
+    // focus can scroll the menu and change the action under the pointer.
+    const menu = contextMenuRef.current;
+    if (!menu || menu.contains(document.activeElement)) return;
+    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
   }, [contextMenu]);
 
   const availableTags = useMemo(() => getAllLibraryTags(items), [items]);
@@ -712,15 +799,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [activeTag, availableTags]);
 
   const filteredItems = useMemo(() => {
-    const q = query.trim();
-    if (!q && !favoritesOnly && !activeTag) return items;
+    const terms = toSearchTerms(query);
+    if (!terms.length && !favoritesOnly && !activeTag) return items;
     return items.filter((item) => {
       if (favoritesOnly || activeTag) {
         if (!isFile(item)) return false;
         if (favoritesOnly && !item.favorite) return false;
         if (activeTag && !(item.tags ?? []).includes(activeTag)) return false;
       }
-      if (q && !libraryItemMatchesQuery(item, query)) return false;
+      if (terms.length && !libraryItemMatchesSearchTerms(item, terms)) return false;
       return true;
     });
   }, [items, query, favoritesOnly, activeTag]);
@@ -745,7 +832,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         break;
       case 'recent':
       default:
-        arr.sort((a, b) => b.updatedAt - a.updatedAt);
+        arr.sort(compareLibraryRecency);
         break;
     }
     return arr;
@@ -755,13 +842,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
    * Rows mounted before "Show more". A library has no size cap and imports SGFs
    * in bulk from a ZIP, so "everything" is not a small number: a seeded library
    * of 1,200 games mounted 1,208 rows and about 35,000 DOM nodes at once, in
-   * both the folder view and the search results. Both siblings already page
-   * their libraries at 100.
+   * both the folder view and the search results. Smaller phone batches also
+   * avoid mounting 100 rows on a search that displays only a few at a time.
    */
   // Keyed by folder id, with '' for the top level and for search results. A
   // single shared limit would make expanding one folder reveal more rows in
   // every other folder at once.
   const [visibleLimits, setVisibleLimits] = useState<Record<string, number>>({});
+  const revealFocusIdRef = useRef<string | null>(null);
   // Only what changes the list itself. The current folder drives breadcrumbs
   // and where a save lands, not which rows are rendered, so moving between
   // folders must not collapse an expanded list back to one page.
@@ -773,6 +861,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setLimitViewKey(viewKey);
     setVisibleLimits({});
   }
+  useLayoutEffect(() => {
+    // A new result set starts at its first row; retaining a deep old scroll
+    // position hid the first matches even when only fifteen results remained.
+    if (libraryTreeRef.current) libraryTreeRef.current.scrollTop = 0;
+  }, [viewKey]);
+  useLayoutEffect(() => {
+    const id = revealFocusIdRef.current;
+    if (!id) return;
+    revealFocusIdRef.current = null;
+    const rows = libraryTreeRef.current?.querySelectorAll<HTMLElement>('[data-library-row-id]') ?? [];
+    Array.from(rows).find(row => row.dataset.libraryRowId === id)?.focus();
+  }, [visibleLimits]);
 
   const folderItems = useMemo(() => items.filter(isFolder), [items]);
   const folderOptions = useMemo(() => getLibraryFolderOptions(items), [items]);
@@ -799,7 +899,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         : indexedDbAvailable
           ? 'IndexedDB'
           : 'Local';
-  const libraryStorageTitle = libraryError
+  const libraryStorageTitle = libraryError?.message
     ?? (indexedDbAvailable
       ? 'IndexedDB library storage'
       : 'Using local fallback storage because IndexedDB is unavailable');
@@ -818,25 +918,35 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const breadcrumbs = useMemo(() => {
     if (!activeFolderId) return [];
     const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
+    let current: LibraryItem | undefined = itemById.get(activeFolderId);
+    const seen = new Set<string>();
+    while (current && isFolder(current) && !seen.has(current.id)) {
+      seen.add(current.id);
       trail.push(current);
       const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
+      current = parentId ? itemById.get(parentId) : undefined;
     }
     return trail.reverse();
-  }, [activeFolderId, items]);
+  }, [activeFolderId, itemById]);
+
+  useLayoutEffect(() => {
+    if (isSearching) return;
+    // Keep the current folder in view as a path grows, while earlier folders
+    // remain reachable by horizontal scrolling and ordinary keyboard focus.
+    breadcrumbRef.current?.querySelector<HTMLElement>('[aria-current="location"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeFolderId, breadcrumbs.length, isSearching]);
 
   const activeAncestorIds = useMemo(() => {
     if (!loadedFileId) return new Set<string>();
     const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
+    let current = itemById.get(loadedFileId);
+    while (current?.parentId && !ancestors.has(current.parentId)) {
       ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
+      current = itemById.get(current.parentId);
     }
     return ancestors;
-  }, [loadedFileId, items]);
+  }, [loadedFileId, itemById]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -865,7 +975,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             return (isFile(b) ? b.size : 0) - (isFile(a) ? a.size : 0);
           case 'recent':
           default:
-            return b.updatedAt - a.updatedAt;
+            return compareLibraryRecency(a, b);
         }
       });
       map.set(parent, list);
@@ -884,6 +994,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const contextMenuItem = contextMenu?.itemId ? (itemById.get(contextMenu.itemId) ?? null) : null;
+  const contextCollectionGames = useMemo(
+    () => contextMenuItem?.type === 'file' ? countSgfGames(contextMenuItem.sgf) : 0,
+    [contextMenuItem]
+  );
   const contextMenuSelection = useMemo(() => {
     if (!contextMenuItem) return new Set<string>();
     if (visibleSelectedIds.has(contextMenuItem.id)) return visibleSelectedIds;
@@ -900,15 +1014,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   };
 
-  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null) => {
+  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null, opener: HTMLElement) => {
+    contextMenuOpenerRef.current = item ? opener : searchInputRef.current;
     const position = clampContextMenuPosition(x, y);
     setContextMenu({ ...position, itemId: item?.id ?? null });
   };
 
-  const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
+  const openContextMenu = (event: React.MouseEvent<HTMLDivElement>, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
-    openContextMenuAt(event.clientX, event.clientY, item);
+    openContextMenuAt(event.clientX, event.clientY, item, event.currentTarget);
   };
 
   const openKeyboardContextMenu = (event: React.KeyboardEvent<HTMLElement>, item: LibraryItem | null) => {
@@ -916,7 +1031,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     openContextMenuAt(
       rect.left + Math.min(32, rect.width / 2),
       rect.top + Math.min(32, rect.height / 2),
-      item
+      item,
+      event.currentTarget
     );
   };
 
@@ -924,12 +1040,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    openContextMenuAt(rect.right - 230, rect.bottom + 4, item);
+    openContextMenuAt(rect.right - 230, rect.bottom + 4, item, event.currentTarget);
   };
 
-  const closeContextMenu = () => setContextMenu(null);
-
   const handleContextMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isComposingKeyEvent(event)) return;
     if (isLibraryMenuCloseKey(event.key)) {
       event.preventDefault();
       event.stopPropagation();
@@ -938,7 +1053,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
 
     const menuItems = Array.from(
-      contextMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
+      contextMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
     );
     const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
     const nextIndex = getLibraryMenuNavigationIndex({
@@ -959,6 +1074,14 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleHeaderMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isComposingKeyEvent(event)) return;
+    if (isLibraryMenuCloseKey(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setHeaderMenuOpen(false);
+      headerMenuButtonRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const menuItems = Array.from(
       headerMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []
     );
@@ -977,6 +1100,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const runHeaderAction = (action: () => void) => {
     setHeaderMenuOpen(false);
+    headerMenuButtonRef.current?.focus({ preventScroll: true });
     action();
   };
 
@@ -985,9 +1109,59 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setExpandedFolderIds((prev) => new Set(prev).add(item.id));
   };
 
+  const navigateLibraryRow = (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
+    const rows = Array.from(libraryTreeRef.current?.querySelectorAll<HTMLDivElement>('[data-library-row]') ?? []);
+    const index = rows.indexOf(event.currentTarget);
+    if (index < 0) return false;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      const now = performance.now();
+      const previous = rowTypeaheadRef.current;
+      const query = previous?.row === event.currentTarget && now - previous.time < 1000 ? previous.query : '';
+      const match = getLibraryTypeaheadMatch({
+        key: event.key,
+        query,
+        names: rows.map(row => row.dataset.libraryRowName ?? ''),
+        currentIndex: index,
+      });
+      if (!match) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = match.index === null ? event.currentTarget : rows[match.index]!;
+      rowTypeaheadRef.current = { query: match.query, time: now, row: next };
+      next.focus();
+      return true;
+    }
+    rowTypeaheadRef.current = null;
+    let next = index;
+    const level = Number(event.currentTarget.getAttribute('aria-level'));
+    if (event.key === 'ArrowLeft') {
+      for (let previous = index - 1; previous >= 0; previous--) {
+        if (Number(rows[previous]!.getAttribute('aria-level')) < level) {
+          next = previous;
+          break;
+        }
+      }
+    } else if (event.key === 'ArrowRight') {
+      if (rows[index + 1] && Number(rows[index + 1]!.getAttribute('aria-level')) > level) next = index + 1;
+    } else {
+      next = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1
+        : Math.max(0, Math.min(rows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    rows[next]?.focus();
+    return true;
+  };
+
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event)
+      || event.ctrlKey || event.altKey || event.metaKey) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
-    if (action === 'none') return;
+    if (action === 'none') {
+      navigateLibraryRow(event);
+      return;
+    }
+    rowTypeaheadRef.current = null;
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') void handleLoad(item);
@@ -1000,6 +1174,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     hasChildren: boolean,
     allowChildren: boolean
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event)
+      || event.ctrlKey || event.altKey || event.metaKey) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
@@ -1008,7 +1184,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       hasChildren,
       allowChildren,
     });
-    if (action === 'none') return;
+    if (action === 'none') {
+      navigateLibraryRow(event);
+      return;
+    }
+    rowTypeaheadRef.current = null;
     event.preventDefault();
     event.stopPropagation();
     if (action === 'activate') activateFolderRow(item);
@@ -1033,6 +1213,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     const sgf = getCurrentSgf();
+    const gameId = getCurrentGameId();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');
       return;
@@ -1040,7 +1221,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (loadedLibraryFile) {
       const requestId = nextLibraryGameSaveRequestId();
       localGameSaveRequestsRef.current.set(loadedLibraryFile.id, requestId);
-      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false, operationId: `library-save:${requestId}` };
+      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, gameId, isNew: false, operationId: `library-save:${requestId}` };
       setItems((prev) => updateLibraryFileSgf(prev, loadedLibraryFile.id, sgf));
       return;
     }
@@ -1058,11 +1239,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       },
       onSubmit: (name, targetFolderId) => {
         const parentId = targetFolderId ?? null;
-        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const uniqueName = getUniqueLibraryItemName(name, saveStateRef.current.items, parentId);
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
         const requestId = nextLibraryGameSaveRequestId();
         localGameSaveRequestsRef.current.set(newItem.id, requestId);
-        pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true, operationId: `library-save:${requestId}` };
+        pendingGameSaveRef.current = { id: newItem.id, sgf, gameId, isNew: true, operationId: `library-save:${requestId}` };
         setItems((prev) => [newItem, ...prev]);
       },
     });
@@ -1076,7 +1257,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: isFolder(item) ? 'Folder name' : 'Game name',
       confirmLabel: 'Rename',
       onSubmit: (next) => {
-        const uniqueName = getUniqueLibraryItemName(next, items, item.parentId ?? null, item.id);
+        const currentItems = saveStateRef.current.items;
+        const currentItem = currentItems.find(candidate => candidate.id === item.id);
+        if (!currentItem) return;
+        const uniqueName = getUniqueLibraryItemName(next, currentItems, currentItem.parentId ?? null, item.id);
         setItems((prev) => updateLibraryItem(prev, item.id, { name: uniqueName }));
         if (item.id === loadedFileId) onLoadedFileChange?.(item.id, uniqueName);
       },
@@ -1109,7 +1293,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: 'Folder name',
       confirmLabel: 'Create',
       onSubmit: (name) => {
-        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const uniqueName = getUniqueLibraryItemName(name, saveStateRef.current.items, parentId);
         const folder = createLibraryFolder(uniqueName, parentId);
         setItems((prev) => [folder, ...prev]);
         setExpandedFolderIds((prev) => new Set(prev).add(folder.id));
@@ -1119,14 +1303,32 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     });
   };
 
-  const handleOgsSyncImport = (username: string, games: OgsSyncedGame[]) => {
-    if (games.length === 0) return;
+  const handleOgsSyncImport = async (username: string, games: OgsSyncedGame[], operationId: string) => {
+    if (games.length === 0) return 0;
     const folderName = ogsSyncFolderName(username);
     const folder = createLibraryFolder(folderName, null);
-    const files = games.map((game) => createLibraryItem(ogsSyncFileName(game.summary), game.sgf, folder.id));
-    setItems((prev) => mergeOgsLibraryImports(prev, folder, files));
-    setPendingOgsFileId(files[0]!.id);
-    onToast(`Synced ${games.length} OGS game${games.length === 1 ? '' : 's'} into "${folderName}".`, 'success');
+    const files = games.map((game) => ({
+      ...createLibraryItem(ogsSyncFileName(game.summary), game.sgf, folder.id),
+      ogsGameId: game.summary.id,
+    }));
+    const finishImport = beginLibraryImport(files.length);
+    try {
+      const imported = await persistOgsLibraryImports(folder, files);
+      setPendingOgsFileId(imported[0]?.id ?? null);
+      onLibraryUpdated?.();
+      if (imported.length) {
+        onToast(`Synced ${imported.length} OGS game${imported.length === 1 ? '' : 's'} into "${folderName}".`, 'success', undefined, operationId);
+      } else {
+        onToast('Downloaded OGS games are already in your library.', 'info', undefined, operationId);
+      }
+      return imported.length;
+    } catch (error) {
+      const message = withFailureReason('Could not save synced games. Try syncing again when browser storage is available.', error);
+      onToast(message, 'error', undefined, operationId);
+      throw new Error(message);
+    } finally {
+      finishImport();
+    }
   };
 
   const handleClearLibrary = () => {
@@ -1199,6 +1401,35 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     onToast(`Exported "${item.name}".`, 'success');
   };
 
+  const handleCopySgf = async (item: LibraryFile) => {
+    const operationId = `library-copy-sgf:${item.id}`;
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(normalizeSgfUtf8(item.sgf), undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
+      onToast(`Copied "${item.name}" as SGF.`, 'success', undefined, operationId);
+    } else {
+      onToast('Could not copy SGF. Clipboard access is unavailable; use Download SGF to save the file.', 'error', undefined, operationId);
+    }
+  };
+
+  const handleSplitCollection = (item: LibraryFile) => {
+    try {
+      const result = splitLibraryCollection(items, item.id);
+      setItems(result.items);
+      setCurrentFolderId(result.folder.id);
+      setExpandedFolderIds(prev => new Set(prev).add(result.folder.id));
+      setSelectedIds(new Set());
+      setQuery('');
+      setFavoritesOnly(false);
+      setActiveTag(null);
+      searchInputRef.current?.focus();
+      onToast(`Created ${result.files.length} games in "${result.folder.name}".`, 'success');
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : 'Could not split this collection.', 'error');
+    }
+  };
+
   const handleBackupLibrary = () => {
     try {
       const blob = new Blob([createLibraryBackup(items)], { type: 'application/json' });
@@ -1220,29 +1451,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
 
   const handleExportLibraryZip = async () => {
     try {
-      const { blob, fileCount } = await createLibraryZipBlob(items);
-      if (fileCount === 0) {
-        onToast('No SGF files to export.', 'info');
+      const { blob, fileCount, folderCount } = await createLibraryZipBlob(items);
+      if (fileCount === 0 && folderCount === 0) {
+        onToast('The library is empty. Add games or folders before exporting.', 'info');
         return;
       }
       downloadBlob(blob, `webkatrain-library-${new Date().toISOString().slice(0, 10)}.zip`);
-      onToast(`Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
-    } catch {
-      onToast('Failed to create library ZIP.', 'error');
+      onToast(fileCount > 0
+        ? `Exported ${fileCount} SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
+        : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to create library ZIP.', 'error');
     }
   };
 
   const handleExportFolderZip = async (item: LibraryFolder) => {
     try {
       const { blob, fileCount } = await createLibraryZipBlob(items, new Set([item.id]));
-      if (fileCount === 0) {
-        onToast(`Folder "${item.name}" has no SGF files to export.`, 'info');
-        return;
-      }
       downloadBlob(blob, `${safeDownloadName(item.name, 'folder')}.zip`);
-      onToast(`Exported "${item.name}" with ${fileCount} SGF file${fileCount === 1 ? '' : 's'}.`, 'success');
-    } catch {
-      onToast('Failed to export folder ZIP.', 'error');
+      onToast(fileCount > 0
+        ? `Exported "${item.name}" with ${fileCount} SGF file${fileCount === 1 ? '' : 's'}.`
+        : `Exported "${item.name}" with its folder structure.`, 'success');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to export folder ZIP.', 'error');
     }
   };
 
@@ -1265,19 +1496,37 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     let restored: LibraryItem[];
     try {
       restored = parseLibraryBackup(await file.text());
-    } catch {
-      onToast('Failed to restore library backup.', 'error');
+    } catch (error) {
+      onToast(withFailureReason('Failed to restore library backup.', error), 'error');
       if (backupInputRef.current) backupInputRef.current.value = '';
       return;
     }
     if (backupInputRef.current) backupInputRef.current.value = '';
 
-    const applyRestore = async () => {
+    // A positive count needs confirmation; zero means restored; null means failed.
+    const applyRestore = async (onlyIfEmpty = false): Promise<number | null> => {
+      const restoreRevision = saveStateRef.current.revision;
+      const pendingGameSave = pendingGameSaveRef.current;
       try {
-        await saveLibrary(restored);
+        if (onlyIfEmpty) {
+          // Check and replace under the shared storage lock. Another tab can
+          // have saved a game that this panel has not displayed yet.
+          const existing = await updateStoredLibrary((current) => ({
+            items: current.length === 0 ? restored : current,
+            result: current.length > 0 ? current : null,
+          }));
+          if (existing) {
+            dispatchItems({ type: 'saved', items: existing, revision: 0 });
+            return existing.length;
+          }
+        } else {
+          await saveLibrary(restored);
+        }
         didLoadLibraryRef.current = true;
-        dispatchItems({ type: 'restore', items: restored });
-        pendingGameSaveRef.current = null;
+        // Saves requested while replacement was pending run after it in the
+        // storage queue. Keep their rows and their eventual acknowledgements.
+        dispatchItems({ type: 'saved', items: restored, revision: restoreRevision });
+        if (pendingGameSaveRef.current === pendingGameSave) pendingGameSaveRef.current = null;
         setLibraryStatus('ready');
         setLibraryError(null);
         onLibraryUpdated?.();
@@ -1285,19 +1534,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
         onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+        return 0;
       } catch {
         onToast('Failed to restore library backup.', 'error');
+        return null;
       }
     };
 
-    // Nothing to lose, so nothing to ask about.
-    if (items.length === 0) {
-      await applyRestore();
-      return;
+    // A save or import can finish while the backup file is being read. Ask
+    // about the collection that exists now before replacing any of its games.
+    let currentItemCount = saveStateRef.current.items.length;
+    if (currentItemCount === 0) {
+      const storedItemCount = await applyRestore(true);
+      if (storedItemCount === null || storedItemCount === 0) return;
+      currentItemCount = storedItemCount;
     }
     setConfirmDialog({
       title: 'Restore Backup',
-      message: describeLibraryReplacement(items.length, restored.length),
+      message: describeLibraryReplacement(currentItemCount, restored.length),
       confirmLabel: 'Replace',
       danger: true,
       onConfirm: () => void applyRestore(),
@@ -1357,15 +1611,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const handleBulkExport = async () => {
     if (visibleSelectedIds.size === 0) return;
     try {
-      const { blob, fileCount } = await createLibraryZipBlob(items, visibleSelectedIds);
-      if (fileCount === 0) {
-        onToast('No files selected to export.', 'info');
+      const { blob, fileCount, folderCount } = await createLibraryZipBlob(items, visibleSelectedIds);
+      if (fileCount === 0 && folderCount === 0) {
+        onToast('No games or folders selected to export.', 'info');
         return;
       }
       downloadBlob(blob, `webkatrain-selection-${new Date().toISOString().slice(0, 10)}.zip`);
-      onToast(`Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`, 'success');
-    } catch {
-      onToast('Failed to export selected items.', 'error');
+      onToast(fileCount > 0
+        ? `Exported ${fileCount} selected SGF file${fileCount === 1 ? '' : 's'} as ZIP.`
+        : `Exported ${folderCount} folder${folderCount === 1 ? '' : 's'} as ZIP.`, 'success');
+    } catch (error) {
+      onToast(error instanceof LibraryZipPathError ? error.message : 'Failed to export selected items.', 'error');
       return;
     }
   };
@@ -1404,9 +1660,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     try {
       const loaded = await onLoadSgf(item.sgf, item.id);
       if (!loaded) return;
-      onLoadedFileChange?.(item.id, item.name);
-      setCurrentFolderId(item.parentId ?? null);
-      onToast(`Loaded "${item.name}".`, 'success');
+      const loadedItem = typeof loaded === 'object' ? loaded.item : item;
+      const notice = typeof loaded === 'object' ? loaded.notice : undefined;
+      onLoadedFileChange?.(loadedItem.id, loadedItem.name);
+      setCurrentFolderId(loadedItem.parentId ?? null);
+      onToast(`Loaded "${loadedItem.name}".${notice ? ` ${notice}` : ''}`, notice ? 'info' : 'success');
       if (isMobileLayoutViewport()) {
         onClose();
       }
@@ -1416,71 +1674,100 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleImportFilesToFolder = async (files: FileList | null, folderId: string | null) => {
-    if (!files || files.length === 0) return;
-    // Before the first read publishes, `setItems` here would be overwritten by
-    // it and never saved. Reading the files is asynchronous anyway.
-    await waitForInitialLibraryLoad();
-    const imported: LibraryItem[] = [];
-    let openedPhotoBoard = false;
-    let skippedUnsupportedPhotoImages = 0;
-    let skippedInvalidSgfFiles = 0;
-    let skippedOversizedSgfFiles = 0;
-    let unreadableFiles = 0;
-    let skippedArchiveGames = 0;
-    let firstFailure: string | undefined;
-    const rememberFailure = (name: string, error: unknown) => {
-      firstFailure ??= describeLibraryImportFailure(name, error);
-    };
-    for (const file of Array.from(files)) {
-      const name = file.name.toLowerCase();
-      try {
-        if (isPhotoBoardImageFile(file)) {
-          if (!openedPhotoBoard && onOpenPhotoBoard) {
-            onOpenPhotoBoard(file);
-            openedPhotoBoard = true;
-          }
-          continue;
-        }
-        if (isUnsupportedPhotoBoardImageFile(file)) {
-          skippedUnsupportedPhotoImages += 1;
-          continue;
-        }
-        if (name.endsWith('.zip')) {
-          const archiveItems = await importLibraryItemsFromZip(file, folderId, legacyGameEncoding, (name, error) => {
-            skippedArchiveGames++;
-            rememberFailure(`${file.name}/${name}`, error);
-          });
-          for (const item of archiveItems) imported.push(item);
-          continue;
-        }
-        if (!isGameRecordFile(file)) continue;
-        const sizeError = getSgfImportSizeError(file.size);
-        if (sizeError) {
-          rememberFailure(file.name, new Error(sizeError));
-          skippedOversizedSgfFiles += 1;
-          continue;
-        }
-        const text = await readGameRecordFile(file, legacyGameEncoding);
+    // FileList belongs to the input/drop event. Retain the chosen files before
+    // the chooser resets or an asynchronous initial Library read yields.
+    const selectedFiles = files ? Array.from(files) : [];
+    if (selectedFiles.length === 0) return;
+    const finishImport = beginLibraryImport(selectedFiles.length);
+    try {
+      // Let the initial snapshot publish before imports notify this panel;
+      // an older first read must not replace their committed result.
+      await waitForInitialLibraryLoad();
+      const imported: LibraryItem[] = [];
+      let openedPhotoBoard = false;
+      let skippedUnsupportedPhotoImages = 0;
+      let skippedInvalidSgfFiles = 0;
+      let skippedOversizedSgfFiles = 0;
+      let unreadableFiles = 0;
+      let skippedArchiveGames = 0;
+      let firstFailure: string | undefined;
+      const rememberFailure = (name: string, error: unknown) => {
+        firstFailure ??= describeLibraryImportFailure(name, error);
+      };
+      for (const file of selectedFiles) {
+        const name = file.name.toLowerCase();
         try {
-          assertValidLibrarySgfImport(text);
+          if (isPhotoBoardImageFile(file)) {
+            if (!openedPhotoBoard && onOpenPhotoBoard) {
+              onOpenPhotoBoard(file);
+              openedPhotoBoard = true;
+            }
+            continue;
+          }
+          if (isUnsupportedPhotoBoardImageFile(file)) {
+            skippedUnsupportedPhotoImages += 1;
+            continue;
+          }
+          if (name.endsWith('.zip')) {
+            const archiveItems = await importLibraryItemsFromZip(file, folderId, legacyGameEncoding, (name, error) => {
+              skippedArchiveGames++;
+              rememberFailure(`${file.name}/${name}`, error);
+            });
+            for (const item of archiveItems) imported.push(item);
+            continue;
+          }
+          if (!isGameRecordFile(file)) continue;
+          const sizeError = getSgfImportSizeError(file.size);
+          if (sizeError) {
+            rememberFailure(file.name, new Error(sizeError));
+            skippedOversizedSgfFiles += 1;
+            continue;
+          }
+          const text = await readGameRecordFile(file, legacyGameEncoding);
+          try {
+            assertValidLibrarySgfImport(text);
+          } catch (error) {
+            rememberFailure(file.name, error);
+            skippedInvalidSgfFiles += 1;
+            continue;
+          }
+          imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
         } catch (error) {
           rememberFailure(file.name, error);
-          skippedInvalidSgfFiles += 1;
-          continue;
+          // A file that throws here -- unreadable, or a ZIP that will not open --
+          // used to vanish without a counter, so the summary reported only what
+          // survived.
+          unreadableFiles += 1;
         }
-        imported.push(createLibraryItem(file.name.replace(GAME_RECORD_EXTENSION, ''), text, folderId));
-      } catch (error) {
-        rememberFailure(file.name, error);
-        // A file that throws here -- unreadable, or a ZIP that will not open --
-        // used to vanish without a counter, so the summary reported only what
-        // survived.
-        unreadableFiles += 1;
       }
-    }
-    if (imported.length === 0) {
+      if (imported.length === 0) {
+        const report = describeLibraryImport({
+          importedEntries: 0,
+          importedFiles: 0,
+          openedPhotoBoard,
+          skippedUnsupportedPhotoImages,
+          skippedOversizedSgfFiles,
+          skippedInvalidSgfFiles,
+          unreadableFiles,
+          skippedArchiveGames,
+          firstFailure,
+        });
+        onToast(report.message, report.tone);
+        return;
+      }
+      try {
+        await persistLibraryImports(imported);
+        onLibraryUpdated?.();
+      } catch (error) {
+        onToast(withFailureReason('Could not save imported files. Keep the original files and try again.', error), 'error');
+        return;
+      }
       const report = describeLibraryImport({
-        importedEntries: 0,
-        importedFiles: 0,
+        importedEntries: imported.length,
+        importedFiles: imported.filter(isFile).length,
+        // A collection keeps every game in the stored text, but only the first
+        // one opens, so say so rather than let the others be present and unseen.
+        collectionFiles: imported.filter(isFile).filter((item) => countSgfGames(item.sgf) > 1).length,
         openedPhotoBoard,
         skippedUnsupportedPhotoImages,
         skippedOversizedSgfFiles,
@@ -1490,26 +1777,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         firstFailure,
       });
       onToast(report.message, report.tone);
-      return;
+    } finally {
+      finishImport();
     }
-    // Reading files can outlive another import or edit. Reserve names against
-    // the state at completion, without rescanning every sibling for each file.
-    setItems((prev) => prependLibraryImports(prev, imported));
-    const report = describeLibraryImport({
-      importedEntries: imported.length,
-      importedFiles: imported.filter(isFile).length,
-      // A collection keeps every game in the stored text, but only the first
-      // one opens, so say so rather than let the others be present and unseen.
-      collectionFiles: imported.filter(isFile).filter((item) => countSgfGames(item.sgf) > 1).length,
-      openedPhotoBoard,
-      skippedUnsupportedPhotoImages,
-      skippedOversizedSgfFiles,
-      skippedInvalidSgfFiles,
-      unreadableFiles,
-      skippedArchiveGames,
-      firstFailure,
-    });
-    onToast(report.message, report.tone);
   };
 
   const handleImportFiles = async (files: FileList | null) =>
@@ -1532,18 +1802,19 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   ): Promise<boolean> => {
     const droppedText = getDroppedSgfOrOgsText(dataTransfer);
     if (!droppedText) return false;
-    // Same window as the file input: the drop zone is live before the first
-    // read publishes, and `items` below must already hold the snapshot.
-    await waitForInitialLibraryLoad();
+    // The drop zone is live before the first read publishes. Wait for it so
+    // an older snapshot cannot replace the committed import in this panel.
+    const finishImport = beginLibraryImport(1);
     try {
+      await waitForInitialLibraryLoad();
       const result = await createLibraryItemFromSgfOrOgsText(
         droppedText,
         folderId,
         nextUntitledGameName(items)
       );
-      const uniqueName = getUniqueLibraryItemName(result.item.name, items, result.item.parentId ?? null);
-      const item = uniqueName === result.item.name ? result.item : { ...result.item, name: uniqueName };
-      setItems((prev) => [item, ...prev]);
+      const [item] = await persistLibraryImports([result.item]);
+      if (!item) return true;
+      onLibraryUpdated?.();
       // A pasted or dropped collection opens at its first game like an
       // imported one does, so it says so here too -- with the count, which
       // this path knows because it made exactly one item.
@@ -1557,6 +1828,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       );
     } catch {
       onToast('Failed to import dropped SGF or OGS URL.', 'error');
+    } finally {
+      finishImport();
     }
     return true;
   };
@@ -1646,7 +1919,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setDragOverRoot(false);
   };
 
-  const limitFor = (key: string) => visibleLimits[key] ?? LIBRARY_PAGE_SIZE;
+  const pageSize = isMobile ? MOBILE_LIBRARY_PAGE_SIZE : LIBRARY_PAGE_SIZE;
+  const limitFor = (key: string) => Math.max(visibleLimits[key] ?? pageSize, pageSize);
 
   /**
    * Reveals another page of one list. Selection deliberately still spans every
@@ -1660,20 +1934,23 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
-        onClick={() =>
+        data-library-more-parent={key}
+        style={depth > 0 ? { marginLeft: libraryTreeIndent(depth) } : undefined}
+        onClick={() => {
+          const siblings = isSearching ? sortedItems : childrenMap.get(key || null) ?? [];
+          revealFocusIdRef.current = siblings[limitFor(key)]?.id ?? null;
           setVisibleLimits((limits) => ({
             ...limits,
-            [key]: limitFor(key) + LIBRARY_PAGE_SIZE,
-          }))
-        }
+            [key]: limitFor(key) + pageSize,
+          }));
+        }}
       >
-        Show {Math.min(hidden, LIBRARY_PAGE_SIZE)} more of {total}
+        Show {Math.min(hidden, pageSize)} more of {total}
       </button>
     );
   };
 
-  const renderFileRow = (item: LibraryFile, depth: number) => {
+  const renderFileRow = (item: LibraryFile, depth: number, position: number, total: number) => {
     const isSelected = visibleSelectedIds.has(item.id);
     const isLoaded = loadedFileId === item.id;
     const isLoadedDirty = isLoaded && loadedFileDirty;
@@ -1704,13 +1981,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
+        aria-level={depth + 1}
+        aria-posinset={position}
+        aria-setsize={total}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
         aria-label={`${item.name}, game file, ${moveSummary}${isLoadedDirty ? ', unsaved changes' : ''}`}
+        aria-description={metaText}
         data-library-row="file"
+        data-library-row-id={item.id}
         data-library-row-name={item.name}
         data-library-loaded-dirty={isLoadedDirty ? 'true' : undefined}
         onClick={() => void handleLoad(item)}
@@ -1871,7 +2153,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     );
   };
 
-  const renderFolderRow = (item: LibraryFolder, depth: number, allowChildren = true) => {
+  const renderFolderRow = (item: LibraryFolder, depth: number, position: number, total: number, allowChildren = true) => {
     const isExpanded = visibleExpandedFolderIds.has(item.id);
     const children = childrenMap.get(item.id) ?? [];
     const isSelected = visibleSelectedIds.has(item.id);
@@ -1895,13 +2177,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             hasDirtyLoaded ? 'has-loaded-dirty' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
+          style={{ paddingLeft: libraryTreeIndent(depth) }}
           role="treeitem"
+          aria-level={depth + 1}
+          aria-posinset={position}
+          aria-setsize={total}
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
           aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
           data-library-row="folder"
+          data-library-row-id={item.id}
           data-library-row-name={item.name}
           data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
           onClick={() => activateFolderRow(item)}
@@ -2017,14 +2303,6 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             <FaEllipsisH size={14} />
           </button>
         </div>
-        {allowChildren && isExpanded && children.length > 0 && (
-          <div>
-            {children.slice(0, limitFor(item.id)).map((child) =>
-              isFolder(child) ? renderFolderRow(child, depth + 1, allowChildren) : renderFileRow(child, depth + 1)
-            )}
-            {renderShowMore(item.id, children.length, depth + 1)}
-          </div>
-        )}
       </div>
     );
   };
@@ -2033,6 +2311,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (!contextMenu) return null;
     const menuButtonClass = 'library-context-menu-item';
     const dangerMenuButtonClass = 'library-context-menu-item danger';
+    const ogsGameId = contextMenuItem && isFile(contextMenuItem) ? getOgsGameId(contextMenuItem) : undefined;
 
     return (
       <div
@@ -2154,6 +2433,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             >
               <FaCopy size={12} /> Duplicate
             </button>
+            {isFile(contextMenuItem) && contextCollectionGames > 1 && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => handleSplitCollection(contextMenuItem))}
+              >
+                <FaCopy size={12} /> Split collection ({contextCollectionGames} games)
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -2165,6 +2454,37 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             >
               <FaDownload size={12} /> {isFile(contextMenuItem) ? 'Download SGF' : 'Export folder as ZIP'}
             </button>
+            {isFile(contextMenuItem) && (
+              <button
+                type="button"
+                role="menuitem"
+                className={menuButtonClass}
+                onClick={() => runContextAction(() => void handleCopySgf(contextMenuItem))}
+                data-library-copy-sgf="true"
+              >
+                <FaCopy size={12} aria-hidden="true" /> Copy SGF
+              </button>
+            )}
+            {ogsGameId !== undefined && (
+              <a
+                role="menuitem"
+                className={menuButtonClass}
+                href={`https://online-go.com/game/${ogsGameId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-library-ogs-source="true"
+                onClick={closeContextMenu}
+                onKeyDown={(event) => {
+                  if (event.key !== ' ' || isComposingKeyEvent(event) || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.currentTarget.click();
+                }}
+              >
+                <FaExternalLinkAlt size={12} aria-hidden="true" /> Open on OGS
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
             {contextMenuItem.parentId && (
               <button
                 type="button"
@@ -2352,7 +2672,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
               type="file"
               accept={libraryImportAccept}
               multiple
-              onChange={(e) => void handleImportFiles(e.target.files)}
+              onChange={(e) => {
+                void handleImportFiles(e.target.files);
+                e.target.value = '';
+              }}
               className="hidden"
             />
             <input
@@ -2461,6 +2784,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    ref={searchInputRef}
                     type="search"
                     value={query}
                     autoCapitalize="none"
@@ -2468,7 +2792,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'ArrowDown' || isComposingKeyEvent(event)
+                        || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+                      const firstRow = libraryTreeRef.current?.querySelector<HTMLElement>('[data-library-row]');
+                      if (!firstRow) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      firstRow.focus();
+                    }}
                     aria-label="Search library"
+                    aria-keyshortcuts="ArrowDown"
                     placeholder="Search library…"
                     // Matching truncates past this anyway; stopping it at the
                     // input keeps a pasted record out of React state as well.
@@ -2482,14 +2816,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     // touch font floor took the text to 16px.
                     className={[
                       'w-full ui-input border rounded pl-8 py-1 text-sm text-[var(--ui-text)] focus:border-[var(--ui-accent)]',
-                      query ? 'pr-9' : 'pr-2',
+                      query ? 'pr-12 desktop-shell:pr-9' : 'pr-2',
                     ].join(' ')}
                   />
                   {query && (
                     <button
                       type="button"
                       className="library-search-clear absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                      onClick={() => setQuery('')}
+                      onClick={() => {
+                        setQuery('');
+                        searchInputRef.current?.focus();
+                      }}
                       aria-label="Clear library search"
                     >
                       <FaTimes aria-hidden="true" size={11} />
@@ -2556,20 +2893,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 {/* The trail sat in a band of its own under a toolbar row that
                     was empty between the root button and the item count. It
                     reads as the same thing, so it shares the row. */}
-                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[0.6875rem] ui-text-faint">
+                <div
+                  ref={breadcrumbRef}
+                  className="library-breadcrumbs flex min-w-24 max-w-full flex-1 basis-24 flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain text-[0.6875rem] ui-text-faint"
+                  role="navigation"
+                  aria-label="Library folder path"
+                >
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
-                  <span>Folder:</span>
-                  {isSearching || breadcrumbs.length === 0 ? (
+                  <span className="shrink-0">{isSearching ? 'Searching:' : 'Folder:'}</span>
+                  {isSearching ? (
+                    <span className="shrink-0">All folders</span>
+                  ) : breadcrumbs.length === 0 ? (
                     <span>{currentFolderName}</span>
                   ) : (
                     breadcrumbs.map((crumb, index) => (
                       <button
                         key={crumb.id}
                         type="button"
-                        className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                        className="library-breadcrumb-button shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
                         onClick={() => setCurrentFolderId(crumb.id)}
                         aria-label={`Open folder ${crumb.name}`}
+                        aria-current={index === breadcrumbs.length - 1 ? 'location' : undefined}
+                        title={crumb.name}
                       >
                         {index === 0 ? crumb.name : `/${crumb.name}`}
                       </button>
@@ -2582,8 +2928,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   )}
                 </div>
                 <div className="ml-auto flex items-center gap-2 text-[0.6875rem] ui-text-faint">
-                  <div>
-                    {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
+                  <div role="status" aria-live="polite" aria-atomic="true" data-library-result-count="true">
+                    {sortedItems.length} item{sortedItems.length === 1 ? '' : 's'}{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
                   </div>
                   {visibleSelectedIds.size > 0 ? (
                     <button
@@ -2663,14 +3009,29 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </button>
                 </div>
               )}
+              <span id={libraryKeyboardHelpId} className="sr-only">
+                Use Up and Down arrows to browse games and folders, Home or End to reach either end of the shown rows,
+                and Enter to open. Use the row buttons for selection and other actions.
+                Right expands or enters a folder; Left collapses or returns to its parent.
+                Type a name prefix to jump to a shown row; repeat a letter to cycle matches.
+              </span>
               <div
+                ref={libraryTreeRef}
                 className={[
                   'library-tree panel-scroll-region',
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
-                role="tree"
+                role={sortedItems.length > 0 ? 'tree' : 'group'}
                 aria-label="Library games"
+                aria-describedby={sortedItems.length > 0 ? libraryKeyboardHelpId : undefined}
+                aria-busy={libraryStatus === 'loading' || importingCount > 0}
+                onPointerDownCapture={() => { rowTypeaheadRef.current = null; }}
+                onBlurCapture={(event) => {
+                  if (!(event.relatedTarget instanceof HTMLElement) || !event.relatedTarget.matches('[data-library-row]')) {
+                    rowTypeaheadRef.current = null;
+                  }
+                }}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
@@ -2679,16 +3040,33 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   openContextMenu(event, null);
                 }}
               >
-                {isSearching ? (
+                {isSearching && libraryStatus !== 'loading' && libraryStatus !== 'error' ? (
                   sortedItems.length === 0 ? (
                     <div className="p-6 text-sm ui-text-faint">
                       <div className="font-semibold text-[var(--ui-text-muted)] mb-2">No matches</div>
-                      <div>Try a different search term.</div>
+                      <div>
+                        {favoritesOnly || activeTag
+                          ? 'No games match your current search and filters.'
+                          : 'Try a different search term.'}
+                      </div>
+                      <button
+                        type="button"
+                        className="panel-action-button mt-3"
+                        onClick={() => {
+                          setQuery('');
+                          setFavoritesOnly(false);
+                          setActiveTag(null);
+                          searchInputRef.current?.focus();
+                        }}
+                        data-library-reset-filters="true"
+                      >
+                        Clear search and filters
+                      </button>
                     </div>
                   ) : (
                     <div>
-                      {sortedItems.slice(0, limitFor('')).map((item) =>
-                        isFolder(item) ? renderFolderRow(item, 0, false) : renderFileRow(item, 0)
+                      {sortedItems.slice(0, limitFor('')).map((item, index) =>
+                        isFolder(item) ? renderFolderRow(item, 0, index + 1, sortedItems.length, false) : renderFileRow(item, 0, index + 1, sortedItems.length)
                       )}
                       {renderShowMore('', sortedItems.length)}
                     </div>
@@ -2699,15 +3077,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <div>Opening IndexedDB storage and migrating saved SGFs if needed.</div>
                   </div>
                 ) : libraryStatus === 'error' ? (
-                  <div className="p-6 text-sm ui-text-faint">
+                  <div className="p-6 text-sm ui-text-faint" role="alert">
                     <div className="font-semibold text-[var(--ui-danger)] mb-2">Library storage error</div>
-                    <div>{libraryError ?? 'The library could not be read or saved.'}</div>
+                    <div>{libraryError?.message ?? 'The library could not be read or saved.'}</div>
                     <button
                       type="button"
                       className="panel-action-button mt-3"
-                      onClick={() => setSaveRetry(retry => retry + 1)}
+                      data-library-retry="true"
+                      onClick={() => {
+                        libraryRetryFocusPendingRef.current = true;
+                        if (didLoadLibraryRef.current) setSaveRetry(retry => retry + 1);
+                        else setLoadRetry(retry => retry + 1);
+                      }}
                     >
-                      Retry saving library
+                      {libraryError?.operation === 'load' ? 'Retry loading library' : 'Retry saving library'}
                     </button>
                   </div>
                 ) : items.length === 0 ? (
@@ -2732,16 +3115,27 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   </div>
                 ) : (
                   <div>
-                    {(childrenMap.get(null) ?? []).slice(0, limitFor('')).map((item) =>
-                      isFolder(item) ? renderFolderRow(item, 0) : renderFileRow(item, 0)
-                    )}
-                    {renderShowMore('', (childrenMap.get(null) ?? []).length)}
+                    {getVisibleLibraryTreeRows(childrenMap, visibleExpandedFolderIds, limitFor).map((row) => (
+                      <React.Fragment key={row.kind === 'item' ? `item:${row.item.id}` : `more:${row.parentId ?? ''}`}>
+                        {row.kind === 'more'
+                          ? renderShowMore(row.parentId ?? '', row.total, row.depth)
+                          : isFolder(row.item) ? renderFolderRow(row.item, row.depth, row.position, row.total) : renderFileRow(row.item, row.depth, row.position, row.total)}
+                      </React.Fragment>
+                    ))}
                   </div>
                 )}
               </div>
-              {items.length > 0 && (
-                <div className="library-stats" aria-label="Library totals">
-                  {libraryStatsText}
+              {(items.length > 0 || importingCount > 0) && (
+                <div
+                  className="library-stats"
+                  aria-label="Library status"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  data-library-importing={importingCount > 0 ? 'true' : undefined}
+                >
+                  {importingCount > 0 ? `Importing ${importingCount} item${importingCount === 1 ? '' : 's'}…${items.length > 0 ? ' · ' : ''}` : ''}
+                  {items.length > 0 ? libraryStatsText : ''}
                 </div>
               )}
                 </>

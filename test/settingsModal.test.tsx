@@ -53,13 +53,13 @@ describe('SettingsModal', () => {
     const shortLandscapeBodyRule = css.match(/\.settings-modal \.settings-modal-body \{[^}]+\}/)?.[0] ?? '';
 
     expect(source).toContain('settings-modal-body min-h-0');
-    expect(source).toContain('settings-modal-content min-h-0 flex-1 overflow-y-auto');
+    expect(source).toContain('settings-modal-content min-h-32 flex-1 overflow-y-auto');
     expect(source).toContain('settings-modal-header sticky');
     expect(source).toContain('settings-modal-footer sticky');
     expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\)[\s\S]*\.settings-modal \.settings-modal-header,[\s\S]*padding-top: 8px !important;/);
     expect(shortLandscapeBodyRule).toContain('padding-bottom: 8px !important;');
     expect(shortLandscapeBodyRule).toContain('display: grid !important;');
-    expect(shortLandscapeBodyRule).toContain('grid-template-columns: minmax(9rem, 0.42fr) minmax(0, 1fr);');
+    expect(shortLandscapeBodyRule).toContain('grid-template-columns: minmax(min(9rem, 42%), 0.42fr) minmax(0, 1fr);');
     expect(css).toMatch(/\.settings-modal \.settings-search,[\s\S]*\.settings-modal \.settings-tabs[\s\S]*margin-bottom: 0 !important;/);
     expect(css).toMatch(/\.settings-modal \.settings-modal-content[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;/);
   });

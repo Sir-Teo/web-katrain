@@ -74,6 +74,12 @@ describe('library storage helpers', () => {
     expect(libraryItemMatchesQuery(item, '3 setup')).toBe(true);
   });
 
+  it('joins SGF line continuations before displaying or searching metadata', () => {
+    const item = createLibraryItem('Imported', '(;SZ[19]PB[A\\\nlice]PW[Bo\\\r\nb]GN[Final\\\rround])', null, 123);
+    expect(item.metadata).toMatchObject({ black: 'Alice', white: 'Bob', gameName: 'Finalround' });
+    expect(libraryItemMatchesQuery(item, 'Alice Bob Finalround')).toBe(true);
+  });
+
   it('creates file records with metadata, move count, and size', () => {
     const item = createLibraryItem('Game', sgf, null, 123);
     expect(item.type).toBe('file');
@@ -82,6 +88,38 @@ describe('library storage helpers', () => {
     expect(item.moveCount).toBe(2);
     expect(item.size).toBe(sgf.length);
     expect(item.metadata.black).toBe('Black Player');
+  });
+
+  it.each(['ASCII', '碁の研究', 'Éloïse', 'Review 🏆', 'Unpaired \ud800'])('counts UTF-8 download bytes for %s', (comment) => {
+    const text = `(;FF[4]CA[UTF-8]SZ[9]C[${comment}])`;
+    const item = createLibraryItem('Byte size', text);
+    expect(item.size).toBe(new Blob([text]).size);
+  });
+
+  it.each(['', 'CA[ISO-8859-1]'])('includes the exported UTF-8 declaration when the stored declaration is %s', (declaration) => {
+    const item = createLibraryItem('Charset bytes', `(;${declaration}SZ[9]C[碁])`);
+    expect(item.size).toBe(new Blob(['(;CA[UTF-8]SZ[9]C[碁])']).size);
+    expect(item.sgf).toBe(`(;${declaration}SZ[9]C[碁])`);
+  });
+
+  it('repairs legacy character counts when reading saved games and backups', () => {
+    const text = '(;FF[4]CA[UTF-8]SZ[9]PB[井山裕太]C[Review 🏆])';
+    const item = { ...createLibraryItem('Legacy bytes', text), size: text.length };
+    const expected = new Blob([text]).size;
+    const normalized = normalizeLibraryItems([item]);
+    expect(normalized[0]).toMatchObject({ id: item.id, sgf: text, size: expected });
+    expect(getLibraryStats(normalized).size).toBe(expected);
+    const backup = parseLibraryBackup(JSON.stringify({ version: 2, items: [item] }));
+    expect(backup[0]).toMatchObject({ id: item.id, sgf: text, size: expected });
+  });
+
+  it('counts UTF-8 bytes across an edited game and preserved collection games', () => {
+    const tail = '(;SZ[9]PB[趙治勲]C[Second game 🏆])';
+    const item = createLibraryItem('Collection bytes', `(;SZ[9]PB[First])\n${tail}`);
+    const [updated] = updateLibraryFileSgf([item], item.id, '(;CA[UTF-8]SZ[9]PB[Éloïse];B[cc])');
+    if (updated.type !== 'file') throw new Error('expected a file');
+    expect(updated.sgf).toContain(tail);
+    expect(updated.size).toBe(new Blob([updated.sgf]).size);
   });
 
   it('matches library search queries against SGF metadata', () => {
@@ -102,6 +140,14 @@ describe('library storage helpers', () => {
     expect(libraryItemMatchesQuery(item, 'sedol')).toBe(false);
     expect(libraryItemMatchesQuery(folder, 'pro')).toBe(true);
     expect(libraryItemMatchesQuery(folder, 'lee')).toBe(false);
+  });
+
+  it('searches accented collection titles and player names while retaining their spelling', () => {
+    const item=createLibraryItem('Jōseki notebook','(;SZ[9]PB[Éloïse]PW[Ō Rissei])');
+    expect(libraryItemMatchesQuery(item,'joseki eloise rissei')).toBe(true);
+    expect(libraryItemMatchesQuery(item,'JŌSEKI ÉLOÏSE')).toBe(true);
+    expect(item.name).toBe('Jōseki notebook');
+    expect(item.metadata.black).toBe('Éloïse');
   });
 
   it('updates a saved file in place with fresh SGF metadata', () => {

@@ -22,7 +22,10 @@ export async function assertStaticBoardScroll(cdp) {
           const root = ReactDOM.createRoot(host);
           window.__cleanupStaticBoardScrollCheck = () => { root.unmount(); host.remove(); };
           root.render(React.createElement(StaticBoard, {
-            board: Array.from({ length: 19 }, () => Array(19).fill(null)),
+            board: Array.from({ length: 19 }, (_,y) => Array.from({length:19},(_,x) =>
+              x===0||y===0||x===18||y===18 ? (x+y)%2 ? 'white' : 'black' : null)),
+            showCoordinates: true,
+            appearance: '${interactive ? 'wood' : 'paper'}',
             onPointClick: ${interactive ? '() => {}' : 'undefined'},
           }));
           for (let i = 0; i < 100 && !host.querySelector('svg'); i++) {
@@ -30,6 +33,18 @@ export async function assertStaticBoardScroll(cdp) {
           }
           if (!host.querySelector('svg')) throw new Error('Preview board did not mount');
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const svg=host.querySelector('svg');
+          const labels=[...svg.querySelectorAll('g[font-size="0.42"] text')];
+          const stones=[...svg.querySelectorAll('circle[r="0.47"]')];
+          if(labels.length!==38||stones.length!==72) throw new Error('Coordinate fixture must occupy every edge');
+          for(const label of labels) {
+            const a=label.getBBox(),v=svg.viewBox.baseVal;
+            if(a.x<0||a.y<0||a.x+a.width>v.width||a.y+a.height>v.height) throw new Error('Preview coordinate is clipped');
+            if(stones.some(stone=>{
+              const b=stone.getBBox();
+              return a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
+            })) throw new Error('Preview coordinate overlaps an edge stone');
+          }
           const rect = host.getBoundingClientRect();
           const point = { x: rect.left + rect.width / 2, y: rect.bottom - 30 };
           if (host.scrollHeight - host.clientHeight < 30) throw new Error('Preview fixture is not scrollable');
@@ -68,6 +83,6 @@ export async function assertStaticBoardScroll(cdp) {
         })()`);
       }
     }
-    console.log(`Preview touch scrolling at ${viewport.width}x${viewport.height}: read-only scroll and interactive control passed.`);
+    console.log(`Preview touch scrolling at ${viewport.width}x${viewport.height}: read-only scroll, interactive control, and clear wood/paper coordinates passed.`);
   }
 }

@@ -1,7 +1,9 @@
 import React from 'react';
 import { FaCheck, FaCheckCircle, FaCopy, FaExclamationTriangle, FaInfoCircle, FaTimes } from 'react-icons/fa';
-import { copyTextToClipboard } from '../../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../../utils/clipboard';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
+import { revealFocusedButton } from '../../utils/revealFocusedButton';
+import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 
 export type NotificationToastType = 'info' | 'error' | 'success';
 
@@ -56,16 +58,69 @@ export function NotificationToast({
   const meta = notificationMeta[notification.type];
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
+  const toastRef = React.useRef<HTMLDivElement>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const copyRequestRef = React.useRef(0);
   const canCopy = notification.type === 'error';
   // Tells the install card to step aside while a toast is up (index.css).
   useDocumentFlag('notification-shown', 'true');
 
   React.useEffect(() => {
+    if (placement !== 'mobile-panel') return;
+    const region = toastRef.current?.parentElement;
+    if (!region) return;
+    const root = document.documentElement;
+    // Let panel content scroll above the notice even when its text wraps.
+    // Keep the board's available space independent of notifications.
+    const measure = () => root.style.setProperty(
+      '--mobile-panel-notification-space',
+      `calc(${region.getBoundingClientRect().height}px + 1rem)`,
+    );
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(region);
+    const frame = requestAnimationFrame(() => {
+      revealFocusedButton(region);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      root.style.removeProperty('--mobile-panel-notification-space');
+    };
+  }, [notification, placement]);
+
+  const syncHold = React.useCallback(() => {
+    const node = toastRef.current;
+    onHoldChange?.(!!node && (node.matches(':hover') || node.contains(document.activeElement)));
+  }, [onHoldChange]);
+
+  React.useEffect(() => {
+    syncHold();
+    // Removing a hovered/focused toast does not dispatch leave or blur.
+    return () => onHoldChange?.(false);
+  }, [notification, onHoldChange, syncHold]);
+
+  React.useEffect(() => {
     setCopyState('idle');
+    // Capture the counter object; cleanup must invalidate its latest request.
+    const requests = copyRequestRef;
+    return () => { requests.current++; };
   }, [notification.copyText, notification.message, notification.type]);
 
   const handleCopy = async () => {
-    setCopyState((await copyTextToClipboard(notification.copyText ?? notification.message)) ? 'copied' : 'failed');
+    const request = ++copyRequestRef.current;
+    const clipboardRequest = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(notification.copyText ?? notification.message, undefined, undefined, clipboardRequest);
+    if (copyRequestRef.current !== request || !isClipboardWriteRequestCurrent(clipboardRequest)) return;
+    setCopyState(copied ? 'copied' : 'failed');
+  };
+
+  const handleClose = () => {
+    const target = toastRef.current?.contains(document.activeElement) ? returnFocusRef.current : null;
+    onClose();
+    if (target) window.setTimeout(() => {
+      if (target.isConnected) restoreFocusIfUnclaimed(target);
+    }, 0);
   };
 
   return (
@@ -80,21 +135,38 @@ export function NotificationToast({
       data-notification-region="true"
     >
       <div
+        ref={toastRef}
         className={`notification-toast notification-toast-${notification.type}`}
         role={meta.role}
         aria-live={meta.live}
         aria-atomic="true"
         data-notification="true"
         data-notification-type={notification.type}
-        onMouseEnter={() => onHoldChange?.(true)}
-        onMouseLeave={() => onHoldChange?.(false)}
-        onFocus={() => onHoldChange?.(true)}
-        onBlur={() => onHoldChange?.(false)}
+        onMouseEnter={syncHold}
+        onMouseLeave={syncHold}
+        onFocus={(event) => {
+          if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
+            returnFocusRef.current = event.relatedTarget instanceof HTMLElement && event.relatedTarget !== document.body
+              ? event.relatedTarget : null;
+          }
+          syncHold();
+        }}
+        onBlur={(event) => {
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+          syncHold();
+        }}
       >
         <span className="notification-toast-icon" aria-hidden="true">
           <Icon size={16} />
         </span>
-        <span className="notification-toast-message" title={notification.message}>
+        <span
+          className="notification-toast-message"
+          title={notification.message}
+          tabIndex={canCopy ? 0 : undefined}
+          onKeyDown={(event) => {
+            if (canCopy && !event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation();
+          }}
+        >
           <span className="sr-only">{meta.label}: </span>
           {notification.message}
         </span>
@@ -129,7 +201,7 @@ export function NotificationToast({
         <button
           type="button"
           className="notification-toast-close"
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Dismiss notification"
           title="Dismiss notification"
         >

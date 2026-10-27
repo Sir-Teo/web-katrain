@@ -121,11 +121,11 @@ describe('game store move-tree invariants', () => {
     const failures: string[] = [];
     /**
      * Weighted so the tree grows rather than being pruned flat: an even spread
-     * over these sixteen left it at twenty nodes, because two of them delete.
+     * over these actions left it at twenty nodes, because two of them delete.
      * As weighted it reaches ~138 nodes, depth 19 and 26 branch points, which
      * is where interactions between branch switching and deletion live.
      */
-    const weights = [26, 4, 8, 8, 4, 6, 8, 3, 3, 3, 3, 3, 1, 1, 3, 3];
+    const weights = [26, 4, 8, 8, 4, 6, 8, 3, 3, 3, 3, 3, 1, 1, 3, 3, 4];
     const total = weights.reduce((a, b) => a + b, 0);
 
     for (let seed = 1; seed <= SEEDS && failures.length === 0; seed++) {
@@ -155,6 +155,7 @@ describe('game store move-tree invariants', () => {
         () => useGameStore.getState().pruneCurrentBranch(),
         () => useGameStore.getState().toggleBranchCollapse(),
         () => useGameStore.getState().shiftCurrentVariation(rand() < 0.5 ? 'left' : 'right'),
+        () => useGameStore.getState().navigateByNodes(rand() < 0.5 ? -5 : 5),
       ];
 
       const pick = () => {

@@ -13,6 +13,7 @@ describe('BotPersonaPicker', () => {
     // Counted from the roster rather than pinned, so adding a bot is a
     // one-line change here instead of a puzzle about which number is stale.
     expect(html.match(/role="radio"/g)).toHaveLength(BOT_PERSONAS.length);
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
     expect(html).toContain('Gentle · Balanced');
     expect(html).not.toContain('A patient beginner.');
     expect(html).not.toContain('>Reading</span>');
@@ -22,6 +23,7 @@ describe('BotPersonaPicker', () => {
     const html = renderToStaticMarkup(<BotPersonaPicker selectedId="pebble" onSelect={() => undefined} />);
 
     expect(html).toContain('aria-checked="true"');
+    expect(html).toMatch(/aria-checked="true" tabindex="0" data-bot-persona="pebble"/);
     expect(html).toContain('col-span-2');
     expect(html).toContain('A patient beginner.');
     expect(html).toContain('>Reading</span>');

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRELOADED_GAMES } from '../src/data/preloadedGames';
 import {
   createLibraryItem,
+  compareLibraryRecency,
   formatRecentLibraryFileDetail,
   selectRecentLibraryFiles,
   type LibraryFolder,
@@ -23,6 +24,27 @@ const seeded = () =>
   PRELOADED_GAMES.slice(0, 3).map((game) => createLibraryItem(game.name, game.sgf, famousFolder.id, SEEDED_AT));
 
 describe('selectRecentLibraryFiles', () => {
+  it('keeps numeric timestamp ties stable across input and database key order', () => {
+    const files = [
+      { ...createLibraryItem('1. Round opening', '(;SZ[9])', null, SEEDED_AT), id: 'z-opening' },
+      { ...createLibraryItem('2. Round middle', '(;SZ[9])', null, SEEDED_AT), id: 'm-middle' },
+      { ...createLibraryItem('10. Round final', '(;SZ[9])', null, SEEDED_AT), id: 'a-final' },
+      { ...createLibraryItem('Newest round', '(;SZ[9])', null, SEEDED_AT + 1), id: 'newest' },
+    ];
+    const expected = ['newest', 'z-opening', 'm-middle', 'a-final'];
+    for (const input of [files, [...files].reverse(), [files[2]!, files[0]!, files[3]!, files[1]!]]) {
+      expect(selectRecentLibraryFiles(input).files.map(file => file.id)).toEqual(expected);
+      expect([...input].sort(compareLibraryRecency).map(file => file.id)).toEqual(expected);
+    }
+  });
+
+  it('uses stable IDs when same-time titles in different folders also match', () => {
+    const first = { ...createLibraryItem('Study', '(;SZ[9])', 'folder-a', SEEDED_AT), id: 'a' };
+    const second = { ...createLibraryItem('Study', '(;SZ[9])', 'folder-b', SEEDED_AT), id: 'b' };
+    expect(selectRecentLibraryFiles([second, first]).files.map(file => file.id)).toEqual(['a', 'b']);
+    expect(selectRecentLibraryFiles([first, second]).files.map(file => file.id)).toEqual(['a', 'b']);
+  });
+
   it('offers untouched bundled games as featured, not as the player’s recent games', () => {
     const items: LibraryItem[] = [famousFolder, ...seeded()];
     const result = selectRecentLibraryFiles(items);

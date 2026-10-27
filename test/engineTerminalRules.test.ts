@@ -15,6 +15,9 @@ const SETTLED = [
   'XXXXOOOOO', 'X.XXO.O.O', 'XXXXOOOOO',
 ];
 const AREA_RULES = ['chinese', 'aga', 'new-zealand', 'tromp-taylor', 'stone-scoring'] as const satisfies readonly GameRules[];
+// These correctness checks run real model searches with a 30-second search
+// allowance. Include model startup and CPU contention in the harness deadline.
+const MODEL_SEARCH_TEST_TIMEOUT_MS = 60000;
 const board = (swapColors = false): BoardState => SETTLED.map(row => Array.from(row, c =>
   c === '.' ? null : (c === 'X') !== swapColors ? 'black' : 'white'));
 const stonesFrom = (rows: string[]) => Uint8Array.from(rows.join(''), c => c === 'X' ? 1 : c === 'O' ? 2 : 0);
@@ -90,7 +93,7 @@ describe.skipIf(!hasModel())('exact terminal evaluation under every supported ar
       } finally {
         spy.mockRestore();
       }
-    }, 60000);
+    }, MODEL_SEARCH_TEST_TIMEOUT_MS);
   }
 
   it.each(AREA_RULES)('recognizes a drawn final pass under %s', async (rules) => {
@@ -100,7 +103,7 @@ describe.skipIf(!hasModel())('exact terminal evaluation under every supported ar
     expect(pass?.scoreLead).toBe(0);
     expect(pass?.winRate).toBe(0.5);
     expect(pass?.scoreStdev).toBe(0);
-  });
+  }, MODEL_SEARCH_TEST_TIMEOUT_MS);
 
   it.each(['new-zealand', 'stone-scoring'] as const)('continues evaluating after just one pass under %s', async (rules) => {
     const model = await loadHarnessModel();
@@ -114,7 +117,7 @@ describe.skipIf(!hasModel())('exact terminal evaluation under every supported ar
     } finally {
       spy.mockRestore();
     }
-  });
+  }, MODEL_SEARCH_TEST_TIMEOUT_MS);
 
   it.each(['new-zealand', 'stone-scoring'] as const)('keeps the exact terminal score after reusing a one-pass child under %s', async (rules) => {
     const search = await createPassSearch(rules, { moveHistory: [] });
@@ -129,5 +132,5 @@ describe.skipIf(!hasModel())('exact terminal evaluation under every supported ar
     expect(pass?.scoreLead).toBe(rules === 'stone-scoring' ? 16 : 14);
     expect(pass?.scoreStdev).toBe(0);
     expect(pass?.pv).toEqual(['pass']);
-  });
+  }, MODEL_SEARCH_TEST_TIMEOUT_MS);
 });

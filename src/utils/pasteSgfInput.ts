@@ -1,10 +1,10 @@
 import { extractOgsGameId } from './ogs';
-import { decodeSgfFromShareUrl } from './shareLink';
+import { decodeSgfFromShareUrl, hasSgfFragment } from './shareLink';
 import { parseBoardTextDiagram } from './boardTextDiagram';
 
 export type PasteSgfSubmitResult = 'loaded' | 'cancelled' | 'failed';
 
-export type PasteSgfInputKind = 'diagram' | 'empty' | 'ogs' | 'sgf' | 'text' | 'url';
+export type PasteSgfInputKind = 'diagram' | 'empty' | 'ogs' | 'sgf' | 'share' | 'text' | 'url';
 
 export type PasteSgfInputInfo = {
   kind: PasteSgfInputKind;
@@ -45,6 +45,18 @@ export const getPasteSgfInputInfo = (text: string): PasteSgfInputInfo => {
       helper: 'Detected SGF content. It will import directly from this text.',
       submitStatus: 'Opening pasted SGF...',
       errorStatus: 'Could not parse this SGF. Check that it starts with (; and contains a complete game tree.',
+    };
+  }
+
+  // Recognize the envelope without inflating or parsing a game on each edit.
+  // Damaged links still need share-specific recovery guidance on submission.
+  const hashAt = trimmed.indexOf('#');
+  if (/^https?:\/\/\S+$/i.test(trimmed) && hashAt >= 0 && hasSgfFragment(trimmed.slice(hashAt))) {
+    return {
+      kind: 'share',
+      helper: 'Detected a Web KaTrain share link. The embedded game will open directly.',
+      submitStatus: 'Opening shared game...',
+      errorStatus: 'Could not read this shared game. Copy the complete share link again, or ask for an SGF file.',
     };
   }
 

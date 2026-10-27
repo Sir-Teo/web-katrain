@@ -8,7 +8,7 @@ describe('PasteSgfModal', () => {
   it('keeps modal-owned failures local instead of announcing a duplicate toast', () => {
     const layoutSource = readFileSync('src/components/Layout.tsx', 'utf8');
 
-    expect(layoutSource).toContain('onSubmit={(text) => handleOpenSgfFromText(text, { notifyFailure: false })}');
+    expect(layoutSource).toContain('onSubmit={(text, signal) => handleOpenSgfFromText(text, { notifyFailure: false, signal })}');
     // The guard is what matters, not the line it is written on: the dialog
     // shows its own status inline, so a toast on top of it says the same thing
     // twice. Anchored on the guard and the call it wraps.
