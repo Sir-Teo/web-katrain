@@ -313,7 +313,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     <button
                       type="button"
                       className="cl-pv-action"
-                      aria-label={`Add variation starting at ${label} to the game tree`}
+                      aria-label={`Keep in tree: variation starting at ${label}`}
                       onClick={() => addPvVariation(move.pv ?? [])}
                     >
                       Keep in tree

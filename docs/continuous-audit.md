@@ -8,6 +8,15 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `b0ce399` retains one failure: a static candidate
+  control check expected the literal `min-height: 1.5rem` declaration after
+  the touch-size change used `var(--candidate-action-size, 1.5rem)` instead.
+  The remaining 502 files and 3,449 cases pass, with 78 existing engine skips.
+  The assertion now checks the unchanged 24 px fallback in its variable form;
+  native geometry already confirms 44 px phone/coarse-pointer actions.
+  The 42 related cases and targeted lint pass after this repair. The original
+  failed full run remains recorded; complete verification is being rerun.
+
 - Verification at `00d911f`, including cross-tab lesson progress, passes all
   503 unit files and 3,450 cases, with the existing 78 engine cases skipped
   in CI. App/test TypeScript, full lint and 22 related cases pass. The build
@@ -366,6 +375,9 @@ reproduced failures separate from candidates that still need investigation.
   purpose, while the compact visible labels remain. Native accessibility-tree
   inspection confirms both contextual button names and the existing disclosure
   control. Targeted lint and the production build pass (Vite phase 11.3 s).
+  A follow-up correction retains the visible "Keep in tree" words at the start
+  of that accessible name for voice-control matching; native accessibility-tree
+  inspection confirms "Keep in tree: variation starting at E5".
 
 - **Variation actions are easier to tap:** native measurements found Copy
   at 41×24 px and Keep in tree at 94×24 px on phones. Their controls now
