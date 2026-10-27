@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Mobile notification spacing stays compact as text grows. At 320 px and 200%
+  text, baseline message width is 58 px while the short phrase "Failed to" needs
+  120 px; the card breaks ordinary words into fragments. Fixed mobile padding,
+  gaps and a 28 px status-icon slot now give the message 126 px without changing
+  its 28 px text or the 45 px Copy/Close targets. Production eight-case reflow
+  check `bf9H4C` passes normal/enlarged desktop, phone and landscape layouts,
+  including exact full-error clipboard contents and native dismissal. Final
+  `gNhtXo` passes the controlled PWA-height cases, original empty-Library cases
+  and header layouts. Fifty-nine existing tests and build pass (Vite 13.5 s).
+  The external baseline initially has a browser-expression quoting error; the
+  corrected eight-case baseline completes before app edits. Its raw width field
+  contains message width; a separate labeled artifact preserves viewport widths.
+
 - Mobile-panel notifications now anchor above the tab bar without reserving
   room for a PWA card that yields while the notice is shown. Full attempt 114
   passes all 11 base layouts and the native prefix through Library tags, then
@@ -24,8 +37,8 @@ reproduced failures separate from candidates that still need investigation.
   coordinates and preserve board and Library contents. The original four empty
   Library cases and three header-notification layouts pass. Fifty-nine existing
   tests, runner/helper lint and build pass (Vite 16.6 s). Attempt 114 remains a
-  failed full run; later workflows were not executed. Large-text message width
-  in the narrow toast remains a separate visual follow-up.
+  failed full run; later workflows were not executed. Visual review also exposes narrow
+  large-text message width, addressed by the later spacing change above.
 
 - Full unit verification passes at `f31dd5b`: 515 files and 3,560 tests pass,
   with two files/eight tests skipped, in 707.2 s. Repository-wide lint passes.

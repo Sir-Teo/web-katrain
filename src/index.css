@@ -4876,11 +4876,18 @@
       min-width: min(100%, 14rem);
       max-width: min(30rem, calc(100% - 1rem));
       min-height: 3rem;
-      padding: 0.125rem 0.5rem;
+      /* Let enlarged text claim the width instead of scaling empty space. */
+      gap: 8px;
+      padding: 2px 8px;
       border-width: 1px 1px 1px 3px;
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
       backdrop-filter: blur(8px);
+    }
+
+    .notification-toast-icon {
+      width: 28px;
+      height: 28px;
     }
 
     .notification-toast-action,
