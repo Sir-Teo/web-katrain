@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The complete browser sweep at `3138e33` passes all 11 sizes and every native
+  suite, including the 24 trusted Copy SGF actions with real clipboard reads
+  and six successful legacy copies. The PNG size/rotation matrix, import
+  ordering, storage and final recovery suites pass as well. This precedes
+  the shared image/text preparation guard under verification.
+
 - Full unit verification at `3138e33`, including stale text-copy fallback
   protection, passes 501 files and 3,431 cases with 78 engine cases skipped
   in CI. App/test TypeScript, targeted lint and all 12 native fallback-order
@@ -15,7 +21,7 @@ reproduced failures separate from candidates that still need investigation.
   again exceeds the unchanged Settings limit at 131.2 ms versus 120 ms; the
   other four checks pass. This is retained with the earlier 132.6 ms sample
   and rejected layout experiment. No performance fix or budget change is
-  claimed. The complete integrated browser sweep is next.
+  claimed. The complete integrated browser sweep passes as recorded above.
 
 - The complete browser sweep at `cc1adee` passes all 11 sizes and every native
   suite. Frozen PNGs and coordinates pass all 9/13/19 boards at desktop and
