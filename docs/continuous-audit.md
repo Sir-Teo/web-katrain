@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `f39d2c8` passes 503 files and 3,450 cases, with
+  78 existing engine skips. The build passes (Vite phase 12.9 s), and this
+  standard responsiveness sample meets all five unchanged limits at
+  7.8/1.2/100/72/87 ms. Its complete browser sweep is a failed run: the 390 px
+  variation-copy fixture took 1,277 ms to complete a newer SGF copy through
+  palette opening/search, exceeding its unchanged 1,000 ms overlap precondition
+  and 1,200 ms clipboard timeout. The SGF success toast was visible,
+  but that sample cannot establish the intended overlap. All 11 layouts,
+  55 new-game cases, Lessons, notification-copy ordering, model-copy feedback,
+  cross-tab storage, 1,500 folders, image/text and engine-error copy cases passed
+  before it; later suites did not finish. The failure and screenshot are retained.
+  The fixture now uses the app's native Ctrl+C action with clean default bindings
+  and cleared text selection, and records per-case timings. All 15 focused
+  cases pass, with the newer SGF action taking 135–172 ms and no budget change.
+  The application code is unchanged by this fixture repair.
+
 - Complete verification at `c63635a` passes all 503 unit files and 3,450 cases,
   with the existing 78 engine cases skipped in CI. The build passes (Vite
   phase 11.3 s). This standard responsiveness sample meets all five unchanged

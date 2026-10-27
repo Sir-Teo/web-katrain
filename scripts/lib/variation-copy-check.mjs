@@ -6,6 +6,7 @@ import { evaluate, loadedModuleUrl, navigate, setViewport, waitForExpression } f
 export async function assertVariationCopy(cdp, appUrl, output) {
   const reports = [];
   let activeWidth;
+  let activeOutcome;
   const wait = expression => waitForExpression(cdp, expression, {
     label: 'Variation copy feedback',
     diagnose: `({toast:document.querySelector('.notification-toast-message')?.title,writes:window.variationWrites?.map(w=>({text:w.text,finished:w.finished,expired:w.expired})),focus:document.activeElement?.outerHTML.slice(0,200)})`,
@@ -30,7 +31,7 @@ export async function assertVariationCopy(cdp, appUrl, output) {
         for (const type of ['keyDown', 'keyUp']) await cdp.send('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode: number, modifiers });
       };
       const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
-        performance.setResourceTimingBufferSize(5000);localStorage.removeItem('web-katrain:auto_saved_game:v1');
+        performance.setResourceTimingBufferSize(5000);localStorage.removeItem('web-katrain:auto_saved_game:v1');localStorage.removeItem('web-katrain:shortcuts:v1');
         localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
         localStorage.setItem('web-katrain:library_open:v1','false');localStorage.setItem('web-katrain:sidebar_open:v1','true');
         localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false,analysisExperience:'pro'}));
@@ -78,16 +79,20 @@ export async function assertVariationCopy(cdp, appUrl, output) {
         await click(copy);await wait(`variationWrites[${index}]?.finished`);await settle();
       };
       const cases = [];
+      const timings = [];
+      await evaluate(cdp, 'getSelection()?.removeAllRanges();void 0');
       for (const outcome of ['rejection', 'timeout', 'newer-sgf']) {
+        activeOutcome = outcome;
         const index = await evaluate(cdp, 'variationWrites.length');
         await evaluate(cdp, 'variationHold=true;void 0');await click(copy);await wait(`variationWrites[${index}]?.ready`);
         if (outcome === 'newer-sgf') {
-          await key('k', 'KeyK', 75, 2);await click('[data-command-palette-search]');await cdp.send('Input.insertText', { text: 'Copy SGF' });await click('[data-command-palette-item=copy-sgf]');
+          await key('c', 'KeyC', 67, 2);
           await wait('document.querySelector(".notification-toast-message")?.title==="Copied SGF to clipboard."');
         } else { await copyCurrent();await wait('document.querySelector(".notification-toast-message")?.title==="Variation copied."'); }
         const latestToast = await toast();
         const currentText = await readClipboard();
         const elapsed = await evaluate(cdp, `performance.now()-variationWrites[${index}].started`);
+        timings.push({ outcome, newerCopyElapsedMs: elapsed });
         assert.ok(elapsed < 1000, `New copy must finish before old 1200 ms timeout (${elapsed} ms)`);
         if (outcome === 'timeout') await wait(`variationWrites[${index}].expired`);
         else await evaluate(cdp, `variationWrites[${index}].reject(new Error('Older variation copy denied'));void 0`);
@@ -124,13 +129,13 @@ export async function assertVariationCopy(cdp, appUrl, output) {
       await wait('(()=>{const first=variationStore.getState().currentNode.children[0],second=first?.children[0],third=second?.children[0];return first?.move.x===4&&first.move.y===4&&second?.move.x===5&&second.move.y===4&&third?.move.x===4&&third.move.y===3})()');
       assert.deepEqual(await evaluate(cdp, '({node:variationStore.getState().currentNode.id,stones:document.querySelector("[data-board-snapshot]").dataset.boardStones})'), beforeKeep);
       cases.push('native-keep-in-tree');
-      reports.push({ width, cases, nativeClipboard: true, staleLegacyCopies: 0, alternatePointerTargets: alternate.targets });
+      reports.push({ width, cases, nativeClipboard: true, staleLegacyCopies: 0, timings, newerSgfEntry: 'native Ctrl+C', alternatePointerTargets: alternate.targets });
       fs.writeFileSync(path.join(output, 'variation-copy.json'), JSON.stringify(reports, null, 2));
       console.log('Variation copy', JSON.stringify(reports.at(-1)));
     }
   } catch (error) {
-    const state = await evaluate(cdp, '({body:document.body.innerText,focus:document.activeElement?.outerHTML,toast:document.querySelector(".notification-toast-message")?.title})').catch(() => null);
-    fs.writeFileSync(path.join(output, `variation-copy-failure-${activeWidth}.json`), JSON.stringify({ error: String(error), state }, null, 2));
+    const state = await evaluate(cdp, '({body:document.body.innerText,focus:document.activeElement?.outerHTML,toast:document.querySelector(".notification-toast-message")?.title,writes:window.variationWrites?.map(w=>({text:w.text,started:w.started,finished:w.finished,expired:w.expired,elapsed:performance.now()-w.started})),legacy:window.variationLegacy})').catch(() => null);
+    fs.writeFileSync(path.join(output, `variation-copy-failure-${activeWidth}.json`), JSON.stringify({ outcome: activeOutcome, error: String(error), state }, null, 2));
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
     if (shot) fs.writeFileSync(path.join(output, `variation-copy-failure-${activeWidth}.png`), Buffer.from(shot.result.data, 'base64'));
     throw error;
