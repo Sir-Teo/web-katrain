@@ -119,6 +119,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       }
       await change('Current error fixture');
       const beforeFailure = await evaluate(cdp, 'errorCopyOriginals.clipboard.readText()');
+      const pageBeforeFailure = await evaluate(cdp, '({x:scrollX,y:scrollY})');
       index = await evaluate(cdp, 'errorCopyAudit.writes.length');
       await evaluate(cdp, 'errorCopyAudit.failNext=true;errorCopyAudit.denyLegacy=true;void 0');
       await click(selector);await wait(`errorCopyAudit.writes[${index}].finished`);await settle();
@@ -128,11 +129,15 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       const failureLayout = await evaluate(cdp, `(()=>{
         const b=document.querySelector(${JSON.stringify(selector)}),r=b.getBoundingClientRect();
         const x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y),toast=document.querySelector('[data-notification]');
-        return {copyRect:{x:r.x,y:r.y,width:r.width,height:r.height},coveredByToast:!!hit?.closest('[data-notification]'),hit:hit?.outerHTML.slice(0,300),toast:toast?.innerText};
+        return {copyRect:{x:r.x,y:r.y,width:r.width,height:r.height},coveredByToast:!!hit?.closest('[data-notification]'),tappable:b.contains(hit),focused:document.activeElement===b,page:{x:scrollX,y:scrollY},hit:hit?.outerHTML.slice(0,300),toast:toast?.innerText};
       })()`);
       fs.writeFileSync(path.join(screenshotDir, `engine-error-failure-${surface}-${width}.json`), JSON.stringify(failureLayout, null, 2));
       const failureShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(screenshotDir, `engine-error-failure-${surface}-${width}.png`), Buffer.from(failureShot.result.data, 'base64'));
+      assert.equal(failureLayout.coveredByToast, false, 'Failure feedback must leave its focused action exposed');
+      assert.equal(failureLayout.tappable, true);
+      assert.equal(failureLayout.focused, true, 'Revealing an action must preserve its focus');
+      assert.deepEqual(failureLayout.page, pageBeforeFailure, 'Only the panel may scroll');
       await evaluate(cdp, 'errorCopyAudit.denyLegacy=false;void 0');
       await copyCurrent(true);
       const retry = { width, surface, copied: await evaluate(cdp, copied), toast: await toast(), clipboard: await evaluate(cdp, 'errorCopyOriginals.clipboard.readText()') };
@@ -140,6 +145,17 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       assert.equal(retry.toast, 'Copied engine error details.', 'A successful retry must replace its own failure message');
       assert.ok(retry.clipboard.includes('Current error fixture'));
       cases.push('current-failure-and-keyboard-retry');
+
+      await change('Touch retry fixture');
+      index = await evaluate(cdp, 'errorCopyAudit.writes.length');
+      await evaluate(cdp, 'errorCopyAudit.failNext=true;errorCopyAudit.denyLegacy=true;void 0');
+      await click(selector);await wait(`errorCopyAudit.writes[${index}].finished`);await settle();
+      assert.equal(await toast(), 'Could not copy engine error details.');
+      await evaluate(cdp, 'errorCopyAudit.denyLegacy=false;void 0');
+      await copyCurrent();
+      assert.equal(await toast(), 'Copied engine error details.');
+      assert.ok((await evaluate(cdp, 'errorCopyOriginals.clipboard.readText()')).includes('Touch retry fixture'));
+      cases.push('current-failure-and-touch-retry');
 
       await change('Error A fixture');index = await hold();
       if (surface === 'bar') {
@@ -153,10 +169,10 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       assert.equal(await toast(), latestToast);
       cases.push(surface === 'bar' ? 'unmounted-view' : 'cleared-error');
       const legacyAttempts = await evaluate(cdp, 'errorCopyAudit.legacy');
-      assert.equal(legacyAttempts, 1, 'Only the intentionally denied current copy may attempt the legacy route');
+      assert.equal(legacyAttempts, 2, 'Only the two intentionally denied current copies may attempt the legacy route');
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(screenshotDir, `engine-error-copy-${surface}-${width}.png`), Buffer.from(shot.result.data, 'base64'));
-      reports.push({ width, surface, cases, nativeClipboard: true, staleLegacyCopies: legacyAttempts - 1, deniedCurrentLegacyCopies: legacyAttempts });
+      reports.push({ width, surface, cases, nativeClipboard: true, staleLegacyCopies: legacyAttempts - 2, deniedCurrentLegacyCopies: legacyAttempts });
       console.log('Engine error copy', JSON.stringify(reports.at(-1)));
     }
     fs.writeFileSync(path.join(screenshotDir, 'engine-error-copy.json'), JSON.stringify(reports, null, 2));

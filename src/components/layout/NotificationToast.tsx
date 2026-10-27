@@ -2,6 +2,7 @@ import React from 'react';
 import { FaCheck, FaCheckCircle, FaCopy, FaExclamationTriangle, FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
+import { revealFocusedButton } from '../../utils/revealFocusedButton';
 
 export type NotificationToastType = 'info' | 'error' | 'success';
 
@@ -61,6 +62,15 @@ export function NotificationToast({
   const canCopy = notification.type === 'error';
   // Tells the install card to step aside while a toast is up (index.css).
   useDocumentFlag('notification-shown', 'true');
+
+  React.useEffect(() => {
+    if (placement !== 'mobile-panel') return;
+    const frame = requestAnimationFrame(() => {
+      const region = toastRef.current?.parentElement;
+      if (region) revealFocusedButton(region);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [notification, placement]);
 
   const syncHold = React.useCallback(() => {
     const node = toastRef.current;

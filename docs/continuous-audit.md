@@ -318,6 +318,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Mobile feedback leaves its focused action reachable:** at 320×568,
+  a failed engine-error copy displayed a toast over the Review copy button.
+  Mobile-panel notifications now reveal an overlapping focused button by
+  scrolling an eligible panel just enough to clear it, when there is room.
+  This preserves focus and excludes document scrolling and toast actions.
+  The captured Review case moves 37 px and becomes tappable; its original
+  failure screenshot and geometry are retained. All 28 native engine-copy
+  cases pass at 390/320 px across the board bar and Review panel, now including
+  actual touch retry as well as keyboard retry. Focus, hit testing, unchanged
+  page position and real clipboard contents are checked. App/test TypeScript,
+  full lint and 74 related cases pass.
+
 - **Engine-copy feedback follows the report being displayed:** a native
   regression copied error A, displayed error B, then completed A's held write;
   B incorrectly read "Engine error details copied" while the clipboard held A.
@@ -334,7 +346,7 @@ reproduced failures separate from candidates that still need investigation.
   import and effect-reset lint failures are retained; the final state is derived
   from the acknowledged report. The compact touch-retry probe also captured
   a failure toast covering the Review copy icon; keyboard retry works and the
-  overlap remains a separate UI follow-up, with geometry and screenshots saved.
+  overlap is addressed separately above, with before/after evidence retained.
 
 - **Lessons lead into a small practice board:** the lesson list now offers an
   always-visible action to open an empty 9×9 board and practice both colors.
