@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The sixth PR CI attempt passes the earlier native prefix, then fails the
+  1440 px/19x19 delayed PNG comparison after 9x9 and 13x13 pass. The fixture
+  compared exports started in different turns, with a pixel audit in between.
+  Its delayed baseline and held export now freeze the board in the same turn;
+  exact PNG equality after a move and resize, fresh-export inequality, pixel
+  bounds and coordinate/rotation assertions remain intact. Selected and delayed
+  images are saved before asserting, including on failure. MxrzVT passes all
+  nine board-size/viewport cases. Controlled pre-selection reflow qx3inC fails
+  the original comparison while 4ViOss passes the correction with unchanged
+  export code. Two wider resize probes retain the board's height cap and pass
+  the original check. This validates the selection-time fixture correction,
+  without identifying the exact rendering change in the original CI failure.
+  Helper lint passes; full updated-head CI remains required.
+
 - The fifth PR CI attempt passes the repaired navigation boundaries and
   clipboard workflows, then the native prefix through lessons, cross-tab
   progress, Game Info and numeric editors. Metadata recovery fails reading

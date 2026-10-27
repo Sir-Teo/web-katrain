@@ -83,6 +83,9 @@ export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) 
     assert.equal(comparison.coordinates.length,boardSize*2,'The fixture must display both complete coordinate axes');
     assert.ok(comparison.coordinates.every(label=>label.inkPixels>0),`Every visible coordinate must appear in the PNG: ${JSON.stringify(comparison.coordinates)}`);
     await evaluate(cdp,`(()=>{
+      // Freeze both exports in this turn. The earlier color/coordinate audit
+      // may span unrelated rendering or layout changes before this selection.
+      window.snapshotSelectedBefore=snapshotModule.captureBoardSnapshot();
       const Original=window.Image,descriptor=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
       const url=/url\\(["']?(.+?)["']?\\)/.exec(getComputedStyle(document.querySelector('[data-board-snapshot]')).backgroundImage)?.[1];
       if(!url)throw new Error('The fixture must load a real board texture');
@@ -95,10 +98,14 @@ export async function assertBoardSnapshotOrder(cdp,appUrl,runDir,screenshotDir) 
     })()`);
     try{
       await wait('!!window.snapshotHeldTexture && snapshotHeldTexture.ready');
+      const selected=await evaluate(cdp,'snapshotSelectedBefore.then(value=>{window.snapshotSelected=value;return value})');
+      fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${caseKey}-selected.png`),Buffer.from(selected.split(',')[1],'base64'));
       await advance(2);
       await setViewport(cdp,{width:mobile?(width===320?360:320):1280,height,mobile});await settle();
       await evaluate(cdp,'snapshotHeldTexture.release();void 0');
-      const preserved=await evaluate(cdp,'snapshotPending.then(value=>{window.snapshotCaptured=value;return value===snapshotBefore})');
+      const preserved=await evaluate(cdp,'snapshotPending.then(value=>{window.snapshotCaptured=value;return value===snapshotSelected})');
+      const captured=await evaluate(cdp,'snapshotCaptured');
+      fs.writeFileSync(path.join(screenshotDir,`board-snapshot-${caseKey}-delayed.png`),Buffer.from(captured.split(',')[1],'base64'));
       assert.equal(preserved,true,'A delayed PNG must preserve the exact position and dimensions selected before navigation and resize');
     }finally{await evaluate(cdp,'window.Image=snapshotOriginalImage;void 0')}
     await evaluate(cdp,'snapshotModule.captureBoardSnapshot().then(value=>{window.snapshotAfter=value;return true})');
