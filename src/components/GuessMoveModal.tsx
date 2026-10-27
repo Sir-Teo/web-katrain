@@ -75,6 +75,26 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
   const canRestart = isLast && phase === 'revealed';
   const nextLabel = canRestart ? 'Start again' : isLast ? 'End of game' : 'Next move';
 
+  React.useLayoutEffect(() => {
+    const body = dialogRef.current?.querySelector<HTMLElement>('.guess-move-body');
+    if (!body) return;
+    if (phase === 'guess') {
+      body.scrollTop = 0;
+      return;
+    }
+    const result = body.querySelector('[data-guess-move-result]');
+    if (!result) return;
+    const bounds = result.getBoundingClientRect();
+    const viewport = body.getBoundingClientRect();
+    // A missed guess adds a distance row. Keep that row above the footer
+    // without moving focus away from the next-round action.
+    if (bounds.bottom > viewport.bottom) {
+      body.scrollTop += Math.min(bounds.bottom - viewport.bottom + 8, bounds.top - viewport.top);
+    } else if (bounds.top < viewport.top) {
+      body.scrollTop += bounds.top - viewport.top - 8;
+    }
+  }, [phase, safeIndex, filter, rootNode.id, dialogRef]);
+
   useEffect(() => {
     // Revealing removes its button; keep the keyboard on the next action.
     // Each new round returns to the board so answering can continue directly.

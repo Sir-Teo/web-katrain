@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Guess the Move now reveals the whole result card within its pane and resets
+  that pane for the next round. A production 320×568 miss placed its distance
+  row 26 px below the visible pane, although exact matches fit. Baseline
+  screenshots/logs are retained under `katrain-guess-wrong-result-production-GtsY0C`.
+  All 12 revealed/exact/missed result checks now pass at four screen sizes,
+  preserving next-action focus, the page position and the loaded game;
+  restarting resets the scroll position. Evidence is under
+  `katrain-guess-result-native-CqsbLq`. App TypeScript, targeted lint and
+  19 related cases pass. The production build passes (Vite phase 22.4 s), and
+  the same 12 checks pass against it under
+  `katrain-guess-result-fixed-production-K4VOUY`. Initial exploratory probes retained a development
+  navigation timeout and an occupied-point fixture mistake; neither established
+  an application failure. This remains focused validation.
+
 - The SGF/OGS paste editor now accepts Ctrl+Enter and ⌘+Enter through its
   existing cancellable submit action, with a visible hint and accessible
   shortcut metadata. Ordinary Enter still inserts a newline; empty input,

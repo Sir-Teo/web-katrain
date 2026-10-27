@@ -30,8 +30,25 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     for (const type of ['mousePressed', 'mouseReleased']) await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
   };
   const boardFocused = `document.activeElement?.getAttribute('data-static-board-interactive')==='true'`;
+  const resultReports = [];
+  const assertResultFits = async (width, outcome) => {
+    await evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+    const state = await evaluate(cdp, `(()=>{
+      const e=document.querySelector('[data-guess-move-result]'),r=e.getBoundingClientRect();
+      const body=document.querySelector('.guess-move-body'),b=body.getBoundingClientRect();
+      return {text:e.textContent,visible:r.top>=b.top&&r.bottom<=b.bottom,scroll:body.scrollTop,
+        pageScroll:{x:scrollX,y:scrollY},focused:document.activeElement?.hasAttribute('data-guess-move-next')};
+    })()`);
+    const shot=await cdp.send('Page.captureScreenshot',{format:'png'});
+    fs.writeFileSync(path.join(screenshotDir,`guess-result-${width}-${outcome}.png`),Buffer.from(shot.result.data,'base64'));
+    assert.equal(state.visible,true,`${outcome} result must be fully visible at ${width}px`);
+    assert.equal(state.focused,true,'Revealing results must retain focus on the next action');
+    assert.deepEqual(state.pageScroll,{x:0,y:0},'Results must not scroll the page behind the dialog');
+    if(width!==320)assert.equal(state.scroll,0,'Roomy result panes must not scroll unnecessarily');
+    resultReports.push({width,outcome,...state});
+  };
   const reports = [];
-  for (const width of [1440, 390]) {
+  for (const width of [1440, 390, 320, 568]) {
     const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
       localStorage.removeItem('web-katrain:auto_saved_game:v1');
       localStorage.removeItem('web-katrain:shortcuts:v1');
@@ -40,7 +57,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
       localStorage.setItem('web-katrain:settings:v3', JSON.stringify({ soundEnabled: false, loadSgfFastAnalysis: false, loadSgfRewind: true }));
     ` });
     try {
-      await setViewport(cdp, { width, height: width === 390 ? 844 : 900, mobile: width === 390 });
+      await setViewport(cdp, { width, height: width === 568 ? 320 : width === 320 ? 568 : width === 390 ? 844 : 900, mobile: width !== 1440 });
       await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
     } finally {
       await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: setup.result.identifier });
@@ -60,6 +77,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     await wait('document.querySelector("[data-guess-move-phase]")?.dataset.guessMovePhase==="revealed"');
     await wait('document.activeElement?.getAttribute("data-guess-move-next")==="true"');
     assert.equal(await evaluate(cdp, 'document.querySelector("[data-guess-move-result]").getAttribute("role")'), 'status');
+    await assertResultFits(width,'revealed');
     await key('Enter', 'Enter', 13);
     await wait('document.querySelector("[data-guess-move-prompt]")?.textContent.includes("move 2")');
     await wait(boardFocused);
@@ -74,6 +92,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     await wait('document.querySelector("[data-guess-move-result]")?.textContent.includes("Exact match!")');
     await wait('document.activeElement?.getAttribute("aria-label")==="Start again"');
     await wait('document.querySelector("[data-guess-move-stats]")?.textContent.includes("1/1")');
+    await assertResultFits(width,'exact');
     await key('Enter', 'Enter', 13);
     await wait('document.querySelector("[data-guess-move-prompt]")?.textContent.includes("move 1")');
     await wait(boardFocused);
@@ -91,6 +110,14 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     await wait(boardFocused);
     await wait('document.querySelector("[data-guess-move-prompt]")?.textContent.includes("move 2")');
     assert.equal(await evaluate(cdp, `document.querySelector('[aria-label="Which moves to guess"] button:nth-child(3)').getAttribute('aria-pressed')`), 'true', 'Restart must retain the selected player filter');
+    // The center is occupied in this White position. Guess at the empty
+    // point F5 to exercise the extra distance row in a missed answer.
+    await key('ArrowRight', 'ArrowRight', 39);await key('Enter', 'Enter', 13);
+    await wait('document.querySelector("[data-guess-move-result]")?.textContent.includes("Distance")');
+    await wait('document.activeElement?.getAttribute("aria-label")==="Start again"');
+    await assertResultFits(width,'missed');
+    await key('Enter','Enter',13);await wait(boardFocused);
+    assert.equal(await evaluate(cdp,'document.querySelector(".guess-move-body").scrollTop'),0,'Starting another round must reset the pane');
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(screenshotDir, `guess-keyboard-${width}.png`), Buffer.from(shot.result.data, 'base64'));
     await click('[aria-label="Close guess the move"]');
@@ -100,6 +127,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
       keyboardGuessGraded: true, finalRoundCanRestart: true, restartResetsScoreAndCursor: true,
       singleMoveFilterCanRestart: true, restartRetainsFilter: true, actualGameUnchanged: true });
   }
+  fs.writeFileSync(path.join(screenshotDir, 'guess-result-visibility.json'), JSON.stringify(resultReports,null,2));
   fs.writeFileSync(path.join(screenshotDir, 'guess-keyboard.json'), JSON.stringify(reports, null, 2));
-  console.log('Guess the Move: desktop/phone reveal/Next focus, keyboard grading, live results, restart with reset score/cursor, and unchanged game passed.');
+  console.log('Guess the Move: four layouts, full revealed/exact/missed results, pane reset, reveal/Next focus, keyboard grading, live results, restart with reset score/cursor, and unchanged game passed.');
 }
