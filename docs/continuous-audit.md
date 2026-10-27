@@ -22,6 +22,11 @@ reproduced failures separate from candidates that still need investigation.
   opening the picker through its new summary. Targeted lint, 52 related cases
   and the build pass (Vite phase 17.1 s). Earlier post-search probe failures
   are retained; the final probe waits for stable scroll/hit coordinates.
+  All 11 base layouts at `5bfc843` also pass in
+  `katrain-batch-ninety-five-layouts`. Their theme smoke now opens and verifies
+  the disclosure before retaining its original selection assertions. Runner
+  lint and 40 existing runner/documentation cases pass; native workflow
+  helpers are excluded from this base-layout result.
 
 - The standard production responsiveness check at `c16e6ac` fails warm
   Settings opening at 184.5 ms against the unchanged 120 ms budget. First

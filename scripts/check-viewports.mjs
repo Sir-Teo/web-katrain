@@ -3030,6 +3030,20 @@ async function main() {
             boardThemeSmokeFailures.push('board theme picker missing');
             return;
           }
+          const disclosure = picker.closest('[data-board-theme-disclosure]');
+          const summary = disclosure?.querySelector('summary');
+          if (!summary) {
+            boardThemeSmokeFailures.push('board theme disclosure missing');
+            return;
+          }
+          if (!disclosure.open) {
+            summary.click();
+            await waitForFrames(2);
+          }
+          if (!disclosure.open) {
+            boardThemeSmokeFailures.push('board theme disclosure did not open');
+            return;
+          }
           const choices = Array.from(picker.querySelectorAll('[data-board-theme-choice]'));
           if (choices.length < 2) {
             boardThemeSmokeFailures.push('board theme choices missing');
