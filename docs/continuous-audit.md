@@ -8,6 +8,26 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full browser run `katrain-batch-ninety-seven-viewport` at `236ba7c` fails
+  the unchanged engine-error copy timing assertion at 320 px in the panel,
+  stage `newer-copy-rejection`: 2,572.4 ms against the 1,000 ms budget, before
+  deliberately releasing the older held copy. All eleven base layouts and
+  the native prefix through image-copy ordering pass, including 39 Library
+  save/recovery cases, enlarged confirmations, Settings focus visibility and
+  the enlarged command palette. The 390 px bar/panel and 320 px bar engine-copy
+  cases also pass. The failure capture records the current Error B message,
+  success toast and focused copy action; it does not establish a cause for
+  the delay. Six later helpers are not executed by this failed run.
+  A fresh isolated original engine-copy helper passes all four cases
+  (`RLvz2p`), with additional timing capture measuring successful native writes
+  at 4.0–20.2 ms. This does not explain the full-run failure. Its page-width
+  snapshots occur after the next viewport is set; use original case order
+  for attribution. Independent tail run `E6UVcZ` passes all six remaining
+  original helpers, including variation copy at 135.6–261.3 ms, move-tree keys,
+  report print/help, imports after panel closure and Library read retry.
+  Their assertions and budgets remain unchanged. These independent passes
+  are not a combined full-suite pass; the timing failure remains unresolved.
+
 - Long unbroken filenames now wrap in the Library tag-editor title and
   confirmation message. Production baseline `C98O3z` measured 2,524 px of
   horizontal content inside a 382 px tag dialog at normal desktop text size,
