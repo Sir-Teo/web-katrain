@@ -32,7 +32,7 @@ export const AutoSaveRecoveryModal: React.FC<AutoSaveRecoveryModalProps> = ({
         aria-modal="true"
         aria-labelledby="auto-save-recovery-title"
         aria-describedby="auto-save-recovery-description"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-md overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-md max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="auto-save-recovery-title" className="text-base font-semibold text-[var(--ui-text)]">

@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Auto-save recovery now stays within the viewport and scrolls as needed.
+  At 200% text, baseline `8fkzU8` placed Discard below the screen on both
+  320×568 and 568×320 layouts. Production `BULI9U` passes sixteen cases
+  (four sizes, two text settings, Restore and Discard): the prompt is bounded,
+  initial Restore focus is visible and both choices are fully reachable by
+  native pointer/touch. Restore recreates the exact 9×9 saved stone position;
+  Discard preserves the current board and removes the recovery snapshot.
+  Targeted lint, six existing recovery/storage cases and the build pass
+  (Vite phase 16.7 s). This is focused verification of the recovery dialog.
+
 - The unsaved-changes confirmation now stays within the viewport and scrolls
   when necessary; its title wraps and Close retains its touch width. Baseline
   `3Mj9U7` at 200% text put the dialog at −131…699 px on a 320×568 phone and
