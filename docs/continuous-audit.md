@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `cc1adee`, including frozen PNG positions and
+  displayed coordinates, passes 501 files and 3,428 cases with 78 engine
+  cases skipped in CI. App/test TypeScript and full lint pass. The production
+  build passes in 15.9 s; standard responsiveness passes at
+  6.3/1.3/110.9/56/88 ms for first move, median, Settings, input latency and
+  longest task. The earlier failed Settings samples remain recorded below.
+  Offline shell/dialogs and fresh WASM analysis pass, including preservation
+  of Library caches on activation and the cache-deletion negative control.
+  Report printing passes desktop/phone with all ten mistake cards and the
+  24-move correction in 12 pages. Study performance passes, including
+  22.1 ms folder copy and 98.4 ms nested import. Live analysis passes:
+  desktop/phone AI Stop 143/168 ms, explicit Stop 326 ms, old-request
+  cancellation 303 ms, fresh response 679 ms and rendered evaluation 708 ms.
+  No engine code changed; these are verification results, not proven speedups.
+  The complete integrated browser sweep is next.
+
 - Full unit verification at `41b7a1f`, including the board-snapshot freeze,
   passes 501 files and 3,427 cases with 78 engine cases skipped in CI. The
   coordinate-export follow-up below has separate focused/native coverage.
