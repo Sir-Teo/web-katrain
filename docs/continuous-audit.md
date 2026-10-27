@@ -8,6 +8,36 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The full viewport run at `8360a09` passed all 11 base layouts and the
+  workflows through Library copying, clipboard fallback and image copying,
+  including the new four-size camera regression. It stopped inside compact
+  engine-error copying with `true !== false`, after the keyboard-retry
+  evidence was saved (`katrain-batch-eighty-six-layouts`). The two 390px
+  engine-error cases passed; the later workflows did not execute. The original
+  engine-error helper then passed all four cases in a fresh diagnostic browser
+  (`tNZMq9`), which does not explain or resolve the full-run failure. Its
+  failure path now saves the active stage, stack, clipboard-write timing,
+  focus and screenshot without changing assertions or timeout budgets.
+
+- The separate six-helper remainder stopped in its first helper: variation
+  copying at 1440px took 1,197 ms for the newer SGF copy, exceeding the existing
+  1,000 ms requirement (`katrain-batch-eighty-seven-remaining-SJgWj6`). The
+  correct SGF reached the clipboard, with no legacy fallback, but the timing
+  assertion failed. The five later helpers did not execute. Both failures
+  remain retained. A subsequent timing diagnostic passed the original
+  variation helper at all three widths, with intervals of 135–346 ms
+  (`ROfrqz`); that does not explain the earlier latency. These separate runs
+  do not establish a new complete viewport pass.
+
+- The separate tail run passed move-tree composition, four-size print focus,
+  report-guide access and Library imports after closing the panel (`pyVRb1`).
+  Its final initial-read retry helper stopped because the standalone wrapper
+  omitted its screenshot-directory argument. This is retained as a wrapper
+  failure, separate from the application assertions above. With that argument
+  corrected, the original initial-read retry helper passes on desktop/phone,
+  preserving error/loading states, focus, original SGF and an empty Library
+  (`katrain-batch-eighty-nine-read-retry-V44rat`).
+
 - SGF square sizes now compare numeric dimensions, so valid `SZ[09:9]`,
   `9:09`, `013:13` and `19:019` no longer produce an unsupported-size notice.
   Four new cases failed before the fix; native desktop/phone file imports

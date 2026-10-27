@@ -5,6 +5,7 @@ import { evaluate, loadedModuleUrl, navigate, setViewport, waitForExpression } f
 
 export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
   const reports = [];
+  let activeCase = null;
   const wait = expression => waitForExpression(cdp, expression, {
     label: 'Engine error copy identity',
     diagnose: `({error:window.errorCopyStore?.getState().engineError,audit:window.errorCopyAudit?.writes.map(w=>({finished:w.finished,expired:w.expired})),toast:document.querySelector('.notification-toast-message')?.title,focus:document.activeElement?.outerHTML.slice(0,200)})`,
@@ -19,6 +20,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
   await cdp.send('Browser.grantPermissions', { origin: new URL(appUrl).origin, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
   try {
     for (const width of [390, 320]) for (const surface of ['bar', 'panel']) {
+      activeCase = { width, surface, stage: 'setup' };
       const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
         performance.setResourceTimingBufferSize(5000);localStorage.removeItem('web-katrain:auto_saved_game:v1');
         localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
@@ -86,6 +88,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
         await wait(`errorCopyAudit.writes[${index}]?.finished`);await settle();await wait(copied);
       };
       const cases = [];
+      activeCase.stage = 'changed-error-completion';
       let index = await hold();
       await change('Error B fixture');
       let latestToast = await toast();
@@ -98,6 +101,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       cases.push('changed-error-completion');
 
       await copyCurrent();
+      activeCase.stage = 'current-copy-and-model-change';
       await change('Error B fixture', 'Second fixture model');
       assert.equal(await evaluate(cdp, copied), false);
       await copyCurrent();
@@ -105,6 +109,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       cases.push('current-copy-and-model-change');
 
       for (const outcome of ['rejection', 'timeout']) {
+        activeCase.stage = `newer-copy-${outcome}`;
         await change('Error A fixture');index = await hold();
         await change('Error B fixture');await copyCurrent();latestToast = await toast();
         const elapsed = await evaluate(cdp, `performance.now()-errorCopyAudit.writes[${index}].started`);
@@ -117,6 +122,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
         if (outcome === 'timeout') await evaluate(cdp, `errorCopyAudit.writes[${index}].resolve();void 0`);
         cases.push(`newer-copy-${outcome}`);
       }
+      activeCase.stage = 'current-failure-and-keyboard-retry';
       await change('Current error fixture');
       const beforeFailure = await evaluate(cdp, 'errorCopyOriginals.clipboard.readText()');
       const pageBeforeFailure = await evaluate(cdp, '({x:scrollX,y:scrollY})');
@@ -146,6 +152,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       assert.ok(retry.clipboard.includes('Current error fixture'));
       cases.push('current-failure-and-keyboard-retry');
 
+      activeCase.stage = 'current-failure-and-touch-retry';
       await change('Touch retry fixture');
       index = await evaluate(cdp, 'errorCopyAudit.writes.length');
       await evaluate(cdp, 'errorCopyAudit.failNext=true;errorCopyAudit.denyLegacy=true;void 0');
@@ -157,6 +164,7 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       assert.ok((await evaluate(cdp, 'errorCopyOriginals.clipboard.readText()')).includes('Touch retry fixture'));
       cases.push('current-failure-and-touch-retry');
 
+      activeCase.stage = surface === 'bar' ? 'unmounted-view' : 'cleared-error';
       await change('Error A fixture');index = await hold();
       if (surface === 'bar') {
         await evaluate(cdp, 'errorCopyStore.getState().toggleEditMode();void 0');
@@ -176,6 +184,20 @@ export async function assertEngineErrorCopy(cdp, appUrl, screenshotDir) {
       console.log('Engine error copy', JSON.stringify(reports.at(-1)));
     }
     fs.writeFileSync(path.join(screenshotDir, 'engine-error-copy.json'), JSON.stringify(reports, null, 2));
+  } catch (error) {
+    const state = await evaluate(cdp, `({
+      error: window.errorCopyStore?.getState().engineError,
+      writes: window.errorCopyAudit?.writes.map(write => ({
+        text: write.text, finished: write.finished, expired: write.expired,
+        elapsed: performance.now() - write.started,
+      })),
+      toast: document.querySelector('.notification-toast-message')?.title,
+      focus: document.activeElement?.outerHTML.slice(0, 300),
+    })`).catch(() => null);
+    fs.writeFileSync(path.join(screenshotDir, 'engine-error-copy-failure.json'), JSON.stringify({ activeCase, error: error.stack ?? String(error), state }, null, 2));
+    const shot = await cdp.send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
+    if (shot) fs.writeFileSync(path.join(screenshotDir, 'engine-error-copy-failure.png'), Buffer.from(shot.result.data, 'base64'));
+    throw error;
   } finally {
     await evaluate(cdp, `(async()=>{const o=window.errorCopyOriginals;if(!o)return;await o.clipboard.writeText('');Object.defineProperty(navigator,'clipboard',{configurable:true,value:o.clipboard});document.execCommand=o.exec;window.setTimeout=o.timer})()`).catch(() => undefined);
     await cdp.send('Browser.resetPermissions');
