@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Problem grading now checks explicit negative verdict phrases before positive
+  keywords. A native imported `C[Not correct.]` previously displayed
+  “Correct — that solves it!”, and Show Solution chose a refuted branch.
+  The retained baseline `katrain-problem-negation-native-9ETdc2` and 12 failing
+  regressions establish both paths. All 35 problem cases now pass, including
+  English/Japanese/Chinese negations and neutral directional instructions.
+  Twenty native cases at four screen sizes grade the refuted line as wrong,
+  focus Retry, select the correct alternative solution, and preserve the
+  loaded game. Evidence is under `katrain-problem-negation-native-HLC9zo`;
+  app/test TypeScript and targeted lint pass. This is a focused correctness
+  check; the production build still precedes this change.
+
 - Guess the Move now reveals the whole result card within its pane and resets
   that pane for the next round. A production 320×568 miss placed its distance
   row 26 px below the visible pane, although exact matches fit. Baseline

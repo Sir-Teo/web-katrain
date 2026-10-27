@@ -13,6 +13,11 @@ const CORRECT_PATTERNS = /\b(?:correct|right answer|solution|success)\b|\bright\
 // "right side" in a comment still says nothing.
 const GOPROBLEMS_RIGHT = /(?:^|\s)RIGHT(?=$|[\s.!,:;])/;
 const WRONG_PATTERNS = /\b(wrong|incorrect|fail(?:ure|ed)?|mistake)\b|失败|失敗|錯誤|错误|오답|실패|変化図|变化图/i;
+// Positive words also occur in explicit refutations. Check these first so
+// "Not correct" and 不正解 cannot end a failed line as a successful solution.
+// Bare "not right" needs verdict punctuation/end, keeping "not right side"
+// available for ordinary directional instructions.
+const NEGATED_CORRECT_PATTERNS = /\b(?:not|no)\s+(?:(?:a|the)\s+)?(?:correct|right answer|solution|success)\b|\bnot\s+right(?=\s*(?:[.!,:;]|$))|不正解|不正确|不正確/i;
 
 const nodeText = (node: GameNode): string => {
   const parts: string[] = [];
@@ -40,7 +45,7 @@ const markerSet = (values: string[] | undefined): boolean => values?.some((v) =>
  */
 export const classifyProblemNode = (node: GameNode, solver?: Player): ProblemVerdict => {
   const text = nodeText(node);
-  if (WRONG_PATTERNS.test(text)) return 'wrong';
+  if (WRONG_PATTERNS.test(text) || NEGATED_CORRECT_PATTERNS.test(text)) return 'wrong';
   if (CORRECT_PATTERNS.test(text) || GOPROBLEMS_RIGHT.test(text)) return 'correct';
   const goodForBlack = markerSet(node.properties?.GB);
   const goodForWhite = markerSet(node.properties?.GW);
