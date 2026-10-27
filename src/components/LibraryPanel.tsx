@@ -230,7 +230,7 @@ const LibraryTextDialog: React.FC<{
         className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
-          <h2 id="library-text-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
+          <h2 id="library-text-dialog-title" className="min-w-0 break-words text-base font-semibold text-[var(--ui-text)]">
             {dialog.title}
           </h2>
           <button
@@ -347,7 +347,7 @@ const LibraryConfirmDialog: React.FC<{
           </button>
         </div>
         <div className="p-4 space-y-4">
-          <p id="library-confirm-dialog-description" className="text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
+          <p id="library-confirm-dialog-description" className="break-words text-sm text-[var(--ui-text-muted)]">{dialog.message}</p>
           <div className="flex justify-end gap-2">
             <button type="button" className="panel-action-button" onClick={onClose} ref={cancelRef}>
               Cancel

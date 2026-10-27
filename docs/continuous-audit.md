@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Long unbroken filenames now wrap in the Library tag-editor title and
+  confirmation message. Production baseline `C98O3z` measured 2,524 px of
+  horizontal content inside a 382 px tag dialog at normal desktop text size,
+  with Close pushed far outside it; the delete message also overflowed.
+  Candidate `Xuz4Y3` passes eight size/text combinations for saving a game,
+  editing its tags and confirming deletion: bounded dialogs, no horizontal
+  scrolling, reachable native pointer/touch controls, persisted tags with the
+  original SGF unchanged, cancellation preserving storage and persisted
+  deletion. The full accessible confirmation description and unchanged game
+  also pass. Targeted lint, 22 existing cases in two files and the build pass
+  (Vite phase 13.5 s).
+
 - Library confirmations now associate their full message with the dialog as
   its accessible description. Chrome's baseline accessibility tree in `7L0esW`
   exposed the name “Delete Folder” with no description. Production `LSieau`
