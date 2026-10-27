@@ -6,6 +6,8 @@ import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
 import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { isComposingKeyEvent } from '../utils/compositionKey';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 
 interface ProGamesModalProps {
   onClose: () => void;
@@ -38,6 +40,8 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
 
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const browseHelpId = React.useId();
   const filtered = useMemo(() => filterProGames(PRO_GAMES, query), [query]);
   const [selectedId, setSelectedId] = useState<string>(PRO_GAMES[0]?.id ?? '');
 
@@ -45,6 +49,35 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
     () => filtered.find((g) => g.id === selectedId) ?? filtered[0],
     [filtered, selectedId],
   );
+
+  const focusGame = (index: number) => {
+    const next = Math.max(0, Math.min(filtered.length - 1, index));
+    const game = filtered[next];
+    const pane = resultsRef.current;
+    const button = pane?.querySelectorAll<HTMLButtonElement>('li > button')[next];
+    if (!game || !pane || !button) return;
+    setSelectedId(game.id);
+    button.focus({ preventScroll: true });
+    revealPaneFeedback(button, pane);
+  };
+
+  const handleResultKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+    if (isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest('button');
+    const rows = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('li > button')];
+    const index = rows.findIndex(row => row === button);
+    if (index < 0) return;
+    let next: number;
+    if (event.key === 'ArrowDown') next = index + 1;
+    else if (event.key === 'ArrowUp') next = index - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = filtered.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusGame(next);
+  };
 
   const surpriseMe = () => {
     // A search can display a fallback while selectedId is hidden. Exclude
@@ -111,7 +144,14 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'ArrowDown' || isComposingKeyEvent(event) || event.altKey || event.ctrlKey || event.metaKey || !selected) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      focusGame(filtered.findIndex(game => game.id === selected.id));
+                    }}
                     aria-label="Search pro games"
+                    aria-describedby={browseHelpId}
                     data-pro-games-search="true"
                     placeholder="Search by player, event, date…"
                     className={`min-h-11 w-full rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] py-2 pl-9 text-sm text-[var(--ui-text)] desktop-shell:min-h-0 ${query ? 'pr-12 desktop-shell:pr-10' : 'pr-3'}`}
@@ -174,7 +214,8 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
             <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {filtered.length} game{filtered.length === 1 ? '' : 's'} found.
             </div>
-            <ul className="pro-games-results min-h-0 flex-1 overflow-y-auto">
+            <p id={browseHelpId} className="sr-only">Press Down Arrow to browse games. Use the arrow keys, Home, and End to choose a preview. Use Load &amp; study this game to open it on the board.</p>
+            <ul ref={resultsRef} className="pro-games-results min-h-0 flex-1 overflow-y-auto" aria-label="Pro games" aria-describedby={browseHelpId} onKeyDown={handleResultKeyDown}>
               {filtered.length === 0 && (
                 <li className="p-4 text-sm text-[var(--ui-text-muted)] [overflow-wrap:anywhere]">No games match “{query}”.</li>
               )}

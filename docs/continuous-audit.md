@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Pro Library now supports Down Arrow from search into the displayed game,
+  then Up/Down/Home/End browsing with local results-pane scrolling. Browsing
+  changes the preview while leaving the loaded board unchanged; composition
+  and modified keys retain their existing behavior. The native baseline kept
+  focus in search or on the same row (`0M2Db8`). Four-size checks pass for
+  navigation, clamped edges, filtered selections and empty-result recovery
+  (`nIYTlv`), and the existing Surprise Me regression passes (`jN1l6M`).
+  Targeted lint and 37 related cases pass. The final build passes (Vite phase
+  13.3 s); production navigation, ordinary Enter activation and Surprise Me
+  checks pass at all four sizes under `katrain-pro-keyboard-production-ofVOSI`.
+  Initial probe failures from comparing a render timestamp and omitting the
+  Enter text event are retained separately; the application did not change
+  to accommodate those fixture corrections.
+
 - Save Copy's loading dialog now exposes its existing “Reading saved folders…”
   status as an accessible description. The baseline Chrome accessibility tree
   had a title and busy state but no description at all four sizes (`6ojQ2q`).
