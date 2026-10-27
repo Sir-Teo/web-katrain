@@ -8,6 +8,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Command search, Settings search, keyboard help and shortcut customization
+  now use the shared 200-character input limit, matching Library and Pro Games.
+  Their no-results messages wrap long tokens. Production baseline `Q0PHqs`
+  accepted 10,000 characters in all 16 field/screen combinations and rendered
+  roughly 65,800 px of horizontal message content. Candidate `vKHZdj` passes
+  the same 16 combinations with native input capped at 200, wrapped messages,
+  no horizontal result/dialog scrolling and ordinary searches working again
+  afterward; the board stays unchanged. Expanded production run `N7M1ty`
+  completed 23 normal/enlarged-text cases before failing to reach the shortcut
+  filter at 320 px and 200% text, before entering any query: the Settings
+  chrome leaves its content without usable space. The final nine cases in
+  that expanded run did not complete, so it is not a 32-case pass. That layout
+  issue is the next investigation. Targeted lint, 123 existing search/dialog/
+  shortcut cases and the build pass (Vite phase 43.9 s). The earlier full-suite
+  timing failure also remains unresolved.
+
 - Library search now supports Arrow Down to focus the first shown result;
   the existing row arrow keys and Enter then browse and open games. The input
   exposes `aria-keyshortcuts="ArrowDown"`. Modifier keys, IME composition and

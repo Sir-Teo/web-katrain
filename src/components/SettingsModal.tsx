@@ -1,5 +1,6 @@
 import React from 'react';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -703,6 +704,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                     <div className="settings-search relative mb-4">
                         <input
                             type="search"
+                            maxLength={MAX_SEARCH_QUERY_LENGTH}
                             role="combobox"
                             id="settings-search-input"
                             className="settings-search-input w-full rounded-lg border px-3 py-2 text-sm"
@@ -743,7 +745,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         {settingsQuery.trim() !== '' && (
                             <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
                                 {settingsResults.length === 0 ? (
-                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                    <li className="settings-search-empty break-words">No setting matches “{settingsQuery.trim()}”</li>
                                 ) : (
                                     settingsResults.map((entry, index) => (
                                         <li key={entry.id}>

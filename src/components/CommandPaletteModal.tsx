@@ -1,5 +1,6 @@
 import React from 'react';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { FaSearch, FaTimes } from 'react-icons/fa';
 import {
   getShortcutBindings,
@@ -194,6 +195,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               ref={inputRef}
               type="search"
               role="combobox"
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               value={query}
               // A query is not a sentence. Left to itself a phone capitalises
               // the first letter and autocorrects the rest, so "sgf" arrives
@@ -230,7 +232,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         </div>
         <div id={listboxId} className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
           {filteredCommands.length === 0 ? (
-            <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
+            <div className="ui-surface break-words rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
               No commands match "{query.trim()}".
             </div>
           ) : (

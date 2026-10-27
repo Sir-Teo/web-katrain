@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaSearch, FaTimes } from 'react-icons/fa';
 import { isComposingKeyEvent } from '../utils/compositionKey';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import {
   bindingToDisplay,
   createShortcutCollisionReplacement,
@@ -322,6 +323,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
             <input
               ref={searchRef}
               type="search"
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               value={query}
               autoCapitalize="none"
               autoCorrect="off"
@@ -458,7 +460,7 @@ export const ShortcutSettingsPanel: React.FC = () => {
         </div>
       ))}
       {(normalizedQuery || statusFilter !== 'all') && visibleShortcutGroups.length === 0 && (
-        <div className="rounded-xl border ui-surface p-4 text-sm ui-text-muted" data-shortcut-search-empty="true">
+        <div className="rounded-xl border ui-surface break-words p-4 text-sm ui-text-muted" data-shortcut-search-empty="true">
           {normalizedQuery
             ? `No shortcuts match "${query.trim()}"${statusFilter === 'all' ? '' : ` in ${statusFilter === 'custom' ? 'edited' : 'disabled'} shortcuts`}.`
             : `No ${statusFilter === 'custom' ? 'edited' : 'disabled'} shortcuts yet.`}
