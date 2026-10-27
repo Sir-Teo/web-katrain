@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The command palette now uses compact surrounding spacing and an intrinsic
+  search-field height on short viewports, retaining enlarged text and at least
+  44 px search/clear targets. Baseline production `nXht3f` exposed only 24 px of
+  a 74 px command at 568×320 with 200% text; the center could not be tapped.
+  Spacing alone (`X7NC9L`) still clipped the result and was not adopted alone.
+  Final production `ZanQZx` shows the complete result and opens its destination
+  by native click/touch at four sizes with both 100% and 200% text. The game
+  remains unchanged. The existing keyboard/focus helper also passes its two
+  original widths plus enlarged landscape from board and control origins,
+  including deep selections, filtering, Tab order and dialog focus return.
+  Destination handoffs in that helper retain normal text; the enlarged palette
+  itself is checked before them. Targeted lint, 38 existing cases in five files
+  and the build pass (Vite phase 15.4 s). An earlier production run (`K1gEW8`)
+  ended with a navigation abort and is retained; the final probe explicitly
+  waits for dialog history to settle, without claiming the abort's cause.
+  All eleven base layouts also pass in `katrain-batch-ninety-six-layouts` on
+  this candidate, including the preceding Settings-search and Save Copy fixes.
+  That sweep excludes native workflow helpers; it is not a full browser run.
+
 - Save Copy now limits its height to the viewport and scrolls when enlarged
   text needs more room. At 200% text, baseline `SrxZx7` put its top at −114 px
   on a 320×568 phone and −138 px in 568×320 landscape, with Save outside the

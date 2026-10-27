@@ -4388,6 +4388,27 @@
     min-width: 7rem;
   }
 
+  /* At 200% text in phone landscape, the header and a rem-sized search field
+     left only 24px for a 74px result. Keep the enlarged text and touch targets,
+     but spend less of the short viewport on the surrounding spacing. */
+  @media (max-height: 520px) {
+    .command-palette-header,
+    .command-palette-search-row {
+      padding: 8px 12px !important;
+    }
+
+    [data-command-palette-search] {
+      height: auto !important;
+      min-height: 44px;
+      padding-block: 8px !important;
+    }
+
+    [data-command-palette] [aria-label='Clear command search'] {
+      width: 44px !important;
+      height: 44px !important;
+    }
+  }
+
   /* py-2 around a single line of label makes a 38px row, which is fine for a
      mouse and under the 44px every other tap target here is held to. The row
      centres its content, so the floor only adds space around the label. The

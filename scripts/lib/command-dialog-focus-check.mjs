@@ -25,7 +25,7 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
     for(const type of ['mousePressed','mouseReleased'])await cdp.send('Input.dispatchMouseEvent',{type,...p,button:'left',clickCount:1});
   };
   const reports=[];
-  for(const width of [1440,390]) {
+  for(const width of [1440,390,568]) {
     const setup=await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:`
       localStorage.removeItem('web-katrain:auto_saved_game:v1');
       localStorage.removeItem('web-katrain:shortcuts:v1');
@@ -34,12 +34,13 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false}));
     `});
     try {
-      await setViewport(cdp,{width,height:width===390?844:900,mobile:width===390});
+      await setViewport(cdp,{width,height:width===568?320:width===390?844:900,mobile:width<1000});
       await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});
     } finally {await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier});}
     await wait('!!document.querySelector("[data-board-snapshot]")');
     for(const origin of ['board','control']) {
-      const selector=origin==='board'?'[data-board-snapshot]':width===390?'button[aria-label="Tools"]':'button[aria-label="Settings"]';
+      if(width===568)await evaluate(cdp,"document.documentElement.style.fontSize='200%'");
+      const selector=origin==='board'?'[data-board-snapshot]':width<1000?'button[aria-label="Tools"]':'button[aria-label="Settings"]';
       await evaluate(cdp,`window.paletteReturnOrigin=document.querySelector(${JSON.stringify(selector)});paletteReturnOrigin.focus()`);
       await key('k','KeyK',75,2);
       await wait('document.activeElement?.getAttribute("aria-label")==="Search commands"');
@@ -81,6 +82,9 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
       await key('Escape','Escape',27);
       await wait('!document.querySelector("[data-command-palette]")&&!history.state?.webKatrainOverlay');
       assert.equal(await evaluate(cdp,'document.activeElement===paletteReturnOrigin'),true,'Closing the palette itself must retain its original focus');
+      // Destination dialogs have separate reflow checks. Retain this helper's
+      // original handoff checks after exercising the enlarged palette itself.
+      if(width===568)await evaluate(cdp,"document.documentElement.style.fontSize=''");
       for(const command of [
         {id:'settings-general',query:'general settings',dialog:'settings-title',close:'Close settings'},
         {id:'lessons',query:'lessons',dialog:'lessons-title',close:'Close lessons',keyboard:true},
@@ -109,7 +113,7 @@ export async function assertCommandDialogFocus(cdp, appUrl, screenshotDir) {
           `${width}: ${command.id} must return to the original ${origin}, rather than the removed palette item`);
       }
     }
-    reports.push({width,origins:['board','control'],directPaletteClose:true,
+    reports.push({width,paletteTextSize:width===568?'200%':'100%',origins:['board','control'],directPaletteClose:true,
       settingsLessonsHelpAndAboutRestoreOrigin:true,aboutAccessibleName:'About Web KaTrain',pointerAndKeyboardCommands:true,buttonAndEscapeClose:true,
       resultTabStops:0,arrowSelectionKeepsInputFocus:true,tabCyclesSearchCloseAndClear:true,
       deepSelectionVisible:true,filterBringsFirstSelectionIntoView:true});

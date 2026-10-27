@@ -165,7 +165,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         }}
         data-command-palette="true"
       >
-        <div className="ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
+        <div className="command-palette-header ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
           <div className="min-w-0">
             <h2 id="command-palette-title" className="text-lg font-semibold text-[var(--ui-text)]">
               Command Palette
@@ -183,7 +183,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
             <FaTimes aria-hidden="true" />
           </button>
         </div>
-        <div className="shrink-0 p-3">
+        <div className="command-palette-search-row shrink-0 p-3">
           <label className="relative block">
             <FaSearch
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-faint)]"
