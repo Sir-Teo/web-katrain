@@ -47,6 +47,7 @@ import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
 import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary, LazyModalFallback } from './LazyModalBoundary';
+import { SaveToLibraryLoadingDialog } from './SaveToLibraryLoadingDialog';
 import {
   createIdleScheduler,
   shouldWarmChunks,
@@ -533,6 +534,14 @@ export const Layout: React.FC = () => {
   const [textImportRequests] = useState(() => createTextImportRequests(() => useGameStore.getState().rootNode.id));
   useEffect(() => () => textImportRequests.cancel(), [textImportRequests]);
   const [saveToLibraryDialog, setSaveToLibraryDialog] = useState<SaveToLibraryDialogState | null>(null);
+  const [isOpeningSaveToLibrary, setIsOpeningSaveToLibrary] = useState(false);
+  const saveToLibraryOpenRequestRef = useRef<object | null>(null);
+  useEffect(() => () => { saveToLibraryOpenRequestRef.current = null; }, []);
+  const closeSaveToLibraryDialog = useCallback(() => {
+    saveToLibraryOpenRequestRef.current = null;
+    setIsOpeningSaveToLibrary(false);
+    setSaveToLibraryDialog(null);
+  }, []);
   const [isUnsavedChangesOpen, setIsUnsavedChangesOpen] = useState(false);
   const [pendingResignPlayer, setPendingResignPlayer] = useState<Player | null>(null);
   const [isClearAnalysisCacheConfirmOpen, setIsClearAnalysisCacheConfirmOpen] = useState(false);
@@ -1392,11 +1401,16 @@ export const Layout: React.FC = () => {
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveLoadedLibraryFile, sgfExportOptions, toast]);
 
   const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
+    if (saveToLibraryOpenRequestRef.current) return;
+    const request = {};
+    saveToLibraryOpenRequestRef.current = request;
     modalReturnFocusRef.current = returnFocus ?? null;
-    finishPendingGameEdits();
-    const sgf = generateCurrentSgf();
+    setIsOpeningSaveToLibrary(true);
     try {
+      finishPendingGameEdits();
+      const sgf = generateCurrentSgf();
       const items = await loadLibrary();
+      if (saveToLibraryOpenRequestRef.current !== request) return;
       const initialFolderId = getLibrarySaveTargetFolderId({
         items,
         loadedLibraryFileId,
@@ -1410,8 +1424,14 @@ export const Layout: React.FC = () => {
         folderOptions: getLibraryFolderOptions(items),
       });
     } catch (error) {
+      if (saveToLibraryOpenRequestRef.current !== request) return;
       toast(withFailureReason('Failed to open Library save dialog.', error), 'error');
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    } finally {
+      if (saveToLibraryOpenRequestRef.current === request) {
+        saveToLibraryOpenRequestRef.current = null;
+        setIsOpeningSaveToLibrary(false);
+      }
     }
   }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
 
@@ -3873,6 +3893,7 @@ export const Layout: React.FC = () => {
     isPhotoBoardOpen ||
     isPasteSgfOpen ||
     saveToLibraryDialog ||
+    isOpeningSaveToLibrary ||
     pendingResignPlayer ||
     isClearAnalysisCacheConfirmOpen ||
     menuOpen ||
@@ -4101,13 +4122,16 @@ export const Layout: React.FC = () => {
             returnFocus={modalReturnFocusRef.current}
           />
         )}
+        {isOpeningSaveToLibrary && (
+          <SaveToLibraryLoadingDialog onClose={closeSaveToLibraryDialog} returnFocus={modalReturnFocusRef.current} />
+        )}
         {saveToLibraryDialog && (
           <SaveToLibraryDialog
             open
             initialName={saveToLibraryDialog.initialName}
             folderOptions={saveToLibraryDialog.folderOptions}
             initialFolderId={saveToLibraryDialog.initialFolderId}
-            onClose={() => setSaveToLibraryDialog(null)}
+            onClose={closeSaveToLibraryDialog}
             onSave={handleSaveCopyToLibrary}
             returnFocus={modalReturnFocusRef.current}
           />

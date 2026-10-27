@@ -8,6 +8,32 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Save Copy now shows a cancellable dialog while reading Library folders.
+  A held native IndexedDB read previously left no overlay at four sizes:
+  Pass changed the board and Escape did not prevent the older save dialog
+  from opening afterward (`katrain-save-dialog-loading-mpRIPC`). Request
+  ownership now rejects canceled results and preserves newer requests. Native
+  loading, naming-focus and pending-write keyboard checks pass (`shDs2e`),
+  as do the existing desktop/phone/narrow-phone snapshot and reload checks.
+  Those three snapshot checks now use an explicit concurrent store move,
+  because ordinary board input is blocked during loading; all persistence
+  and newer-recovery assertions remain. The phone-menu fixture now expects
+  the loading dialog's history entry during its handoff. App/test TypeScript,
+  targeted lint and 61 related cases pass. The build passes (Vite phase
+  14.6 s). Production checks pass at four sizes, including Escape, Cancel,
+  mobile Back, exact history restoration, overlapping canceled reads and
+  successful fresh requests; existing pending-write keyboard checks also pass
+  (`katrain-save-loading-production-yJCijh`). An initial external launcher
+  reference error occurred before browser checks and is retained separately.
+
+- Full verification at `dd7a7ff` passes 515 unit files and 3,535 cases,
+  with two files and seven cases skipped, in 772.6 s. Full lint also passes.
+  Logs are retained as `katrain-batch-eighty-two-tests` and
+  `katrain-batch-eighty-two-lint`. Application source stayed unchanged for
+  that run; the subsequent Save Copy loading work was isolated in another
+  worktree and is verified separately below. No new performance result is
+  claimed; the earlier Settings timing failure remains unresolved.
+
 - Photo auto-tracing now retains dialog focus while its action is disabled,
   restores Auto Trace when recognition finishes, and announces its existing
   status text. A native baseline left focus on Body during and after recognition

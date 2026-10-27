@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { connectDevtools, evaluate, navigate, setViewport, sleep, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, connectDevtools, evaluate, loadedModuleUrl, navigate, setViewport, sleep, waitForExpression, waitForHistoryEntry } from './browser.mjs';
 
 const recoveryKey = 'web-katrain:auto_saved_game:v1';
 const textDialog = '[aria-labelledby="library-text-dialog-title"]';
@@ -103,7 +103,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
       const saveFromMenu = async (copy = false) => {
         await click('button[aria-label="Menu"]');
         await click(`[aria-labelledby="menu-title"] button[aria-label^="${copy ? 'Save a copy to Library,' : 'Save to Library,'}"]`);
-        await wait(`!document.querySelector('[aria-labelledby="menu-title"]')&&!history.state?.webKatrainOverlay`);
+        await wait(`!document.querySelector('[aria-labelledby="menu-title"]')&&${copy ? "!!document.querySelector('[data-save-to-library-loading]')" : '!history.state?.webKatrainOverlay'}`);
       };
       const openLibrary = async () => {
         if (mobile) await click('#mobile-tab-library');
@@ -272,7 +272,17 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         } else if (mode === 'delay') {
           await wait('librarySaveAudit.held.length>0');
           assert.deepEqual(await recovery(), firstRecovery, 'A pending save must retain recovery data');
-          await play(5);
+          if (entry === 'copy') {
+            // Folder loading now blocks ordinary board input. Retain the older
+            // snapshot/recovery race with an explicit concurrent store update,
+            // such as an already-pending operation completing behind the dialog.
+            await evaluate(cdp, `(async()=>{
+              const moduleUrl=${loadedModuleUrl.toString()};
+              const {useGameStore}=await import(moduleUrl('/src/store/gameStore.ts'));
+              useGameStore.getState().playMove(5,5);
+            })()`);
+            report.stages.push('A concurrent store move overtook the pending Save Copy snapshot');
+          } else await play(5);
           await wait(`JSON.parse(localStorage.getItem(${JSON.stringify(recoveryKey)}))?.sgf!==${JSON.stringify(firstRecovery.sgf)}`);
           const latestRecovery = await recovery();
           if (overlap) {
@@ -493,4 +503,113 @@ export async function assertPendingSaveKeyboard(cdp, appUrl, screenshotDir) {
   }
   fs.writeFileSync(path.join(screenshotDir,'pending-save-keyboard.json'),JSON.stringify(reports,null,2));
   console.log('Pending Save Copy: desktop/phone focus containment, blocked background shortcuts, and completed persistence passed.');
+}
+
+export async function assertSaveDialogLoading(cdp, appUrl, screenshotDir) {
+  const wait = expression => waitForExpression(cdp, expression, { label: 'Save dialog Library read' });
+  const key = async (key, code, windowsVirtualKeyCode, modifiers = 0) => {
+    for (const type of ['keyDown', 'keyUp']) await cdp.send('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode, modifiers });
+  };
+  const settle = () => evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  const board = () => evaluate(cdp, "({...document.querySelector('[data-board-snapshot]').dataset})");
+  const reports = [];
+  for (const [width, height] of [[1440, 900], [390, 844], [320, 568], [568, 320]]) {
+    const mobile = width !== 1440;
+    const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      localStorage.removeItem('web-katrain:auto_saved_game:v1');
+      localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
+      localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
+    ` });
+    try {
+      await setViewport(cdp, { width, height, mobile });
+      await navigate(cdp, appUrl, 15000, { acceptBeforeUnload: true });
+    } finally { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: setup.result.identifier }); }
+    await wait('!!document.querySelector("[data-board-snapshot]")');
+    const entry = await captureHistoryEntry(cdp);
+    // Warm the real dialog and storage. Only subsequent Library reads are held.
+    await key('s', 'KeyS', 83, 10);
+    await wait('!!document.querySelector("#save-to-library-name")');
+    await key('Escape', 'Escape', 27);
+    await waitForHistoryEntry(cdp, entry, '!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    await evaluate(cdp, installStorageControls);
+    const before = await board();
+    const release = async () => {
+      await evaluate(cdp, "librarySaveAudit.mode='normal';librarySaveAudit.held.splice(0).forEach(release=>release());void 0");
+      await evaluate(cdp, `new Promise((resolve,reject)=>{
+        const request=librarySaveAudit.open('web-katrain-library');request.onerror=()=>reject(request.error);
+        request.onsuccess=()=>{const db=request.result,tx=db.transaction('items','readonly');
+          tx.objectStore('items').getAll();tx.oncomplete=()=>{db.close();resolve(true)};
+          tx.onerror=()=>{db.close();reject(tx.error)};};
+      })`);
+      await settle();
+    };
+    for (const dismissal of mobile ? ['escape', 'cancel', 'back'] : ['escape', 'cancel']) {
+      await evaluate(cdp, "librarySaveAudit.mode='delay';void 0");
+      await key('s', 'KeyS', 83, 10);
+      await wait('librarySaveAudit.held.length>0&&!!document.querySelector("[data-save-to-library-loading]")');
+      const inside = () => evaluate(cdp, "document.querySelector('[data-save-to-library-loading]').contains(document.activeElement)");
+      try {
+        assert.equal(await evaluate(cdp, "document.querySelector('[data-save-to-library-loading]').getAttribute('aria-busy')"), 'true');
+        await wait("document.querySelector('[data-save-to-library-loading]').contains(document.activeElement)");
+        for (const modifiers of [0, 8]) for (let i = 0; i < 3; i++) {
+          await key('Tab', 'Tab', 9, modifiers);
+          assert.equal(await inside(), true, 'Library-read loading must contain Tab and Shift+Tab');
+        }
+        await key('p', 'KeyP', 80); await key('n', 'KeyN', 78, 2); await key('s', 'KeyS', 83, 10);
+        await evaluate(cdp, `(() => {
+          const data=new DataTransfer();data.setData('text/plain','(;SZ[9]PB[Behind save loading])');
+          document.activeElement.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));
+        })()`);
+        await settle();
+        assert.deepEqual(await board(), before, 'Pass, new-game and paste must not change the pending save snapshot');
+        assert.equal(await evaluate(cdp, '!!document.querySelector("[aria-labelledby=new-game-title]")'), false);
+        assert.equal(await evaluate(cdp, 'librarySaveAudit.held.length'), 1, 'Repeated Save Copy must not queue another read');
+        if (dismissal === 'escape') await key('Escape', 'Escape', 27);
+        else if (dismissal === 'back') await evaluate(cdp, 'history.back();void 0');
+        else {
+          const point = await wait(`(() => {
+            const e=document.querySelector('[data-save-to-library-loading] button'),r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+            return e.contains(document.elementFromPoint(x,y))?{x,y}:false;
+          })()`);
+          for (const type of ['mousePressed', 'mouseReleased']) await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
+        }
+        await waitForHistoryEntry(cdp, entry, '!document.querySelector("[aria-labelledby=save-to-library-title]")');
+      } finally { await release(); }
+      assert.equal(await evaluate(cdp, '!!document.querySelector("[aria-labelledby=save-to-library-title]")'), false, 'A cancelled read must not reopen Save Copy');
+      assert.deepEqual(await board(), before);
+      reports.push({ width, height, dismissal, tabContained: true, backgroundInputBlocked: true, lateDialogRejected: true });
+    }
+    // Reopen before a cancelled read finishes. Its old finally block must not
+    // clear the newer loading dialog or publish the older folder result.
+    await evaluate(cdp, "librarySaveAudit.mode='delay';void 0");
+    await key('s', 'KeyS', 83, 10);
+    await wait('librarySaveAudit.held.length>0&&!!document.querySelector("[data-save-to-library-loading]")');
+    await key('Escape', 'Escape', 27);
+    await waitForHistoryEntry(cdp, entry, '!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    await key('s', 'KeyS', 83, 10);
+    await wait('!!document.querySelector("[data-save-to-library-loading]")');
+    await evaluate(cdp, 'librarySaveAudit.held.shift()();void 0');
+    await wait('librarySaveAudit.held.length>0');
+    assert.equal(await evaluate(cdp, '!!document.querySelector("[data-save-to-library-loading]")&&!document.querySelector("#save-to-library-name")'), true, 'The old read must leave the newer request pending');
+    await key('Escape', 'Escape', 27);
+    await waitForHistoryEntry(cdp, entry, '!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    await release();
+    assert.equal(await evaluate(cdp, '!!document.querySelector("[aria-labelledby=save-to-library-title]")'), false);
+    reports.push({ width, height, overlappingReadOwned: true, bothCancelled: true });
+    // A fresh request must still hand off to the actual naming dialog.
+    await evaluate(cdp, "librarySaveAudit.mode='delay';void 0");
+    await key('s', 'KeyS', 83, 10);
+    await wait('librarySaveAudit.held.length>0&&!!document.querySelector("[data-save-to-library-loading]")');
+    await release();
+    await wait('!!document.querySelector("#save-to-library-name")&&document.activeElement===document.querySelector("#save-to-library-name")');
+    assert.equal(await evaluate(cdp, '!!document.querySelector("[data-save-to-library-loading]")'), false);
+    assert.ok(await evaluate(cdp, 'document.querySelector("#save-to-library-name").value.trim()'));
+    assert.deepEqual(await board(), before);
+    fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-save-dialog-ready.png`), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
+    await key('Escape', 'Escape', 27);
+    await waitForHistoryEntry(cdp, entry, '!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    reports.push({ width, height, freshRequestReady: true, nameFocused: true, unchangedBoard: true });
+  }
+  fs.writeFileSync(path.join(screenshotDir, 'save-dialog-loading.json'), JSON.stringify(reports, null, 2));
+  console.log('Save Copy loading: four sizes contain input, cancel with Escape/button/mobile Back, reject late and overlapping reads, and open a fresh naming dialog.');
 }
