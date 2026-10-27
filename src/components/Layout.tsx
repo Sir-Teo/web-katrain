@@ -526,6 +526,7 @@ export const Layout: React.FC = () => {
   const [isKifuPrintOpen, setIsKifuPrintOpen] = useState(false);
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const [isNewGameOpen, setIsNewGameOpen] = useState(false);
+  const newGameReturnHomeRef = useRef(false);
   const [isPhotoBoardOpen, setIsPhotoBoardOpen] = useState(false);
   const [photoBoardInitialFile, setPhotoBoardInitialFile] = useState<File | null>(null);
   const [isPasteSgfOpen, setIsPasteSgfOpen] = useState(false);
@@ -2102,16 +2103,39 @@ export const Layout: React.FC = () => {
   }, [settings.katagoModelUrl, toast, updateSettings]);
 
   const openNewGameWithGuard = useCallback(async () => {
+    newGameReturnHomeRef.current = mobileHomeOpen;
     setMenuOpen(false);
-    if (!(await prepareForGameReplacement())) return;
+    if (!(await prepareForGameReplacement())) {
+      if (newGameReturnHomeRef.current) setMobileHomeOpen(true);
+      newGameReturnHomeRef.current = false;
+      return;
+    }
     setIsNewGameOpen(true);
-  }, [prepareForGameReplacement]);
+  }, [mobileHomeOpen, prepareForGameReplacement]);
+
+  const revealNewGameBoard = useCallback((focusBoard = true) => {
+    setMobileHomeOpen(false);
+    if (isMobile) {
+      setMobileTab('board');
+      setLibraryOpen(false);
+      setRightPanelOpen(false);
+    }
+    if (focusBoard) requestAnimationFrameSafe(() => {
+      if (!document.querySelector('[role="dialog"]')) {
+        document.querySelector<HTMLElement>('[data-board-snapshot]')?.focus({ preventScroll: true });
+      }
+    });
+  }, [isMobile]);
 
   const startQuickNewGame = useCallback(async (options: { boardSize?: BoardSize; handicap?: number } = {}) => {
+    const returnHome = mobileHomeOpen;
     setMenuOpen(false);
     setMobileHomeOpen(false);
     setIsNewGameOpen(false);
-    if (!(await prepareForGameReplacement())) return false;
+    if (!(await prepareForGameReplacement())) {
+      if (returnHome) setMobileHomeOpen(true);
+      return false;
+    }
     const boardSize = options.boardSize ?? settings.defaultBoardSize;
     startNewGame({
       komi,
@@ -2124,11 +2148,14 @@ export const Layout: React.FC = () => {
     setManualDeadStones(new Set());
     markCurrentGameCleanAndClearAutoSave();
     toast(`Started ${boardSize}×${boardSize} game.`, 'success');
+    revealNewGameBoard();
     return true;
   }, [
     komi,
     markCurrentGameCleanAndClearAutoSave,
+    mobileHomeOpen,
     prepareForGameReplacement,
+    revealNewGameBoard,
     settings.defaultBoardSize,
     settings.defaultHandicap,
     settings.gameRules,
@@ -4088,7 +4115,11 @@ export const Layout: React.FC = () => {
         {isNewGameOpen && (
           <NewGameModal
             teachModeOn={isTeachMode}
-            onClose={() => setIsNewGameOpen(false)}
+            onClose={() => {
+              setIsNewGameOpen(false);
+              if (newGameReturnHomeRef.current) setMobileHomeOpen(true);
+              newGameReturnHomeRef.current = false;
+            }}
             defaultSetupPosition={{
               enabled: false,
               untilMove: settings.setupPositionMove,
@@ -4096,6 +4127,8 @@ export const Layout: React.FC = () => {
             }}
             onStart={({ komi: nextKomi, rules, info, aiConfig, timerConfig, boardSize: nextBoardSize, handicap: nextHandicap, setupPosition, teachMode }) => {
             startNewGame({ komi: nextKomi, rules, boardSize: nextBoardSize, handicap: nextHandicap });
+            setScoringMode(false);
+            setManualDeadStones(new Set());
             if (setupPosition.enabled) {
               updateSettings({ setupPositionMove: setupPosition.untilMove, setupPositionAdvantage: setupPosition.targetAdvantage });
               generateSetupPosition({ untilMove: setupPosition.untilMove, targetAdvantage: setupPosition.targetAdvantage });
@@ -4194,7 +4227,9 @@ export const Layout: React.FC = () => {
               after.scheduleAiMove();
             }
             markCurrentGameCleanAndClearAutoSave();
+            newGameReturnHomeRef.current = false;
             setIsNewGameOpen(false);
+            revealNewGameBoard(!setupPosition.enabled);
           }}
             defaultKomi={komi}
             defaultRules={settings.gameRules}

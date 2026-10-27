@@ -368,6 +368,22 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **New games open a playable board from every workspace:** setup left desktop
+  focus on the page body, while setup and quick starts from mobile Library
+  left the new board hidden. Both successful paths now reveal Board on mobile
+  and give it keyboard focus after the dialog closes. Desktop panel choices
+  are retained; generated-position setup reveals Board without taking focus
+  for play. A separate probe found Home disappearing on setup Cancel, so Home
+  is restored when its setup or unsaved-game choice is cancelled. Another
+  native regression found setup from scoring left scoring active and blocked
+  Enter from placing a stone; setup now clears that mode as quick start does.
+  All 55 native cases pass in both development and the production build at
+  1440×900, 390×844, 320×568 and 568×320: 34 successful routes verify visibility,
+  focus and an immediate keyboard move; 21 cancellations retain workspace and
+  game. The four Lessons-practice flows also pass. App/test TypeScript, full
+  lint, 56 related cases and the build pass (Vite phase 20.3 s). The original
+  focus, hidden-board, Home-cancel and scoring failures retain JSON/screenshots.
+
 - **Notification-copy feedback respects newer clipboard actions:** a native
   regression copied error details, opened Settings and copied a model URL,
   then completed the held error copy. The clipboard held the model URL but
