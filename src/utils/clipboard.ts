@@ -134,7 +134,12 @@ export function writeClipboardTextLegacy(text: string, target?: LegacyCopyDocume
   }
 }
 
+let latestTextCopyRequest = 0;
+
 export async function copyTextToClipboard(text: string, target?: Navigator | null, legacyTarget?: LegacyCopyDocument | null): Promise<boolean> {
+  const request = ++latestTextCopyRequest;
   if (await writeClipboardText(text, target)) return true;
+  // A delayed failure must not copy old text over a more recent request.
+  if (request !== latestTextCopyRequest) return false;
   return writeClipboardTextLegacy(text, legacyTarget);
 }

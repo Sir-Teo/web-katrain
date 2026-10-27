@@ -137,6 +137,45 @@ describe('clipboard helpers', () => {
       vi.useRealTimers();
     }
   });
+
+  it.each(['rejection', 'timeout'])('preserves newer copied text after an older async %s', async outcome => {
+    vi.useFakeTimers();
+    try {
+      let clipboard = '';
+      let rejectOlder!: (reason: Error) => void;
+      const target = { clipboard: { writeText: vi.fn((text: string) => text === 'older'
+        ? new Promise<void>((_resolve, reject) => { rejectOlder = reject; })
+        : Promise.resolve().then(() => { clipboard = text; })) } } as unknown as Navigator;
+      const legacy = createLegacyCopyDocument();
+      legacy.target.execCommand.mockImplementation(() => { clipboard = legacy.element.value; return true; });
+      const older = copyTextToClipboard('older', target, legacy.target);
+      await expect(copyTextToClipboard('newer', target, legacy.target)).resolves.toBe(true);
+      expect(clipboard).toBe('newer');
+      if (outcome === 'rejection') rejectOlder(new Error('old write denied'));
+      else await vi.advanceTimersByTimeAsync(CLIPBOARD_OPERATION_TIMEOUT_MS);
+      await older;
+      expect(clipboard).toBe('newer');
+      expect(legacy.target.execCommand).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('preserves a newer successful legacy copy when an older modern write rejects', async () => {
+    let clipboard = '';
+    let rejectOlder!: (reason: Error) => void;
+    const target = { clipboard: { writeText: (text: string) => text === 'older'
+      ? new Promise<void>((_resolve, reject) => { rejectOlder = reject; })
+      : Promise.reject(new Error('Use legacy copy')) } } as unknown as Navigator;
+    const legacy = createLegacyCopyDocument();
+    legacy.target.execCommand.mockImplementation(() => { clipboard = legacy.element.value; return true; });
+    const older = copyTextToClipboard('older', target, legacy.target);
+    await expect(copyTextToClipboard('newer', target, legacy.target)).resolves.toBe(true);
+    rejectOlder(new Error('Old write denied'));
+    await expect(older).resolves.toBe(false);
+    expect(clipboard).toBe('newer');
+    expect(legacy.target.execCommand).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('the legacy copy gives focus back', () => {

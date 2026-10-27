@@ -243,6 +243,17 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Late text-copy failures preserve newer clipboard content:** an older
+  modern write could reject or time out after a newer copy completed, then
+  overwrite it through the legacy textarea fallback. Both cases reproduce
+  as actual clipboard contents changing from newer back to older in the
+  regression. Only the latest text-copy request may now enter that fallback;
+  ordinary current-request fallback still works. All 41 focused clipboard
+  and notification cases, app/test TypeScript and targeted lint pass.
+  Native checks pass four denial/timeout × newer-modern/newer-legacy cases
+  at 1440/390/320: 24 trusted Library Copy SGF actions preserve the real
+  native clipboard, including six genuine legacy copies. Stored games and
+  the board remain unchanged, and test clipboard contents are cleared.
 - **PNG exports include displayed coordinates:** coordinate labels were HTML
   above the canvas layers and disappeared from exports. A native pixel check
   found no coordinate ink for all 18 visible labels on a 9×9 board. Snapshots
