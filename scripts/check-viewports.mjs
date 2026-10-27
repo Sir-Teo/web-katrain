@@ -27,6 +27,7 @@ import { assertCacheClearDialog } from './lib/cache-clear-dialog-check.mjs';
 import { assertNotificationInteraction } from './lib/notification-interaction-check.mjs';
 import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
+import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
 import { assertBoardComposition } from './lib/board-composition-check.mjs';
@@ -4250,6 +4251,7 @@ async function main() {
     await assertNotificationInteraction(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLazyModalInput(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryCrossTab(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryPendingNames(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLatestLibraryLoads(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertZipPathLimits(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertShortcutRecording(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

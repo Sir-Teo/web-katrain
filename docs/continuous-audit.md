@@ -269,6 +269,23 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Pending Library names are checked when they are saved:** three regressions
+  reproduced conflicting names when another tab saved a game or folder after
+  a naming dialog opened, including a rename after the peer moved the game.
+  Dialogs now use their latest mounted snapshot; edit merging reserves names
+  against the current collection inside the storage lock, sharing the existing
+  case-insensitive and SGF-extension naming rules. Only added, renamed or moved
+  rows receive naming checks; metadata edits preserve existing names. Save
+  acknowledgements update the loaded game's title to its resolved name.
+  The related 44 tests pass, including independent panel saves and stable
+  acknowledged retries. All 18 native two-tab cases pass across desktop,
+  390 px and 320 px in IndexedDB and fallback storage, with peer metadata,
+  loaded titles and reload persistence verified. The native fixture's first
+  attempt blocked on background-tab touch input; a second reached the phone
+  Board after loading a game and then looked for a Library control. Both
+  incomplete/failed diagnostics are retained. Explicit tab focus and returning
+  to Library repair the fixture; no deadlines changed.
+
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
 - **Prepared image copies respect newer clipboard actions:** a PNG waiting

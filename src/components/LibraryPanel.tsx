@@ -414,10 +414,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const saveStateRef = useRef({ items, edits });
   useLayoutEffect(() => { saveStateRef.current = { items, edits }; }, [items, edits]);
   const saveEdits = useMemo(createLibraryEditSaver, []);
-  const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast });
+  const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId });
   useLayoutEffect(() => {
-    saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast };
-  }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast]);
+    saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId };
+  }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
   const [libraryError, setLibraryError] = useState<{ message: string; operation: 'load' | 'save' } | null>(null);
   const [loadRetry, setLoadRetry] = useState(0);
@@ -582,9 +582,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       .then(({ items: savedItems, revision }) => {
         dispatchItems({ type: 'saved', items: savedItems, revision });
         if (cancelled) return;
-        const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast } = saveCallbacksRef.current;
+        const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId } = saveCallbacksRef.current;
         setLibraryStatus('ready');
         onLibraryUpdated?.();
+        // A concurrent save can reserve the requested name first. Publish the
+        // acknowledged name for the currently loaded game, even after a rename.
+        const loadedItem = savedItems.find(item => item.id === loadedFileId);
+        if (loadedItem?.type === 'file') onLoadedFileChange?.(loadedItem.id, loadedItem.name);
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           pendingGameSaveRef.current = null;
           const savedItem = savedItems.find(item => item.id === pendingGameSave.id);
@@ -1225,7 +1229,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       },
       onSubmit: (name, targetFolderId) => {
         const parentId = targetFolderId ?? null;
-        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const uniqueName = getUniqueLibraryItemName(name, saveStateRef.current.items, parentId);
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
         const requestId = nextLibraryGameSaveRequestId();
         localGameSaveRequestsRef.current.set(newItem.id, requestId);
@@ -1243,7 +1247,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: isFolder(item) ? 'Folder name' : 'Game name',
       confirmLabel: 'Rename',
       onSubmit: (next) => {
-        const uniqueName = getUniqueLibraryItemName(next, items, item.parentId ?? null, item.id);
+        const currentItems = saveStateRef.current.items;
+        const currentItem = currentItems.find(candidate => candidate.id === item.id);
+        if (!currentItem) return;
+        const uniqueName = getUniqueLibraryItemName(next, currentItems, currentItem.parentId ?? null, item.id);
         setItems((prev) => updateLibraryItem(prev, item.id, { name: uniqueName }));
         if (item.id === loadedFileId) onLoadedFileChange?.(item.id, uniqueName);
       },
@@ -1276,7 +1283,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       placeholder: 'Folder name',
       confirmLabel: 'Create',
       onSubmit: (name) => {
-        const uniqueName = getUniqueLibraryItemName(name, items, parentId);
+        const uniqueName = getUniqueLibraryItemName(name, saveStateRef.current.items, parentId);
         const folder = createLibraryFolder(uniqueName, parentId);
         setItems((prev) => [folder, ...prev]);
         setExpandedFolderIds((prev) => new Set(prev).add(folder.id));

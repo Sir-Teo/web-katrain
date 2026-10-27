@@ -1,6 +1,7 @@
 import { PRELOADED_GAMES } from '../data/preloadedGames';
 import { createCrossContextTaskQueue } from './crossContextTaskQueue';
 import { applyLibraryChanges, type LibraryEditBatch } from './libraryEdits';
+import { reserveLibraryName, type LibraryNamePool } from './libraryNames';
 import { stripUnsafeFilenameControls } from './filename';
 import { countSgfGames, countSgfMoves, readRootSgfProperties, sgfTrailingGames } from './sgfScan';
 import { expandSgfPointList } from './sgf';
@@ -1083,29 +1084,6 @@ export const createLibraryFolder = (name: string, parentId: string | null = null
 const createCopyName = (name: string): string => {
   if (name.toLowerCase().endsWith('.sgf')) return `${name.slice(0, -4)} (copy).sgf`;
   return `${name} (copy)`;
-};
-
-type LibraryNamePool = { names: Set<string>; nextSuffix: Map<string, number> };
-
-const reserveLibraryName = (preferred: string, pool: LibraryNamePool): string => {
-  const key = preferred.toLowerCase();
-  if (!pool.names.has(key)) {
-    pool.names.add(key);
-    return preferred;
-  }
-
-  const dotSgf = key.endsWith('.sgf');
-  const base = dotSgf ? preferred.slice(0, -4) : preferred;
-  const suffix = dotSgf ? '.sgf' : '';
-  for (let i = pool.nextSuffix.get(key) ?? 2; ; i++) {
-    const candidate = `${base} ${i}${suffix}`;
-    const candidateKey = candidate.toLowerCase();
-    if (!pool.names.has(candidateKey)) {
-      pool.names.add(candidateKey);
-      pool.nextSuffix.set(key, i + 1);
-      return candidate;
-    }
-  }
 };
 
 const uniqueLibraryName = (preferred: string, siblings: LibraryItem[]): string =>

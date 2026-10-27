@@ -15,6 +15,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ordered library read/modify/write operations', () => {
+  it('resolves same-name additions from independent panel snapshots inside the save queue', async () => {
+    const { createLibraryEditSaver, createLibraryItem, loadLibrary } = await import('../src/utils/library');
+    const first = createLibraryItem('Study', '(;SZ[9];B[aa])');
+    const second = createLibraryItem('Study', '(;SZ[13];B[bb])');
+    const saveFirst = createLibraryEditSaver(), saveSecond = createLibraryEditSaver();
+    const firstEdit = [{ revision: 1, changes: getLibraryChanges([], [first]) }];
+    const secondEdit = [{ revision: 1, changes: getLibraryChanges([], [second]) }];
+    await Promise.all([saveFirst(firstEdit), saveSecond(secondEdit)]);
+    const saved = await loadLibrary();
+    expect(saved).toEqual([{ ...second, name: 'Study 2' }, first]);
+    // Replaying an acknowledged revision must keep the resolved names stable.
+    await saveSecond(secondEdit);
+    expect(await loadLibrary()).toEqual(saved);
+    expect(JSON.parse(stored.get(storageKey)!)).toEqual(saved);
+  });
+
   it('does not replay an acknowledged game edit over an intervening save when starring', async () => {
     const { createLibraryEditSaver, saveLibrary, loadLibrary, createLibraryItem, updateStoredLibrary, updateLibraryFileSgf, toggleLibraryFileFavorite } = await import('../src/utils/library');
     const before = [createLibraryItem('Study', '(;SZ[9])')];

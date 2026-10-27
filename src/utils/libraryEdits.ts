@@ -1,4 +1,5 @@
 import type { LibraryItem } from './library';
+import { reserveLibraryName, type LibraryNamePool } from './libraryNames';
 
 export type LibraryChanges = {
   added: LibraryItem[];
@@ -33,11 +34,34 @@ export const applyLibraryChanges = (items: LibraryItem[], changes: LibraryChange
   const removed = new Set(changes.removed);
   const patches = new Map(changes.updated.map(update => [update.id, update.patch]));
   const existing = new Set(items.map(item => item.id));
-  return [
-    ...changes.added.filter(item => !existing.has(item.id)),
-    ...items.filter(item => !removed.has(item.id)).map(item => {
-      const patch = patches.get(item.id);
-      return patch ? { ...item, ...patch } as LibraryItem : item;
-    }),
-  ];
+  const retained = items.filter(item => !removed.has(item.id)).map(item => {
+    const patch = patches.get(item.id);
+    return patch ? { ...item, ...patch } as LibraryItem : item;
+  });
+  const renamed = new Set(changes.updated
+    .filter(({ patch }) => typeof patch.name === 'string' || Object.hasOwn(patch, 'parentId'))
+    .map(({ id }) => id));
+  const incoming = changes.added.filter(item => !existing.has(item.id));
+  if (!renamed.size && !incoming.length) return retained;
+  const pools = new Map<string | null, LibraryNamePool>();
+  const poolFor = (item: LibraryItem): LibraryNamePool => {
+    const parent = item.parentId ?? null;
+    let pool = pools.get(parent);
+    if (!pool) {
+      pool = { names: new Set(), nextSuffix: new Map() };
+      pools.set(parent, pool);
+    }
+    return pool;
+  };
+  // Keep unrelated rows intact, including duplicate names from older backups.
+  for (const item of retained) if (!renamed.has(item.id)) poolFor(item).names.add(item.name.toLowerCase());
+  const nameItem = (item: LibraryItem): LibraryItem => {
+    const name = reserveLibraryName(item.name, poolFor(item));
+    return name === item.name ? item : { ...item, name };
+  };
+  const named = retained.map(item => renamed.has(item.id) ? nameItem(item) : item);
+  // This runs inside the storage lock as well as during UI rebasing, so a
+  // dialog's old snapshot cannot overwrite a sibling name saved by another tab.
+  const added = incoming.map(nameItem);
+  return [...added, ...named];
 };
