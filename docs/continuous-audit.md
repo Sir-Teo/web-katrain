@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full verification at `811e40f` passes 503 unit files and 3,445 cases, with
+  78 engine cases skipped in CI. App/test TypeScript, full lint and the
+  18 native fast-navigation cases pass. The production build passes (Vite
+  phase 15.3 s). Standard responsiveness passes first move, median, Settings
+  and longest task at 19.6/1.6/84.1/101 ms, but fails input latency at
+  248 ms versus 150 ms; its slowest interaction is To start. One final
+  publication per fast jump is confirmed, but an overall latency improvement
+  is not established. Large-study checks pass, including 12,000-comment
+  import/export and Library operations. Real production analysis passes on
+  desktop and phone: Stop reaches the worker at 237/230 ms, explicit Stop
+  at 267 ms, and current-position evaluation renders at 1,084 ms within
+  2,500 ms. Old work cancels at 297 ms. No engine speedup is claimed.
+  Integrated browser verification is starting on the frozen commit, with
+  no competing test jobs.
+
 - Full unit verification at `449d389` passes 502 files and 3,439 cases, with
   78 engine cases skipped in CI. This run uses one worker and keeps the
   existing timeouts; the earlier two-worker failure is retained below.
