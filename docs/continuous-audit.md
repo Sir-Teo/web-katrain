@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Long compact error notifications now scroll within a viewport-based message
+  height, with focusable text for keyboard reading. Short-landscape feedback
+  aligns left to leave the analysis rail reachable. The real failed-model
+  baseline extended to y=332 over bottom controls beginning at y=266 and
+  covered the analysis copy action (`CpkXfG`); the bounded toast ends at y=196.
+  Native checks pass at 390×844, 320×568 and 568×320 for finger scrolling,
+  End/Home reading, Tab order, complete-message copying, keyboard dismissal
+  and the unchanged game (`65r0Fj`). All 46 cases in six related files,
+  targeted lint and the build pass (Vite phase 15.7 s). The same checks,
+  including game integrity after dismissal, pass against production under
+  `katrain-long-error-toast-production-o3PcVs` (`j0l1He`).
+
 - The compact engine-error copy control now has a 44×44 target. Its status
   column sizes to its contents so the complete “Error” label remains visible.
   The real failed-model baseline measured 28×28 at 390×844, 320×568 and

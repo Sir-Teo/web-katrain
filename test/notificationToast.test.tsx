@@ -141,7 +141,7 @@ describe('NotificationToast', () => {
     expect(css).toMatch(
       /@media \(max-width: 480px\) and \(min-height: 700px\) and \(orientation: portrait\) \{[\s\S]{0,700}?\.notification-toast-region,[\s\S]{0,700}?bottom: calc\(0\.5rem \+ var\(--mobile-edit-toolbar-inset, 0px\)\);/
     );
-    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\) \{[\s\S]*?\.notification-toast-region,[\s\S]*?justify-content: flex-end;/);
+    expect(css).toMatch(/@media \(max-height: 520px\) and \(orientation: landscape\) \{[\s\S]*?\.notification-toast-region,[\s\S]*?justify-content: flex-start;/);
     expect(css).toContain('max-width: min(18rem, calc(100% - 1rem));');
   });
 });

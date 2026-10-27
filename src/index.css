@@ -4833,6 +4833,18 @@
       height: 45px;
     }
 
+    .notification-toast-error .notification-toast-message {
+      max-height: clamp(3rem, calc(100dvh - 12rem), 10rem);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .notification-toast-error .notification-toast-message:focus-visible {
+      outline: 2px solid var(--ui-accent);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
     /* Long game names can otherwise turn a routine confirmation into a tall
        board-covering card. Two lines keep enough identifying context on phones;
        the complete message remains available to assistive tech and via title. */
@@ -5812,7 +5824,7 @@
     .notification-toast-region,
     .notification-toast-region--below-command-bar {
       top: 0.5rem;
-      justify-content: flex-end;
+      justify-content: flex-start;
     }
 
     .about-dialog-panel .about-dialog-header,

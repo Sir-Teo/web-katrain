@@ -128,7 +128,14 @@ export function NotificationToast({
         <span className="notification-toast-icon" aria-hidden="true">
           <Icon size={16} />
         </span>
-        <span className="notification-toast-message" title={notification.message}>
+        <span
+          className="notification-toast-message"
+          title={notification.message}
+          tabIndex={canCopy ? 0 : undefined}
+          onKeyDown={(event) => {
+            if (canCopy && !event.ctrlKey && !event.metaKey && !event.altKey) event.stopPropagation();
+          }}
+        >
           <span className="sr-only">{meta.label}: </span>
           {notification.message}
         </span>
