@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The focused browser remainder at `21ada61` passes all 46 original helper
+  calls from note-draft recovery through initial Library-read retry, in their
+  original order, under `katrain-batch-eighty-four-remaining-LDE8ii`. It includes
+  Save Copy loading/pending writes, cross-tab storage, models, photo tracing,
+  OGS, study dialogs, Library navigation/imports, clipboard/image/variation
+  copying, move-tree input and report printing/guide access. There were no
+  competing browser or CPU checks. This run excludes the base viewports and
+  earlier workflows; those passed in the retained partial sweep below.
+  These are separate runs, not a newly completed all-in-one viewport gate.
+
 - Manual photo tracing now hides underlay-alignment controls until a photo
   is selected. At initial scroll position, the unused controls pushed the grid
   below the phone pane (`katrain-photo-empty-layout-IUWgB2`). Hiding that group
