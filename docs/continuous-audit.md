@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Photo tracing now offers a one-step Undo Clear and keeps focus on that
+  action. The native baseline left focus on Body after Clear at all four
+  sizes, although the next Tab stayed inside (`katrain-photo-clear-PfcONQ`).
+  The enabled Undo Clear action restores both stone colors and coordinates;
+  newer manual edits and board sizes discard its snapshot. Desktop/phone
+  keyboard checks pass (`gzahzE`), as do existing recognition races with an
+  added undo-during-recognition case (`Qco8FG`). A four-size focused check
+  retains button focus and restores the trace (`L0WaUu`); the narrow-phone
+  footer was also inspected visually. App/test TypeScript, targeted lint and
+  67 related cases pass. The build passes (Vite phase 17.9 s). Production
+  four-size focus/restoration checks (`mOg3rA`) and both expanded desktop/phone
+  keyboard and recognition-race checks pass under
+  `katrain-photo-clear-production-QaNcEg`.
+
 - The full browser attempt at `7db8dbe` completed all 11 base viewports but
   failed four of them. Its Save Copy composition smoke selected the new
   folder-loading dialog by title, then treated replacement with the ready

@@ -112,9 +112,44 @@ export async function assertPhotoTraceKeyboard(cdp, appUrl, screenshotDir) {
       assert.equal(await evaluate(cdp, `document.querySelector('[data-photo-board-point][tabindex="0"]').getAttribute('data-photo-board-index')`),
         String(size === 19 ? 360 : Math.floor(size / 2) * (size + 1)), 'An out-of-range entry point must fall back to the centre');
     }
+    if (width === 390) await click('[data-photo-board-mobile-tab=trace]');
+    const tracedStones = () => evaluate(cdp, `Array.from(document.querySelectorAll('[data-photo-board-point]'))
+      .filter(e=>!e.getAttribute('aria-label').endsWith('empty')).map(e=>e.getAttribute('aria-label'))`);
+    await click('[aria-label="Trace tool"] button', 'White');
+    await click('[data-photo-board-index="180"]');
+    const beforeClear = await tracedStones();
+    assert.equal(beforeClear.length, 2);
+    await click('[data-photo-board-clear]');
+    assert.deepEqual(await tracedStones(), []);
+    assert.equal(await evaluate(cdp, 'document.activeElement===document.querySelector("[data-photo-board-clear]")'), true);
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-clear]").textContent.trim()'), 'Undo clear');
+    await key('Tab', 'Tab', 9);
+    assert.equal(await evaluate(cdp, 'document.querySelector("[aria-labelledby=photo-board-title]").contains(document.activeElement)'), true);
+    await key('Tab', 'Tab', 9, 8);
+    await key('Enter', 'Enter', 13);
+    assert.deepEqual(await tracedStones(), beforeClear, 'Undo Clear must restore both stone colors and coordinates');
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-clear]").textContent.trim()'), 'Clear');
+    await click('[data-photo-board-clear]');
+    await click('[data-photo-board-index="0"]');
+    await click('[aria-label="Trace tool"] button', 'Erase');
+    await click('[data-photo-board-index="0"]');
+    assert.deepEqual(await tracedStones(), []);
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-clear]").disabled'), true, 'A newer manual trace must discard the previous Clear snapshot');
+    await click('[aria-label="Trace tool"] button', 'Black');
+    await click('[data-photo-board-index="2"]');
+    await click('[data-photo-board-clear]');
+    if (width === 390) await click('[data-photo-board-mobile-tab=photo]');
+    await evaluate(cdp, `(() => {
+      const select=[...document.querySelectorAll('[aria-labelledby=photo-board-title] select')].find(e=>[...e.options].some(o=>o.value==='9'));
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'9');
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+    })()`);
+    await wait('document.querySelectorAll("[data-photo-board-point]").length===81');
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-clear]").disabled'), true, 'Resizing must discard the incompatible Clear snapshot');
     reports.push({ width, oneTabStop: true, arrowsAndEdgeWrap: true, rowAndBoardHomeEnd: true,
       nativeEnterAndSpace: true, compositionAndModifierKeysIgnored: true, tabExitAndReturn: true,
-      pointerUpdatesEntry: true, allBoardSizes: true });
+      pointerUpdatesEntry: true, allBoardSizes: true, clearUndoKeepsFocus: true,
+      clearUndoRestoresBothColors: true, newerTraceAndSizeDiscardUndo: true });
     await click('[aria-label="Close photo board"]');
     await wait('!document.querySelector("[aria-labelledby=photo-board-title]") && !history.state?.webKatrainOverlay');
   }

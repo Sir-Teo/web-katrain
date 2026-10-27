@@ -129,6 +129,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [nextPlayer, setNextPlayer] = React.useState<Player>(() => currentPlayer ?? 'black');
   const [tool, setToolState] = React.useState<TraceTool>(initialTraceTool);
   const [stones, setStones] = React.useState<PhotoBoardStone[]>(() => makeEmptyStones(defaultBoardSize));
+  const [clearedTrace, setClearedTrace] = React.useState<PhotoBoardStone[] | null>(null);
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [photoName, setPhotoName] = React.useState<string>('');
   const [photoError, setPhotoError] = React.useState<string | null>(null);
@@ -286,13 +287,14 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
 
   const canAddToCurrent = !!onAddSetupStones && counts.total > 0 && currentBoardSize === boardSize;
   const canClearBoard = counts.total > 0;
+  const canUndoClear = !canClearBoard && clearedTrace?.length === stones.length;
   const canTransformTrace = counts.total > 0;
   const photoAlignmentDisabled = !photoUrl || !photoUnderlay;
   const hasPhotoAlignmentChanges =
     photoZoom !== 1 || photoOffsetX !== 0 || photoOffsetY !== 0 || photoRotation !== 0;
   const cameraUnavailable = cameraAvailability === 'unavailable' && !liveCameraSupported;
   const cameraButtonTitle = cameraUnavailable ? 'No camera detected' : 'Take board photo with camera';
-  const clearBoardTitle = canClearBoard ? 'Clear all traced stones' : 'No traced stones to clear';
+  const clearBoardTitle = canUndoClear ? 'Restore the trace from before Clear' : canClearBoard ? 'Clear all traced stones' : 'No traced stones to clear';
   const transformTraceTitle = canTransformTrace ? 'Adjust traced board orientation' : 'Trace stones before transforming the board';
   const importBoardTitle = counts.total === 0
     ? 'Trace at least one stone to import a board position'
@@ -363,12 +365,14 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const updateBoardSize = (next: BoardSize) => {
     if (next === boardSize) return;
     invalidateAutoTrace();
+    setClearedTrace(null);
     setBoardSize(next);
     setStones((prev) => resizePhotoBoardStones(prev, boardSize, next));
   };
 
   const setStoneAt = React.useCallback((index: number, value: PhotoBoardStone) => {
     invalidateAutoTrace();
+    if (index >= 0 && index < stones.length && stones[index] !== value) setClearedTrace(null);
     setStones((prev) => {
       if (index < 0 || index >= prev.length) return prev;
       if ((prev[index] ?? null) === value) return prev;
@@ -376,7 +380,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
       next[index] = value;
       return next;
     });
-  }, [invalidateAutoTrace]);
+  }, [invalidateAutoTrace, stones]);
 
   const traceIndexFromPoint = React.useCallback((clientX: number, clientY: number): number | null => {
     const root = traceBoardRef.current;
@@ -478,13 +482,21 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   };
 
   const clearBoard = () => {
+    if (!canClearBoard && !canUndoClear) return;
     invalidateAutoTrace();
-    setStones(makeEmptyStones(boardSize));
+    if (canUndoClear && clearedTrace) {
+      setStones(clearedTrace);
+      setClearedTrace(null);
+    } else {
+      setClearedTrace(stones);
+      setStones(makeEmptyStones(boardSize));
+    }
   };
 
   const useCurrentBoard = () => {
     if (!currentBoardSize || !currentBoardStones || !canUseCurrentBoard) return;
     invalidateAutoTrace();
+    setClearedTrace(null);
     setBoardSize(currentBoardSize);
     setStones(currentBoardStones);
   };
@@ -492,6 +504,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const transformTrace = (transform: PhotoBoardTraceTransform) => {
     if (!canTransformTrace) return;
     invalidateAutoTrace();
+    setClearedTrace(null);
     setStones((prev) => transformPhotoBoardStones(prev, boardSize, transform));
   };
 
@@ -574,6 +587,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         ...(corners ? { corners } : {}),
       });
       if (autoTraceRequestRef.current !== request) return;
+      setClearedTrace(null);
       setStones(result.stones);
       setMobileTab('trace');
       setAutoTraceStatus(
@@ -1536,12 +1550,15 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
           <button
             type="button"
             className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-sm font-semibold text-[var(--ui-text-muted)] not-disabled:hover:bg-[var(--ui-surface-2)] not-disabled:hover:text-[var(--ui-text)] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canClearBoard}
+            disabled={!canClearBoard && !canUndoClear}
             onClick={clearBoard}
             title={clearBoardTitle}
             data-photo-board-clear="true"
           >
-            <span className="inline-flex items-center gap-2"><FaTrash /> Clear</span>
+            <span className="inline-flex items-center gap-2">
+              {canUndoClear ? <FaUndo aria-hidden="true" /> : <FaTrash aria-hidden="true" />}
+              {canUndoClear ? 'Undo clear' : 'Clear'}
+            </span>
           </button>
           <div className="contents md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
             <button

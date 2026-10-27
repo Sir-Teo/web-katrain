@@ -162,6 +162,14 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
       await release();
       assert.deepEqual(await traceState(), { points: 81, stones: [] });
       await hold();
+      await click('[data-photo-board-clear]');
+      const restoredClear = await traceState();
+      assert.equal(restoredClear.stones.length, 1, 'Undo Clear must restore the previous recognition');
+      await release();
+      assert.deepEqual(await traceState(), restoredClear, 'Undo Clear must reject the pending recognition result');
+      await click('[data-photo-board-clear]');
+      assert.deepEqual(await traceState(), { points: 81, stones: [] });
+      await hold();
       await evaluate(cdp, `(() => {
         const input = document.querySelector('[data-photo-board-auto-trace-sensitivity]');
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '60');
