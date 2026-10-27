@@ -373,6 +373,7 @@ interface LibraryPanelProps {
   showCloseButtonOnDesktop?: boolean;
   isMobile?: boolean;
   getCurrentSgf: () => string;
+  getCurrentGameId: () => string;
   /** `itemId` identifies the saved record/resume point; the host may return its refreshed file metadata. */
   onLoadSgf: (sgf: string, itemId?: string) => boolean | LibraryLoadResult | Promise<boolean | LibraryLoadResult>;
   onToast: (msg: string, type: 'info' | 'error' | 'success', copyText?: string, operationId?: string) => void;
@@ -395,6 +396,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   showCloseButtonOnDesktop = false,
   isMobile = false,
   getCurrentSgf,
+  getCurrentGameId,
   onLoadSgf,
   onToast,
   onOpenPhotoBoard,
@@ -413,10 +415,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const saveStateRef = useRef({ items, edits, revision: itemsRevision });
   useLayoutEffect(() => { saveStateRef.current = { items, edits, revision: itemsRevision }; }, [items, edits, itemsRevision]);
   const saveEdits = useMemo(createLibraryEditSaver, []);
-  const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId });
+  const latestPanelSaveRef = useRef<object | null>(null);
+  const saveCallbacksRef = useRef({ getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId });
   useLayoutEffect(() => {
-    saveCallbacksRef.current = { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId };
-  }, [getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId]);
+    saveCallbacksRef.current = { getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId };
+  }, [getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId]);
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'saving' | 'error'>('loading');
   const [libraryError, setLibraryError] = useState<{ message: string; operation: 'load' | 'save' } | null>(null);
   const [loadRetry, setLoadRetry] = useState(0);
@@ -425,6 +428,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const pendingGameSaveRef = useRef<{
     id: string;
     sgf: string;
+    gameId: string;
     isNew: boolean;
     operationId: string;
   } | null>(null);
@@ -571,6 +575,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   useEffect(() => {
     if (!didLoadLibraryRef.current || (itemsRevision === 0 && saveRetry === 0)) return;
     let cancelled = false;
+    const request = {};
+    latestPanelSaveRef.current = request;
     const { items, edits } = saveStateRef.current;
     const pendingGameSave = pendingGameSaveRef.current;
     setLibraryStatus('saving');
@@ -580,22 +586,24 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     void saving
       .then(({ items: savedItems, revision }) => {
         dispatchItems({ type: 'saved', items: savedItems, revision });
-        if (cancelled) return;
-        const { getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId } = saveCallbacksRef.current;
-        setLibraryStatus('ready');
+        // Closing the panel ends its UI updates, but its latest game save
+        // still owns an acknowledgement. Superseded requests must stay quiet.
+        if (latestPanelSaveRef.current !== request) return;
+        const { getCurrentSgf, getCurrentGameId, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId } = saveCallbacksRef.current;
+        if (!cancelled) setLibraryStatus('ready');
         onLibraryUpdated?.();
         // A concurrent save can reserve the requested name first. Publish the
         // acknowledged name for the currently loaded game, even after a rename.
         const loadedItem = savedItems.find(item => item.id === loadedFileId);
-        if (loadedItem?.type === 'file') onLoadedFileChange?.(loadedItem.id, loadedItem.name);
+        if (!cancelled && loadedItem?.type === 'file') onLoadedFileChange?.(loadedItem.id, loadedItem.name);
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           pendingGameSaveRef.current = null;
           const savedItem = savedItems.find(item => item.id === pendingGameSave.id);
           if (!savedItem || !isFile(savedItem) || savedItem.sgf !== pendingGameSave.sgf) return;
           // The board can change while storage is writing. A saved older
           // snapshot must not clear recovery data for the current position.
-          if (getCurrentSgf() === pendingGameSave.sgf) {
-            if (pendingGameSave.isNew) onLoadedFileChange?.(savedItem.id, savedItem.name);
+          if (getCurrentGameId() === pendingGameSave.gameId && getCurrentSgf() === pendingGameSave.sgf) {
+            if (pendingGameSave.isNew || cancelled) onLoadedFileChange?.(savedItem.id, savedItem.name);
             onCurrentSaved?.(pendingGameSave.sgf);
           }
           onToast(
@@ -605,9 +613,11 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         }
       })
       .catch((error) => {
-        if (cancelled) return;
-        setLibraryStatus('error');
-        setLibraryError({ message: error instanceof Error ? error.message : 'Failed to save library.', operation: 'save' });
+        if (latestPanelSaveRef.current !== request) return;
+        if (!cancelled) {
+          setLibraryStatus('error');
+          setLibraryError({ message: error instanceof Error ? error.message : 'Failed to save library.', operation: 'save' });
+        }
         if (pendingGameSave && pendingGameSaveRef.current === pendingGameSave) {
           saveCallbacksRef.current.onToast('Could not save the game to Library. Retry saving or download SGF to keep your changes.', 'error', undefined, pendingGameSave.operationId);
         }
@@ -1203,6 +1213,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       return;
     }
     const sgf = getCurrentSgf();
+    const gameId = getCurrentGameId();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');
       return;
@@ -1210,7 +1221,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (loadedLibraryFile) {
       const requestId = nextLibraryGameSaveRequestId();
       localGameSaveRequestsRef.current.set(loadedLibraryFile.id, requestId);
-      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, isNew: false, operationId: `library-save:${requestId}` };
+      pendingGameSaveRef.current = { id: loadedLibraryFile.id, sgf, gameId, isNew: false, operationId: `library-save:${requestId}` };
       setItems((prev) => updateLibraryFileSgf(prev, loadedLibraryFile.id, sgf));
       return;
     }
@@ -1232,7 +1243,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         const newItem = createLibraryItem(uniqueName, sgf, parentId);
         const requestId = nextLibraryGameSaveRequestId();
         localGameSaveRequestsRef.current.set(newItem.id, requestId);
-        pendingGameSaveRef.current = { id: newItem.id, sgf, isNew: true, operationId: `library-save:${requestId}` };
+        pendingGameSaveRef.current = { id: newItem.id, sgf, gameId, isNew: true, operationId: `library-save:${requestId}` };
         setItems((prev) => [newItem, ...prev]);
       },
     });

@@ -1074,6 +1074,7 @@ export const Layout: React.FC = () => {
     },
     [sgfExportOptions]
   );
+  const getCurrentGameId = useCallback(() => useGameStore.getState().rootNode.id, []);
 
   // Whether the game differs from its last saved form. Kept in state rather
   // than read during render: the read serializes the whole tree, and analysis
@@ -4489,6 +4490,7 @@ export const Layout: React.FC = () => {
                   onClose={handleCloseLibrary}
                   docked
                   getCurrentSgf={generateCurrentSgfForSave}
+                  getCurrentGameId={getCurrentGameId}
                   legacyGameEncoding={settings.legacyGameEncoding}
                   onLoadSgf={handleLoadFromLibrary}
                   onToast={toast}
@@ -4597,6 +4599,7 @@ export const Layout: React.FC = () => {
               docked={isDesktop}
               width={leftPanelWidth}
               getCurrentSgf={generateCurrentSgfForSave}
+              getCurrentGameId={getCurrentGameId}
               legacyGameEncoding={settings.legacyGameEncoding}
               onLoadSgf={handleLoadFromLibrary}
               onToast={toast}

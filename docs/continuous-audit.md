@@ -8,6 +8,28 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Closing Library during a game save now retains the save acknowledgement.
+  Baseline `prGrT5` persisted the exact current SGF at 1440, 390 and 320 px,
+  but unmounting the panel suppressed its title update and success feedback,
+  left recovery data behind and produced a false unsaved-changes prompt.
+  The latest request now finishes its host callbacks after the panel closes;
+  superseded requests remain silent. Both game identity and SGF must match
+  before marking the current game saved, protecting a replacement game even
+  when it has identical SGF. Production `Gg5kwt` passes all 15 new cases:
+  unchanged saves, newer moves, rejected writes, queued renames and identical
+  replacement games across all three widths. Exact clipboard exports verify
+  stored SGF and recovery content. The same run passes the 13 existing
+  empty-Library and restore cases. The new durable helper runs in the main
+  browser suite. Targeted lint, 120 existing Library/layout/runner cases and
+  the production build pass (Vite phase 14.9 s). Development `5Rhj56` also
+  passes all 39 unchanged save/recovery scenarios followed by the three
+  restore/save cases. An initial extended probe could not play its second
+  fixture move (`5APTSi`); a later probe expected a success toast behind a
+  persistent error (`QMFgoF`). The passing fixtures use native board input
+  and dismiss that error before checking clipboard feedback. Neither changed
+  app behavior or relaxed assertions. The earlier full-suite timing failure
+  remains unresolved.
+
 - Automatic backup restoration now checks shared storage and writes under
   the same Library queue lock. An apparently empty panel can be stale:
   baseline `LeumIQ` saved a game in another tab while the file read was held;
