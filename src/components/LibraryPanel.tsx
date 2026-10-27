@@ -1492,11 +1492,25 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     if (backupInputRef.current) backupInputRef.current.value = '';
 
-    const applyRestore = async () => {
+    // A positive count needs confirmation; zero means restored; null means failed.
+    const applyRestore = async (onlyIfEmpty = false): Promise<number | null> => {
       const restoreRevision = saveStateRef.current.revision;
       const pendingGameSave = pendingGameSaveRef.current;
       try {
-        await saveLibrary(restored);
+        if (onlyIfEmpty) {
+          // Check and replace under the shared storage lock. Another tab can
+          // have saved a game that this panel has not displayed yet.
+          const existing = await updateStoredLibrary((current) => ({
+            items: current.length === 0 ? restored : current,
+            result: current.length > 0 ? current : null,
+          }));
+          if (existing) {
+            dispatchItems({ type: 'saved', items: existing, revision: 0 });
+            return existing.length;
+          }
+        } else {
+          await saveLibrary(restored);
+        }
         didLoadLibraryRef.current = true;
         // Saves requested while replacement was pending run after it in the
         // storage queue. Keep their rows and their eventual acknowledgements.
@@ -1509,17 +1523,20 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         onLoadedFileChange?.(null);
         setCurrentFolderId(null);
         onToast(`Restored ${restored.length} library item${restored.length === 1 ? '' : 's'}.`, 'success');
+        return 0;
       } catch {
         onToast('Failed to restore library backup.', 'error');
+        return null;
       }
     };
 
     // A save or import can finish while the backup file is being read. Ask
     // about the collection that exists now before replacing any of its games.
-    const currentItemCount = saveStateRef.current.items.length;
+    let currentItemCount = saveStateRef.current.items.length;
     if (currentItemCount === 0) {
-      await applyRestore();
-      return;
+      const storedItemCount = await applyRestore(true);
+      if (storedItemCount === null || storedItemCount === 0) return;
+      currentItemCount = storedItemCount;
     }
     setConfirmDialog({
       title: 'Restore Backup',

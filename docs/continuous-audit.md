@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Automatic backup restoration now checks shared storage and writes under
+  the same Library queue lock. An apparently empty panel can be stale:
+  baseline `LeumIQ` saved a game in another tab while the file read was held;
+  at all three widths, the original tab still showed no rows and overwrote
+  that committed game without confirmation. Candidate `jHmCMJ` discovers and
+  displays the peer save, asks with the correct count and preserves its exact
+  SGF on Cancel; explicit Replace still restores the backup. A third durable
+  helper covers this shared-IndexedDB sequence. The same production run passes
+  all three prior restore/save cases, all three in-panel read races and all
+  four original IndexedDB/fallback empty-Library cases (13 total), with boards
+  unchanged. Targeted lint, 87 existing Library/backup/queue/runner cases and
+  the build pass (Vite phase 21.3 s). The earlier full-suite timing failure
+  remains separate and unresolved.
+
 - Backup replacement now checks the latest in-panel Library count after its
   file read completes. Production baseline `wjhqri` held the read while saving
   into an initially empty Library; at all three widths, the backup then replaced
