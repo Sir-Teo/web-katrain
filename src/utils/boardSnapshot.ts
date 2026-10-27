@@ -54,19 +54,10 @@ export async function captureBoardSnapshot(selector = DEFAULT_SELECTOR): Promise
 
     const style = getElementStyle(board);
     const bgColor = style?.backgroundColor || '#d1b17c';
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
-
     const bgUrl = parseBackgroundImageUrl(style?.backgroundImage ?? '');
-    if (bgUrl) {
-      try {
-        const img = await loadImage(bgUrl);
-        ctx.drawImage(img, 0, 0, width, height);
-      } catch {
-        // Ignore texture load errors.
-      }
-    }
 
+    // Copy the position and geometry before any asynchronous texture load.
+    // Otherwise another move, game or resize changes the exported position.
     const boardRect = rect;
     const layers = Array.from(board.querySelectorAll('canvas')).map((layer) => {
       const layerStyle = getElementStyle(layer);
@@ -89,6 +80,20 @@ export async function captureBoardSnapshot(selector = DEFAULT_SELECTOR): Promise
         // Ignore draw errors (e.g. tainted canvas).
       }
     }
+
+    // Paint underneath the frozen layers so texture and fallback color keep
+    // their original order without reading the live board a second time.
+    ctx.globalCompositeOperation = 'destination-over';
+    if (bgUrl) {
+      try {
+        const img = await loadImage(bgUrl);
+        ctx.drawImage(img, 0, 0, width, height);
+      } catch {
+        // Ignore texture load errors.
+      }
+    }
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
 
     return canvas.toDataURL('image/png');
   } catch {

@@ -79,6 +79,37 @@ describe('board snapshots', () => {
     expect(context.fillRect).toHaveBeenCalledWith(0, 0, 100, 90);
   });
 
+  it.each(['load', 'error'])('freezes the chosen position and geometry before a delayed texture %s', async outcome => {
+    const { board, context, layer } = stubSnapshotDom();
+    vi.stubGlobal('window', {
+      devicePixelRatio: 2,
+      getComputedStyle: (element: Element) => element === board
+        ? { backgroundColor: '#d1b17c', backgroundImage: 'url(texture.png)' }
+        : { zIndex: '4' },
+    });
+    const images: Array<{ onload: (() => void) | null; onerror: ((error: Error) => void) | null }> = [];
+    vi.stubGlobal('Image', class {
+      crossOrigin = '';
+      src = '';
+      onload: (() => void) | null = null;
+      onerror: ((error: Error) => void) | null = null;
+      constructor() { images.push(this); }
+    });
+    let position = 'chosen position';
+    const captured: string[] = [];
+    vi.mocked(context.drawImage).mockImplementation(source => {
+      if (source === layer) captured.push(position);
+    });
+    const snapshot = captureBoardSnapshot();
+    position = 'later move';
+    vi.mocked(layer.getBoundingClientRect).mockReturnValue(makeRect(30, 40, 40, 30));
+    if (outcome === 'load') images[0]!.onload!();
+    else images[0]!.onerror!(new Error('texture unavailable'));
+    await expect(snapshot).resolves.toBe('data:image/png;base64,ok');
+    expect(captured).toEqual(['chosen position']);
+    expect(context.drawImage).toHaveBeenCalledWith(layer, 4, 6, 80, 60);
+  });
+
   it('returns null when canvas creation or export is blocked', async () => {
     stubSnapshotDom({
       createElement: () => {

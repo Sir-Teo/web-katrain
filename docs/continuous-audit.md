@@ -217,6 +217,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Board PNGs freeze the selected position:** snapshot capture awaited a
+  texture before copying the live board canvases. A delayed texture success
+  or failure reproduced capturing a later move and changed geometry instead
+  of the chosen position. Layers and geometry are now copied synchronously;
+  texture and fallback color paint underneath the frozen foreground. Both
+  delayed-load regressions pass, along with all 15 related cases, app/test
+  TypeScript and targeted lint. Native checks at 1440/390/320 preserve exact
+  chosen PNG bytes after navigating to another move and resizing; fresh
+  exports reflect the later position. Stable output differs from the old
+  composition by at most two 8-bit channel levels from alpha rounding.
+  Chosen/later phone PNGs were visually reviewed. The first native reference
+  fixture tried to draw an empty canvas that the app already skips; fixing
+  that fixture yields the passing result without changing product behavior.
 - **OS file acquisition respects later choices:** the launch consumer also
   awaited `handle.getFile()` before import ownership began. Holding that
   acquisition reproduced the same later-selected 19×19 game being replaced
