@@ -129,10 +129,8 @@ const MOBILE_LIBRARY_PAGE_SIZE = 30;
 type LibraryItemsState = { items: LibraryItem[]; revision: number; edits: LibraryEditBatch[] };
 type LibraryItemsAction =
   | { type: 'edit' | 'sync'; update: React.SetStateAction<LibraryItem[]> }
-  | { type: 'saved'; items: LibraryItem[]; revision: number }
-  | { type: 'restore'; items: LibraryItem[] };
+  | { type: 'saved'; items: LibraryItem[]; revision: number };
 const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction): LibraryItemsState => {
-  if (action.type === 'restore') return { ...state, items: action.items, edits: [] };
   if (action.type === 'saved') {
     const edits = state.edits.filter(batch => batch.revision > action.revision);
     const items = edits.reduce((current, batch) => applyLibraryChanges(current, batch.changes), action.items);
@@ -412,8 +410,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const setItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'edit', update }), []);
   const syncItems = useCallback((update: React.SetStateAction<LibraryItem[]>) => dispatchItems({ type: 'sync', update }), []);
   const importingCount = useSyncExternalStore(subscribeLibraryImportActivity, getLibraryImportCount, () => 0);
-  const saveStateRef = useRef({ items, edits });
-  useLayoutEffect(() => { saveStateRef.current = { items, edits }; }, [items, edits]);
+  const saveStateRef = useRef({ items, edits, revision: itemsRevision });
+  useLayoutEffect(() => { saveStateRef.current = { items, edits, revision: itemsRevision }; }, [items, edits, itemsRevision]);
   const saveEdits = useMemo(createLibraryEditSaver, []);
   const saveCallbacksRef = useRef({ getCurrentSgf, onCurrentSaved, onLoadedFileChange, onLibraryUpdated, onToast, loadedFileId });
   useLayoutEffect(() => {
@@ -1495,11 +1493,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     if (backupInputRef.current) backupInputRef.current.value = '';
 
     const applyRestore = async () => {
+      const restoreRevision = saveStateRef.current.revision;
+      const pendingGameSave = pendingGameSaveRef.current;
       try {
         await saveLibrary(restored);
         didLoadLibraryRef.current = true;
-        dispatchItems({ type: 'restore', items: restored });
-        pendingGameSaveRef.current = null;
+        // Saves requested while replacement was pending run after it in the
+        // storage queue. Keep their rows and their eventual acknowledgements.
+        dispatchItems({ type: 'saved', items: restored, revision: restoreRevision });
+        if (pendingGameSaveRef.current === pendingGameSave) pendingGameSaveRef.current = null;
         setLibraryStatus('ready');
         setLibraryError(null);
         onLibraryUpdated?.();

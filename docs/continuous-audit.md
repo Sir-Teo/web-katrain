@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Completing a Library backup restore now rebases edits made after restoration
+  began and retains later game-save acknowledgements. Production baseline
+  `t71Z8y` saved the exact current SGF but lost its file association and left a
+  false unsaved-changes prompt at 1440, 390 and 320 px. Observed baseline
+  `etg4m6` also briefly removed the newer row before its write returned.
+  Candidate `U3OViu` retains the row, title, success feedback and clean state
+  at all three widths. The new durable browser helper independently seeds its
+  prior Library, delays only Library storage, compares the persisted SGF with
+  an actual clipboard export and checks the absence of the false prompt.
+  It passes production (`fx3VSC`) and follows all 39 unchanged save/recovery
+  cases successfully in the same development session (`1ET4p6`). Those
+  existing cases include failed writes, retries, newer moves, overlapping
+  saves and metadata edits. Targeted lint, 40 Library/edit/backup cases,
+  40 runner cases and the build pass (Vite phase 16.3 s). An initial external
+  wrapper timed out during warm-up before executing scenarios (`0127F5`);
+  the successful wrapper uses an explicit desktop viewport and a Vite cache
+  under `node_modules`. The earlier full-run timing failure remains unresolved
+  and predates this restore acknowledgement fix.
+
 - Full browser run `katrain-batch-ninety-seven-viewport` at `236ba7c` fails
   the unchanged engine-error copy timing assertion at 320 px in the panel,
   stage `newer-copy-rejection`: 2,572.4 ms against the 1,000 ms budget, before
