@@ -8,6 +8,21 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- General Settings now shows the current board theme in an expandable row;
+  opening it retains all nine original previews. Search opens the disclosure
+  and focuses the selected theme. A balanced three-profile production
+  comparison (`cMPCvt`) measured median DOM/paint opening of 60.7/77.3 ms,
+  versus 172.0/241.4 ms for the expanded-by-default picker. The unchanged
+  standard responsiveness gate passes: Settings 37.3 ms, first move 7.4 ms,
+  move median 1.22 ms, INP p98 56 ms and worst long task 50 ms.
+  Production UI checks pass at 1440×900, 390×844, 320×568 and 568×320 for
+  pointer/touch and keyboard expansion, all choices, Home/End/wrapping,
+  persistence, reopening, search and the unchanged game (`Krl5wr`). The
+  existing composition/modifier/backend/theme/tab helper also passes after
+  opening the picker through its new summary. Targeted lint, 52 related cases
+  and the build pass (Vite phase 17.1 s). Earlier post-search probe failures
+  are retained; the final probe waits for stable scroll/hit coordinates.
+
 - The standard production responsiveness check at `c16e6ac` fails warm
   Settings opening at 184.5 ms against the unchanged 120 ms budget. First
   board move (11.36 ms), board-move median (1.52 ms), trusted-input INP p98

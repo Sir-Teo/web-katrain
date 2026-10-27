@@ -49,6 +49,7 @@ export async function assertSettingsChoiceKeyboard(cdp,appUrl,screenshotDir) {
   await press('ArrowDown');await wait(`document.querySelector('[data-katago-backend-option=cpu]')?.getAttribute('aria-checked')==='true'&&document.activeElement?.dataset.katagoBackendOption==='cpu'`);
   await press('ArrowUp');await wait(`document.querySelector('[data-katago-backend-option=wasm]')?.getAttribute('aria-checked')==='true'&&document.activeElement?.dataset.katagoBackendOption==='wasm'`);
   await click('#tab-general');
+  await click('[data-board-theme-disclosure] summary');
   await guards('[data-board-theme-choice][aria-checked=true]',['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End']);
   const themes=await evaluate(cdp,`[...document.querySelectorAll('[data-board-theme-choice]')].map(e=>e.dataset.boardThemeChoice)`);
   await press('Home');await wait(`document.activeElement?.dataset.boardThemeChoice===${JSON.stringify(themes[0])}&&document.activeElement.getAttribute('aria-checked')==='true'`);

@@ -344,6 +344,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         if (!label && !control) return;
         setPendingReveal(null);
 
+        const disclosure = control?.closest('details');
+        if (disclosure) disclosure.open = true;
+
         (label ?? control)?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         // Focused, not just scrolled to, so keyboard users land on the control
         // and can change it straight away.
@@ -874,10 +877,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                             />
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div id="settings-board-theme-label" className="ui-text-muted">Board Theme</div>
-                                            </div>
+                                        <details className="group/theme-picker space-y-2" data-board-theme-disclosure="true">
+                                            <summary tabIndex={0} className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2">
+                                                <span id="settings-board-theme-label" className="ui-text-muted">Board Theme</span>
+                                                <span className="flex items-center gap-2 text-sm font-medium">
+                                                    {boardThemeChoices.find((theme) => theme.value === settings.boardTheme)?.label ?? 'Choose a theme'}
+                                                    <FaChevronDown aria-hidden="true" className="transition-transform group-open/theme-picker:rotate-180" />
+                                                </span>
+                                            </summary>
                                             <div
                                                 id="settings-board-theme"
                                                 className="grid grid-cols-2 gap-2 sm:grid-cols-3"
@@ -975,7 +982,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                                                     );
                                                 })}
                                             </div>
-                                        </div>
+                                        </details>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-2">
