@@ -20,8 +20,12 @@ reproduced failures separate from candidates that still need investigation.
   desktop and phone: Stop reaches the worker at 237/230 ms, explicit Stop
   at 267 ms, and current-position evaluation renders at 1,084 ms within
   2,500 ms. Old work cancels at 297 ms. No engine speedup is claimed.
-  Integrated browser verification is starting on the frozen commit, with
-  no competing test jobs.
+  The complete integrated browser sweep passes on the frozen commit, with
+  no competing test jobs: all 11 layouts and every native suite, including
+  the 18 fast-navigation cases, 18 two-tab naming cases, 15 mixed image/text
+  copy cases, latest-copy feedback, PNG geometry/coordinates, import ownership,
+  cross-tab storage, 1,500 expanded folders and final read/import recovery.
+  This precedes the optional Lessons practice-board action under development.
 
 - Full unit verification at `449d389` passes 502 files and 3,439 cases, with
   78 engine cases skipped in CI. This run uses one worker and keeps the
