@@ -347,12 +347,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
         const disclosure = control?.closest('details');
         if (disclosure) disclosure.open = true;
 
-        (label ?? control)?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         // Focused, not just scrolled to, so keyboard users land on the control
         // and can change it straight away.
         const focusTarget = control?.getAttribute('role') === 'radiogroup'
             ? control.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
             : control;
+        const revealTarget = control?.getAttribute('role') === 'radiogroup'
+            ? focusTarget ?? control
+            : label ?? control;
+        revealTarget?.scrollIntoView({ block: 'center', behavior: preferredScrollBehavior() });
         focusTarget?.focus({ preventScroll: true });
         const row = label?.closest<HTMLElement>('div') ?? control;
         if (!row) return;

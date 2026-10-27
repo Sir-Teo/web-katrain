@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Settings search now scrolls to the selected radio choice rather than the
+  entire group. Production reproduction `vfvCMY` found only 9 px of the chosen
+  theme visible at 390×844 and none at 320×568 or 568×320 after scrolling
+  settled. Candidate `F1KmEY` shows the complete selected card at all three
+  sizes and 1440×900, with disclosure, persistence, keyboard navigation and
+  game-state checks passing. The existing Settings keyboard helper now also
+  asserts focused-card visibility after scrolling settles, while retaining
+  its composition/modifier/backend/theme/tab checks. Targeted lint, 49 cases
+  across six Settings/theme/backend files and the production build pass
+  (Vite phase 20.3 s). This is focused verification, not a new full-suite run.
+
 - General Settings now shows the current board theme in an expandable row;
   opening it retains all nine original previews. Search opens the disclosure
   and focuses the selected theme. A balanced three-profile production
