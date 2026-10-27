@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The complete browser sweep at `204b4c7` passes all 11 sizes and every
+  native suite, including all 54 file/acquisition cases, 24 trusted paste
+  events, both cross-tab storage modes and queued fallback reloads. Deep
+  folders, OGS, Copy SGF and final import/read recovery pass. The pending
+  board-image snapshot change is outside this completed sweep.
+
 - Full unit verification at `204b4c7`, including file-handle acquisition
   ownership, passes 501 files and 3,425 cases with 78 engine cases skipped in
   CI. App/test TypeScript and targeted lint pass; all 54 expanded native file
