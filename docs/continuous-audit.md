@@ -8,6 +8,25 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Dismissing a focused notification now returns to the connected control used
+  before entering it, when focus is otherwise unclaimed. The native baseline
+  dropped focus from Analyze to BODY after keyboard dismissal at all three
+  compact sizes (`2RXZDW`). Native reading, scrolling, complete-message copy
+  and dismissal now return to the exact Analyze element (`uLoI49`). Targeted
+  lint, 47 related cases, the original notification interaction/copy-order
+  helpers (`wOyuWH`) and the build pass (Vite phase 18.5 s). Production passes
+  the same flow and unchanged-game checks under
+  `katrain-toast-focus-return-production-7aezXt` (`xBdrmA`).
+
+- A stage-timing diagnostic of the original variation-copy helper passes all
+  three widths (`M5ww1U`). Cached Ctrl+C export performs no gzip calls during
+  the copy; input-to-write is 0.6–13.4 ms and the write takes 0.9–2.7 ms in
+  this run. Encoding earlier in each context totals 2–6 ms. These measurements
+  do not explain the retained 1,197 ms failure. A subsequent Keep-in-tree CPU
+  profile (`TdcKF4`) has a large unattributed first sample (91–393 ms), so it
+  does not establish an application bottleneck. No performance change was
+  adopted from these diagnostics.
+
 - The full unit and lint pass at `959a171` succeeds: 515 test files and
   3,552 cases pass, with two files and eight cases skipped (811.0 s).
   This includes the SGF size notices, Library export-byte counts, accessible

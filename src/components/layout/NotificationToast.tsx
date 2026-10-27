@@ -3,6 +3,7 @@ import { FaCheck, FaCheckCircle, FaCopy, FaExclamationTriangle, FaInfoCircle, Fa
 import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent } from '../../utils/clipboard';
 import { useDocumentFlag } from '../../hooks/useDocumentFlag';
 import { revealFocusedButton } from '../../utils/revealFocusedButton';
+import { restoreFocusIfUnclaimed } from '../../utils/focusRestore';
 
 export type NotificationToastType = 'info' | 'error' | 'success';
 
@@ -58,6 +59,7 @@ export function NotificationToast({
   const Icon = meta.Icon;
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const toastRef = React.useRef<HTMLDivElement>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
   const copyRequestRef = React.useRef(0);
   const canCopy = notification.type === 'error';
   // Tells the install card to step aside while a toast is up (index.css).
@@ -98,6 +100,14 @@ export function NotificationToast({
     setCopyState(copied ? 'copied' : 'failed');
   };
 
+  const handleClose = () => {
+    const target = toastRef.current?.contains(document.activeElement) ? returnFocusRef.current : null;
+    onClose();
+    if (target) window.setTimeout(() => {
+      if (target.isConnected) restoreFocusIfUnclaimed(target);
+    }, 0);
+  };
+
   return (
     <div
       className={[
@@ -119,7 +129,13 @@ export function NotificationToast({
         data-notification-type={notification.type}
         onMouseEnter={syncHold}
         onMouseLeave={syncHold}
-        onFocus={syncHold}
+        onFocus={(event) => {
+          if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
+            returnFocusRef.current = event.relatedTarget instanceof HTMLElement && event.relatedTarget !== document.body
+              ? event.relatedTarget : null;
+          }
+          syncHold();
+        }}
         onBlur={(event) => {
           if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
           syncHold();
@@ -170,7 +186,7 @@ export function NotificationToast({
         <button
           type="button"
           className="notification-toast-close"
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Dismiss notification"
           title="Dismiss notification"
         >
