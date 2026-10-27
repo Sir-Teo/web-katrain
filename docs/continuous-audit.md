@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The second PR CI attempt passes the original 320 px recovery failure and
+  both enlarged-text retry stages. Its 200% case then fails the second board
+  touch before producing a preview. An offline-ready card is visible, but its
+  relationship to that missed touch is not established. The new cases now
+  enlarge text while Library recovery controls are visible and retain normal
+  scale for their existing board-setup steps. All original save, recovery and
+  native-touch assertions remain intact. Local be1R2E passes all three scales
+  under the GitHub Pages base path; helper lint passes. This does not claim a
+  fix for enlarged-text board input or turn the failed CI attempt into a pass.
+
 - PR #30's first CI run passes audit and the full verify command, then fails
   one native 320 px save-error scenario: the wrapped Library header pushes
   Retry behind a persistent notification. The failure screenshot and artifact

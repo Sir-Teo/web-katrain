@@ -205,7 +205,6 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           continue;
         }
         await openLibrary();
-        if (font) await evaluate(cdp, `document.documentElement.style.fontSize=${JSON.stringify(font)};void 0`);
         if (action === 'update') {
           const sgf = '(;GM[1]SZ[9]C[Original study]AB[dd])';
           const file = path.join(runDir, `${stem}.json`);
@@ -245,6 +244,9 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         await play(4);
         const firstRecovery = await recovery();
         if (!entry) await openLibrary();
+        // Enlarge the Library controls under test; prepare board moves at the
+        // existing normal scale rather than changing their coordinate fixture.
+        if (font) await evaluate(cdp, `document.documentElement.style.fontSize=${JSON.stringify(font)};void 0`);
         await evaluate(cdp, installStorageControls);
         const originalItems = await evaluate(cdp, storedItems);
         if (overlap === 'write') await evaluate(cdp, 'librarySaveAudit.skipDelayedOpens=1');
@@ -398,10 +400,12 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           await wait(`!document.body.innerText.includes('Could not save the game to Library')`);
           assert.ok(await evaluate(cdp, `document.querySelector('[data-notification-type="success"]')?.textContent.includes(${JSON.stringify(action === 'save' ? 'Saved "Unsaved study"' : 'Updated "Saved study"')})`),
             'A successful retry must replace its resolved save error');
+          if (font) await evaluate(cdp, `document.documentElement.style.removeProperty('font-size');new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
           if (mobile) await click('#mobile-tab-board');
           await play(5);
           const latestBoard = await boardSnapshot(), latestRecovery = await recovery();
           await openLibrary();
+          if (font) await evaluate(cdp, `document.documentElement.style.fontSize=${JSON.stringify(font)};void 0`);
           // Reopening the phone panel replaces the module's guarded callbacks,
           // but the page-level storage controls remain installed.
           await evaluate(cdp, `librarySaveAudit.mode='fail';librarySaveAudit.failed=0`);
