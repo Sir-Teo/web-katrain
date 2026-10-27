@@ -295,6 +295,8 @@ export async function chromeTarget(port, timeoutMs = 30_000) {
 // the previous board. Subscribe before navigating: events can precede replies.
 export async function navigate(cdp, url, timeoutMs = 15000, { acceptBeforeUnload = false } = {}) {
   const loaded = new Set();
+  const transitions = [];
+  let priorDocument;
   let navigation;
   let complete;
   let fail;
@@ -310,6 +312,10 @@ export async function navigate(cdp, url, timeoutMs = 15000, { acceptBeforeUnload
   // A deadline reports the failure; it never reloads the page or reruns input.
   ready.catch(() => {});
   const unsubscribe = cdp.on((message) => {
+    if (['Page.frameStartedNavigating', 'Page.frameNavigated', 'Page.navigatedWithinDocument'].includes(message.method)) {
+      transitions.push({ method: message.method, params: message.params });
+      if (transitions.length > 8) transitions.shift();
+    }
     if (message.method === 'Page.javascriptDialogOpening') {
       // A beforeunload confirmation pauses navigation and renderer evaluation.
       // Keep the page unless the caller explicitly allows discarding its fixture.
@@ -337,6 +343,13 @@ export async function navigate(cdp, url, timeoutMs = 15000, { acceptBeforeUnload
     // deadline covers it, without retrying navigation or replaying page actions.
     await Promise.race([cdp.send('Page.enable'), ready]);
     await Promise.race([cdp.send('Page.setLifecycleEventsEnabled', { enabled: true }), ready]);
+    const snapshot = await Promise.race([cdp.send('Runtime.evaluate', {
+      expression: `({url:location.href,state:history.state,key:globalThis.navigation?.currentEntry?.key,
+        dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.getAttribute('aria-labelledby')),
+        loading:!!document.querySelector('[data-lazy-modal-loading]')})`,
+      returnByValue: true,
+    }).catch(() => undefined), ready]);
+    priorDocument = snapshot?.result?.result?.value;
     const response = await Promise.race([cdp.send('Page.navigate', { url }), ready]);
     if (blockedByDialog) await Promise.race([handlingDialog, ready]);
     if (response?.error || response?.result?.errorText || !response?.result) {
@@ -347,6 +360,10 @@ export async function navigate(cdp, url, timeoutMs = 15000, { acceptBeforeUnload
     // A fragment navigation stays in the current document and has no loader ID.
     if (!navigation.loaderId || loaded.has(`${navigation.frameId}:${navigation.loaderId}`)) complete();
     await ready;
+  } catch (error) {
+    // Preserve failures and their deadlines; do not replay an aborted request.
+    if (error instanceof Error) error.message += ` | navigation context: ${JSON.stringify({ priorDocument, transitions }).slice(0, 6000)}`;
+    throw error;
   } finally {
     clearTimeout(timer);
     unsubscribe();

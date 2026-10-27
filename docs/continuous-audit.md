@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The fourth PR CI attempt passes cancellation cleanup, all four Paste
+  keyboard layouts and the first two clipboard-draft widths, then aborts the
+  next navigation after closing the 390 px editor. Clipboard-draft cleanup now
+  waits for its exact original history entry before changing viewports.
+  Navigation failure messages retain prior URL/history/dialog state and bounded
+  transition events; they still fail without retrying or changing deadlines.
+  All 29 existing navigation/history tests and helper lint pass. Local rM2uZw
+  passes cancellation, four keyboard layouts, all three draft widths and the
+  desktop command-ordering case, then fails an unchanged clipboard-command
+  fixture deadline at 390 px (1,924 ms). This remains a failed combined run;
+  GwbTML's earlier complete local boundary pass does not replace it. No source
+  application behavior changed, and full current-head CI remains required.
+
 - The third PR CI attempt passes all 41 Library save-recovery cases, all
   restore/background-save/OS-open cases, scoring and notification layouts.
   It fails a Page.navigate with net::ERR_ABORTED immediately after the Photo

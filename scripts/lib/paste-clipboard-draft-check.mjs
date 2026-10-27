@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluate, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { captureHistoryEntry, evaluate, navigate, setViewport, waitForExpression, waitForHistoryEntry } from './browser.mjs';
 
 export async function assertPasteClipboardDraft(cdp, appUrl, screenshotDir) {
   const wait = expression => waitForExpression(cdp, expression, {
@@ -64,7 +64,7 @@ export async function assertPasteClipboardDraft(cdp, appUrl, screenshotDir) {
     for (const width of [1280,390,320]) {
       mobile=width<600;await setViewport(cdp,{width,height:mobile?(width===320?568:844):800,mobile});
       await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});await wait('!!document.querySelector("[data-board-snapshot]")');
-      await settle();await open();
+      await settle();const originalEntry=await captureHistoryEntry(cdp);await open();
       await evaluate(cdp,`(() => {
         window.clipboardDraftRequests=[];
         Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:()=>new Promise((resolve,reject)=>clipboardDraftRequests.push({resolve,reject,started:performance.now()}))}});
@@ -96,7 +96,9 @@ export async function assertPasteClipboardDraft(cdp, appUrl, screenshotDir) {
       await edit(draft);const dismissed=await read();await click('[aria-label="Close paste SGF"]');await finish(dismissed,'(;SZ[13]GN[Dismissed read])');await open();
       assert.equal(await value(),'','A dismissed read must not appear in a new dialog');assert.equal(await status(),null);
       const shot=await cdp.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(screenshotDir,`paste-clipboard-draft-${width}.png`),Buffer.from(shot.result.data,'base64'));
-      await click('[aria-label="Close paste SGF"]');results.push({width,typedDraft:true,latestRead:true,emptyAndDenied:true,pendingImport:true,dismissal:true});
+      await click('[aria-label="Close paste SGF"]');
+      await waitForHistoryEntry(cdp,originalEntry,'!document.querySelector(".paste-sgf-modal-textarea")');
+      results.push({width,typedDraft:true,latestRead:true,emptyAndDenied:true,pendingImport:true,dismissal:true});
       console.log('Clipboard draft ordering',JSON.stringify(results.at(-1)));
     }
     fs.writeFileSync(path.join(screenshotDir,'paste-clipboard-draft.json'),JSON.stringify(results,null,2));
