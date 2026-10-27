@@ -1,6 +1,6 @@
 import type { GameNode } from '../types';
 import { captureBoardSnapshot } from './boardSnapshot';
-import { writeClipboardImage } from './clipboard';
+import { beginClipboardWriteRequest, isClipboardWriteRequestCurrent, writeClipboardImage } from './clipboard';
 import { downloadBlob } from './objectUrl';
 import { getSgfDownloadFilename } from './sgf';
 
@@ -46,8 +46,9 @@ export const downloadBoardImage = async (rootNode: GameNode, moveNumber: number)
 };
 
 /** Captures the board and copies the PNG to the clipboard. Returns true on success. */
-export const copyBoardImage = async (): Promise<boolean> => {
+export const copyBoardImage = async (request = beginClipboardWriteRequest()): Promise<boolean> => {
+  if (!isClipboardWriteRequestCurrent(request)) return false;
   const blob = await captureBoardImageBlob();
-  if (!blob) return false;
-  return writeClipboardImage(blob);
+  if (!blob || !isClipboardWriteRequestCurrent(request)) return false;
+  return writeClipboardImage(blob, undefined, request);
 };

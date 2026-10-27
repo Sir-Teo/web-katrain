@@ -121,7 +121,7 @@ import { getMediaQueryList, subscribeMediaQueryList } from '../utils/mediaQuery'
 import { PREFERS_DARK_MEDIA_QUERY, getResolvedUiTheme } from '../utils/uiThemes';
 import { syncThemeColorMeta } from '../utils/themeColor';
 import { buildDocumentTitle } from '../utils/documentTitle';
-import { copyTextToClipboard, readClipboardText } from '../utils/clipboard';
+import { beginClipboardWriteRequest, copyTextToClipboard, isClipboardWriteRequestCurrent, readClipboardText } from '../utils/clipboard';
 import { formatBoardTextDiagram } from '../utils/boardTextDiagram';
 import { FIRST_RUN_LIBRARY_MIN_WIDTH, getInitialLibraryOpen, LIBRARY_OPEN_STORAGE_KEY } from '../utils/layoutPreferences';
 import { saveSettingsActiveTab } from '../utils/settingsTabs';
@@ -2278,7 +2278,10 @@ export const Layout: React.FC = () => {
 
   const handleCopySgf = useCallback(async () => {
     const sgf = generateCurrentSgfForSave();
-    if (await copyTextToClipboard(sgf)) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(sgf, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied SGF to clipboard.', 'success');
       return;
     }
@@ -2295,7 +2298,10 @@ export const Layout: React.FC = () => {
       komi,
       captured: { black: capturedBlack, white: capturedWhite },
     });
-    if (await copyTextToClipboard(text)) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(text, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied the position as text.', 'success');
       return;
     }
@@ -2312,7 +2318,10 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopyBoardImage = async () => {
-    if (await copyBoardImage()) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyBoardImage(request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (copied) {
       toast('Copied board image to clipboard.', 'success');
       return;
     }
@@ -2332,7 +2341,10 @@ export const Layout: React.FC = () => {
       toast('This game is too large for a share link. Save it to the Library or download the SGF instead.', 'error');
       return;
     }
-    if (!(await copyTextToClipboard(url))) {
+    const request = beginClipboardWriteRequest();
+    const copied = await copyTextToClipboard(url, undefined, undefined, request);
+    if (!isClipboardWriteRequestCurrent(request)) return;
+    if (!copied) {
       toast('Copy failed (clipboard unavailable).', 'error');
       return;
     }

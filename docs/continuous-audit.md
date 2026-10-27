@@ -258,6 +258,19 @@ reproduced failures separate from candidates that still need investigation.
 
 Work resumed on 2026-10-25 with another UI and reliability pass:
 
+- **Prepared image copies respect newer clipboard actions:** a PNG waiting
+  for its texture could overwrite text or a PNG copied more recently; an
+  older text fallback could also overwrite a newer image. Three regressions
+  reproduce those contents changing back to the older payload. Clipboard
+  writes now share a request across preparation, modern writing and legacy
+  fallback. Obsolete prepared images skip the write, and board-copy callbacks
+  ignore stale feedback. All 58 focused cases, app/test TypeScript and
+  targeted lint pass. Native desktop/phone checks pass 15 mixed-format cases
+  using real text reads and decoded PNG pixel hashes; the previous 12 text
+  fallback cases also pass with six genuine legacy copies. The first native
+  run was interrupted by an environment restart after its desktop cases;
+  a later phone fixture needed the control's ARIA label instead of a title.
+  Both incomplete/failed samples remain retained alongside the passing run.
 - **Late text-copy failures preserve newer clipboard content:** an older
   modern write could reject or time out after a newer copy completed, then
   overwrite it through the legacy textarea fallback. Both cases reproduce

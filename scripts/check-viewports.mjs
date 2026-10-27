@@ -49,6 +49,7 @@ import { assertLibraryShowMoreFocus } from './lib/library-show-more-focus-check.
 import { assertExpandedLibraryDepth } from './lib/library-expanded-depth-check.mjs';
 import { assertLibraryCopy } from './lib/library-copy-check.mjs';
 import { assertClipboardFallbackOrder } from './lib/clipboard-fallback-order-check.mjs';
+import { assertImageCopyOrder } from './lib/image-copy-order-check.mjs';
 import { assertOgsSyncCancellation } from './lib/ogs-sync-cancel-check.mjs';
 import { assertOgsSyncSave } from './lib/ogs-sync-save-check.mjs';
 import { assertBotPickerKeyboard } from './lib/bot-picker-keyboard-check.mjs';
@@ -4276,6 +4277,7 @@ async function main() {
     await assertExpandedLibraryDepth(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryCopy(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertClipboardFallbackOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertImageCopyOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertMoveTreeComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertReportGuideKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryImportAfterClose(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
