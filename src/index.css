@@ -5837,6 +5837,12 @@
       margin-block: 0 !important;
     }
 
+    /* Keep the waiting title and Cancel visible together at enlarged text. */
+    [data-save-to-library-loading] > .ui-bar,
+    [data-save-to-library-loading] > #save-to-library-loading-status {
+      padding: 12px !important;
+    }
+
     .paste-sgf-modal-header,
     .paste-sgf-modal-footer {
       padding-top: 8px !important;

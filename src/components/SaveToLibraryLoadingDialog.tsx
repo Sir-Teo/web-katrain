@@ -23,7 +23,7 @@ export const SaveToLibraryLoadingDialog: React.FC<SaveToLibraryLoadingDialogProp
         aria-describedby="save-to-library-loading-status"
         aria-busy="true"
         data-save-to-library-loading="true"
-        className="ui-panel w-full max-w-sm overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel max-h-full w-full max-w-sm overflow-y-auto rounded-lg border shadow-xl"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3">
           <h2 id="save-to-library-title" className="text-base font-semibold text-[var(--ui-text)]">Save Copy to Library</h2>

@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Save Copy's folder-loading dialog stays within short viewports at enlarged
+  text. Baseline `4Ej6Ij` extends from -10 to 330 px in a 320 px landscape
+  window at 200% text. The panel now has a maximum height and vertical scrolling;
+  compact landscape padding also keeps its title, status and focused Cancel
+  visible together. The first bounded candidate passes dismissal checks but
+  visually clips its title after Cancel receives focus; spacing prototype
+  `bvY9gQ` fixes that remaining issue. Final production `YJQYkP` passes eight
+  normal/enlarged layouts with the full initial title, visible focused Cancel,
+  touch targets, native cancellation and unchanged boards. The original four-size
+  loading helper also passes focus containment, Escape/button/mobile Back,
+  late/overlapping-read rejection and a fresh naming dialog. Thirty focused tests,
+  source lint and both builds pass; final Vite phase takes 13.8 s.
+
 - The Paste dialog now recognizes Web KaTrain share-link envelopes and explains
   that the embedded game opens directly. Baseline `7fqbif` loads valid links
   correctly but labels them unsupported URLs; damaged and empty fragments get
