@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The standard production responsiveness check at `c16e6ac` fails warm
+  Settings opening at 184.5 ms against the unchanged 120 ms budget. First
+  board move (11.36 ms), board-move median (1.52 ms), trusted-input INP p98
+  (72 ms) and worst long task (129 ms) pass. The failed run is retained in
+  `katrain-batch-ninety-four-responsiveness.log`.
+  Separate six-second-warm render diagnostics (`th3rMz`) found no painted
+  improvement from removing header blur; removing preview backgrounds was
+  diagnostic only because it loses theme information. A balanced three-profile
+  comparison of asynchronous texture images (`KyxfGl`) was worse: median
+  DOM/paint opening was 140.3/195.1 ms versus 118.8/153.9 ms for the current
+  app, with five of six textures still unloaded at the first painted frame.
+  That prototype was rejected and restored. Its patch, build, screenshots
+  and measurements are retained; no performance change was adopted.
+
 - `npm run test:layouts` now runs the original 11 base viewport checks and
   screenshots, then reports that native workflow helpers were excluded.
   The normal `test:viewport` command retains its full helper sequence. The
