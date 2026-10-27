@@ -207,6 +207,14 @@ const UNNAMED_CONTROL_AUDIT = `(() => {
 
 const screenshotDir = process.env.VIEWPORT_SCREENSHOT_DIR || '/tmp/web-katrain-viewport-check';
 
+function reportViewports(results, label) {
+  console.log(`${label} Screenshots: ${screenshotDir}`);
+  for (const result of results) {
+    const board = result.defaultBoard ?? result.board;
+    console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
+  }
+}
+
 /**
  * The board rendering is not the same thing as the app being usable.
  *
@@ -4240,6 +4248,10 @@ async function main() {
         `${viewportFailures.length} viewport(s) failed:\n  - ${viewportFailures.join('\n  - ')}`,
       );
     }
+    if (process.argv.includes('--layouts-only')) {
+      reportViewports(results, 'Layout checks passed (native workflows excluded).');
+      return;
+    }
     await assertShellVariantApplies(cdp);
     await assertDialogsFitShortViewports(cdp);
     await assertLongMetadataStaysRecoverable(cdp);
@@ -4319,11 +4331,7 @@ async function main() {
     await assertReportGuideKeyboard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryImportAfterClose(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryReadRetry(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
-    console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
-    for (const result of results) {
-      const board = result.defaultBoard ?? result.board;
-      console.log(`${result.viewport}: board ${Math.round(board.width)}x${Math.round(board.height)}`);
-    }
+    reportViewports(results, 'Viewport checks passed.');
   } finally {
     await closeBrowser(cdp, chrome);
     await server?.close();

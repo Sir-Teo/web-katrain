@@ -12,6 +12,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:viewport": "node scripts/check-viewports.mjs",
+    "test:layouts": "node scripts/check-viewports.mjs --layouts-only",
     "test:responsiveness": "node scripts/check-responsiveness.mjs",
     "test:analysis": "node scripts/check-analysis-responsiveness.mjs",
     "test:study": "node scripts/check-study-performance.mjs",

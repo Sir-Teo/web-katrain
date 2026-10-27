@@ -8,6 +8,14 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- `npm run test:layouts` now runs the original 11 base viewport checks and
+  screenshots, then reports that native workflow helpers were excluded.
+  The normal `test:viewport` command retains its full helper sequence. The
+  layouts-only run on the application at `dfa25b2` passes all 11 sizes under
+  `katrain-batch-ninety-three-layouts`, including 320×568, both landscape sizes,
+  1280×460 and wide desktop. Script lint and 40 existing runner/documentation
+  cases pass. This is a base-layout result, not a new full browser-suite pass.
+
 - Dismissing a focused notification now returns to the connected control used
   before entering it, when focus is otherwise unclaimed. The native baseline
   dropped focus from Analyze to BODY after keyboard dismissal at all three
