@@ -8,6 +8,26 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Clear Analysis Cache confirmation now scrolls within the screen and keeps
+  its Close target from shrinking. Development baseline `ktMwAU` put the
+  200%-text dialog at -500..1068 px on a 320x568 screen, with both action
+  buttons outside the viewport and a 22 px Close width. At 568x320 even
+  normal text exceeded the viewport. Candidate `3ht6cb` passes all eight
+  desktop/portrait/landscape and 100%/200% text combinations: initial Cancel
+  is visible, each control can be scrolled into view and activated, mobile
+  targets are at least 44x44 px and there is no horizontal scrolling. Native
+  Cancel retains the complete seeded analysis; native Clear removes it while
+  retaining the board and note. The unchanged original cache-dialog helper
+  also passes focus trapping/return, composition and blocked app shortcuts.
+  Two initial external probes selected controls absent from the phone shell
+  (`BmBJe0`, `Jkis2u`); the passing fixture uses the visible Tools accessible
+  label on phones and the engine control on desktop. The application was
+  unchanged during those baseline corrections. Targeted lint, 43 existing
+  dialog/layout cases and the build pass (Vite phase 15.4 s). These are
+  development browser checks and root-text enlargement; no new production
+  or full-suite pass is implied. The prior full-suite timing failure remains
+  unresolved.
+
 - Resignation confirmation now scrolls within the viewport and keeps its
   Close button from shrinking beside the heading. Production baseline
   `Mnb1Mk` placed the dialog at -124..692 px on a 320x568 screen with 200%
