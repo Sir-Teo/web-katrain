@@ -31,6 +31,12 @@ function rootPropertiesForNode(node: GameNode): Record<string, string[]> {
 }
 
 const KIFU_PRINT_STYLE = `
+  @media screen and (max-height: 520px) and (orientation: landscape) {
+    #kifu-print-title { -webkit-line-clamp: 1; }
+    .kifu-print > .kifu-controls { padding: 8px 12px; gap: 8px; }
+    .kifu-print .kifu-scroll { padding: 8px 12px; }
+    .kifu-print > .kifu-controls button { min-width: 44px; min-height: 44px; padding: 8px 12px; }
+  }
   @media print {
     @page { size: A4 portrait; margin: 12mm; }
     /* The dialog is portalled to <body> so everything else can leave the
@@ -68,7 +74,7 @@ const KIFU_PRINT_STYLE = `
     }
     .kifu-diagram-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     .kifu-diagram-caption { color: #334155 !important; }
-    .kifu-print-game-header { display: block !important; color: #0f172a !important; }
+    .kifu-print-game-header { display: block !important; color: #0f172a !important; overflow-wrap: anywhere; }
     .kifu-print-game-details { color: #334155 !important; }
     .kifu-print .kifu-diagram-repeats { color: #334155 !important; }
   }
@@ -159,12 +165,12 @@ export const KifuPrintModal: React.FC<KifuPrintModalProps> = ({ onClose }) => {
         <div className="kifu-controls relative flex flex-col items-stretch gap-3 border-b border-[var(--ui-border)] px-3 py-3 ui-bar sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
           <div className="min-w-0 pr-12 sm:pr-0">
             <div className="text-xs uppercase tracking-[0.2em] ui-text-faint">{positionOnly ? 'Print position' : 'Print kifu'}</div>
-            <h2 id="kifu-print-title" className="text-lg font-semibold text-[var(--ui-text)]">
+            <h2 id="kifu-print-title" className="line-clamp-2 break-words text-lg font-semibold text-[var(--ui-text)]" title={`${playerNames.black} vs ${playerNames.white}`}>
               <span className="sr-only">{positionOnly ? 'Print position: ' : 'Print Kifu: '}</span>
               {playerNames.black} vs {playerNames.white}
             </h2>
           </div>
-          <div className="flex min-w-0 w-full items-center gap-1 sm:w-auto sm:gap-2">
+          <div className="flex min-w-0 w-full items-center gap-1 sm:w-auto sm:shrink-0 sm:gap-2">
             {!positionOnly && (
               <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-lg border border-[var(--ui-border)] sm:flex-none" role="group" aria-label="Moves per diagram">
                 {MOVES_PER_DIAGRAM_OPTIONS.map((opt) => {

@@ -8,6 +8,33 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Long unbroken Kifu player names and study titles now wrap in print, keeping
+  the board within the page. Baseline `4sfNNV` expands the print header to
+  1,671/3,343 px at normal/200% text; all eight PDFs lose full names/title and
+  a rendered page visibly clips the board's right side. Screen headings now
+  clamp to two lines with the full text available by tooltip and accessibility
+  name. The action bar reserves its width. Short landscape uses one heading
+  line and compact spacing, preserving enlarged text and touch targets.
+  Final production `dfLMFk` passes eight long-metadata cases with native Print,
+  exact stones, complete accessible names, no horizontal overflow and at least
+  88 px of visible preview. Its PDFs retain complete names/title and every
+  board coordinate inside page bounds; the longest enlarged fixtures use two
+  pages. The earlier 12 empty/setup/move cases (`Z18pJ4`) and eight extra
+  landscape toolbar cases pass. An initial candidate still pushed actions out
+  of the header; reserved action width and compact spacing fix that observed
+  failure. PDF validation accounts for extraction order and page boundaries.
+  Targeted lint, 51 existing cases and the final build pass (Vite phase 16.0 s).
+
+- Broad check at `058c949`: repository-wide lint passes. The full unit run
+  finishes in 614.4 s with 514 passing files, one failing file and two skipped
+  files: 3,555 passing tests, one failure and five skipped. Its sole failure
+  requires the pre-position-printing source strings for the Kifu action label
+  and accessible heading. The assertion now checks both position and Kifu
+  labels while keeping the existing layout/accessibility checks; that file's
+  14 cases pass. This is a recorded failed full run, not a full-suite pass.
+  A fresh full run on the corrected revision follows. The prior full-browser
+  timing failure also remains unresolved.
+
 - Kifu printing now supports non-empty positions with no recorded moves,
   such as an SGF problem or handicap setup. They produce one unnumbered board
   diagram with a Position caption and hide the irrelevant moves-per-diagram

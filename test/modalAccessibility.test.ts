@@ -82,12 +82,13 @@ describe('modal accessibility semantics', () => {
     expect(source).toContain('flex flex-col items-stretch gap-3');
     expect(source).toContain('sm:flex-row sm:items-center sm:justify-between');
     expect(source).toContain('absolute right-3 top-3');
-    expect(source).toContain("const printActionLabel = canPrint ? 'Print kifu or save as PDF' : 'No moves to print';");
+    expect(source).toContain("? positionOnly ? 'Print position or save as PDF' : 'Print kifu or save as PDF'");
+    expect(source).toContain(": 'No moves to print';");
     expect(source).toContain('aria-label={printActionLabel}');
     expect(source).toContain('<span className="hidden lg:inline">Print / PDF</span>');
     expect(source).toContain('<span className="sm:hidden">All</span>');
     expect(source).toContain('<span className="hidden sm:inline">{opt.label}</span>');
-    expect(source).toContain('<span className="sr-only">Print Kifu: </span>');
+    expect(source).toContain("<span className=\"sr-only\">{positionOnly ? 'Print position: ' : 'Print Kifu: '}</span>");
   });
 
   it('moves focus into dialogs that use the shared focus hook and wraps Tab inside them', () => {
