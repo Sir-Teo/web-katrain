@@ -87,7 +87,7 @@ export async function assertNoteDraftRecovery(cdp, appUrl, screenshotDir) {
 
     await fresh();await typeNote('Note included in saved copy');
     await command('save-library','Save copy to library');
-    await wait('!!document.querySelector("[aria-labelledby=save-to-library-title]")');
+    await wait('!!document.querySelector("#save-to-library-name")');
     await click('[aria-labelledby="save-to-library-title"] > .ui-bar:last-child button:last-child');
     await wait('!document.querySelector("[aria-labelledby=save-to-library-title]")');
     assert.equal(await note(),'Note included in saved copy');

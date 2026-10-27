@@ -52,12 +52,12 @@ describe('the sweep opens dialogs that have no shortcut', () => {
     // The print preview renders the kifu it would print and the save dialog
     // writes to the library only when its form is submitted, so opening and
     // closing either leaves the board as it was.
-    for (const [name, title, id] of [
+    for (const [name, title, id, readySelector = ''] of [
       ['kifu print', 'kifu-print-title', 'print-kifu'],
-      ['save to library', 'save-to-library-title', 'save-library'],
+      ['save to library', 'save-to-library-title', 'save-library', ':has(#save-to-library-name)'],
     ]) {
       expect(sweep, name).toContain(`name: '${name}',`);
-      expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]',`);
+      expect(sweep, name).toContain(`selector: '[aria-labelledby="${title}"]${readySelector}',`);
       expect(sweep, name).toContain(`open: openViaPalette('${id}'),`);
     }
   });

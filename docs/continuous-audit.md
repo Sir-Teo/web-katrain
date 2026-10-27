@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The browser sweep at `5330286` passes all 11 base viewports and the
+  integration checks through pro-game replacement, including Library save
+  failures/ordering, clipboard and file ordering, board exports, new-game
+  flows, lessons and metadata recovery. It then fails the note-recovery
+  Save Copy assertion (`katrain-batch-eighty-three-layouts`). That helper
+  could select Cancel from the loading dialog before the naming form arrived.
+  Waiting for the actual name input preserves its original save/persistence
+  assertions; the corrected full note-recovery check passes on desktop and
+  phone under `katrain-note-save-ready-nv1LQC`. Its seven source checks,
+  targeted lint and test TypeScript also pass. The source check now recognizes
+  the composition smoke's ready-form selector. The failed broad run is retained
+  and remains a partial pass; the later helpers did not run.
+
 - Photo tracing now offers a one-step Undo Clear and keeps focus on that
   action. The native baseline left focus on Body after Clear at all four
   sizes, although the next Tab stayed inside (`katrain-photo-clear-PfcONQ`).
