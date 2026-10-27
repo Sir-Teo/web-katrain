@@ -8,6 +8,23 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The unsaved-changes confirmation now stays within the viewport and scrolls
+  when necessary; its title wraps and Close retains its touch width. Baseline
+  `3Mj9U7` at 200% text put the dialog at −131…699 px on a 320×568 phone and
+  −118…438 px in 568×320 landscape, with Close and Save beyond the screen.
+  Close also shrank to 25.3 px on the narrow phone. Production `siPzkl` passes
+  control reachability, native Cancel preservation and actual Save SGF downloads
+  at four sizes with both text settings. All eight downloaded games contain
+  the unsaved move before replacement. Follow-up `rDsyKP` enlarges text before
+  opening: Cancel initially holds focus and is visible in all eight cases,
+  with reachability, preservation and downloads passing again. The extended
+  original pro-game helper passes its two normal cases plus enlarged narrow
+  and landscape confirmations: composition Escape, Cancel/Escape, focus return,
+  mobile Back and Discard/load. The underlying picker retains normal text in
+  those additional cases. Targeted lint, 16 existing cases in three files and
+  the final build pass (Vite phase 14.0 s); the preceding eleven-layout result
+  predates this confirmation change.
+
 - The command palette now uses compact surrounding spacing and an intrinsic
   search-field height on short viewports, retaining enlarged text and at least
   44 px search/clear targets. Baseline production `nXht3f` exposed only 24 px of

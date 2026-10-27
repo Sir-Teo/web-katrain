@@ -32,9 +32,11 @@ export async function assertProGameReplacement(cdp, appUrl, screenshotDir) {
   `});
   const reports=[];
   try {
-    for(const width of [1440,390]) {
-      mobile=width===390;
-      await setViewport(cdp,{width,height:mobile?844:900,mobile});
+    for(const width of [1440,390,320,568]) {
+      mobile=width<1000;
+      const largeText=width===320||width===568;
+      const height=width===568?320:width===320?568:mobile?844:900;
+      await setViewport(cdp,{width,height,mobile});
       await navigate(cdp,appUrl,15000,{acceptBeforeUnload:true});
       await wait('!!document.querySelector("[data-board-snapshot=true]")');
       const point=await evaluate(cdp,`(() => {
@@ -57,11 +59,20 @@ export async function assertProGameReplacement(cdp, appUrl, screenshotDir) {
         return text ? Number.parseInt(text,10) : false;
       })()`);
       const requestLoad=async()=>{
+        if(largeText)await evaluate(cdp,"document.documentElement.style.fontSize=''");
         await click('.pro-games-load');
         await wait('!!document.querySelector("[aria-labelledby=unsaved-changes-title]")');
+        if(largeText)await evaluate(cdp,"document.documentElement.style.fontSize='200%';new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
       };
       await requestLoad();
-      const reachable=await evaluate(cdp,`[...document.querySelectorAll('[aria-labelledby="unsaved-changes-title"] button')].every(b=>{const r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))})`);
+      const reachable=await evaluate(cdp,`(async()=>{const d=document.querySelector('[aria-labelledby="unsaved-changes-title"]');
+        if(${largeText}){const r=d.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)return false;}
+        for(const b of d.querySelectorAll('button')){
+          if(${largeText}){b.scrollIntoView({block:'nearest',behavior:'instant'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));}
+          const r=b.getBoundingClientRect();if(!b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))return false;
+          if(${largeText}&&b.getAttribute('aria-label')==='Close unsaved changes dialog'&&r.width<44)return false;
+        }return true;
+      })()`);
       assert.equal(reachable,true,'Every confirmation control must be above the game picker');
       await key('Escape','Escape',27);
       await wait('!document.querySelector("[aria-labelledby=unsaved-changes-title]")');
@@ -84,7 +95,7 @@ export async function assertProGameReplacement(cdp, appUrl, screenshotDir) {
       await click('[aria-labelledby="unsaved-changes-title"] button','Discard');
       await wait('!document.querySelector("[aria-labelledby=pro-games-title]") && !document.querySelector("[aria-labelledby=unsaved-changes-title]")');
       await wait(`Number(document.querySelector('[data-board-snapshot=true]').dataset.boardMoveCount)===${expectedMoves}`);
-      reports.push({width,buttonsReachable:true,cancelPreservesPickerAndGame:true,compositionEscapeIgnored:true,backChecked:mobile,discardLoadsMoves:expectedMoves});
+      reports.push({width,height,confirmationTextSize:largeText?'200%':'100%',buttonsReachable:true,cancelPreservesPickerAndGame:true,compositionEscapeIgnored:true,backChecked:mobile,discardLoadsMoves:expectedMoves});
     }
   } finally {
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:setup.result.identifier});

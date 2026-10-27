@@ -39,7 +39,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
       onClick={() => onChoice('cancel')}
     >
       <div
-        className="ui-panel flex w-full max-w-md flex-col overflow-hidden rounded-lg border shadow-xl"
+        className="ui-panel flex max-h-full w-full max-w-md flex-col overflow-y-auto rounded-lg border shadow-xl"
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
@@ -49,13 +49,13 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({ onChoi
         onClick={(event) => event.stopPropagation()}
       >
         <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-4 py-3">
-          <h2 id="unsaved-changes-title" className="text-lg font-semibold text-[var(--ui-text)]">
+          <h2 id="unsaved-changes-title" className="min-w-0 break-words text-lg font-semibold text-[var(--ui-text)]">
             Unsaved changes
           </h2>
           <button
             type="button"
             onClick={() => onChoice('cancel')}
-            className="ui-control grid place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
+            className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
             aria-label="Close unsaved changes dialog"
           >
             <FaTimes aria-hidden="true" />
