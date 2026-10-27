@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Complete verification at `c63635a` passes all 503 unit files and 3,450 cases,
+  with the existing 78 engine cases skipped in CI. The build passes (Vite
+  phase 11.3 s). This standard responsiveness sample meets all five unchanged
+  limits: first move 8.6 ms, median 1.2 ms, Settings 85.6 ms, input latency
+  48 ms and longest task 69 ms. Earlier latency failures remain unresolved;
+  this sample does not establish their cause or a performance fix.
+  The complete integrated browser sweep passes all 11 layouts and every native
+  suite, with no competing test jobs. It includes cross-tab lesson progress,
+  four practice-board sizes, 28 engine-copy cases, 15 variation-copy/action
+  cases with alternate pointers, 18 model-URL copy/lifetime/closure cases,
+  two-tab Library naming/storage, image/text ordering, frozen PNG exports,
+  1,500 nested folders and final read/import recovery. Evidence is retained
+  under `/workspace/.katrain-audit-artifacts/katrain-batch-seventy-six-viewports`.
+
 - Full unit verification at `b0ce399` retains one failure: a static candidate
   control check expected the literal `min-height: 1.5rem` declaration after
   the touch-size change used `var(--candidate-action-size, 1.5rem)` instead.
@@ -15,7 +29,7 @@ reproduced failures separate from candidates that still need investigation.
   The assertion now checks the unchanged 24 px fallback in its variable form;
   native geometry already confirms 44 px phone/coarse-pointer actions.
   The 42 related cases and targeted lint pass after this repair. The original
-  failed full run remains recorded; complete verification is being rerun.
+  failed full run remains recorded; the subsequent complete run above passes.
 
 - Verification at `00d911f`, including cross-tab lesson progress, passes all
   503 unit files and 3,450 cases, with the existing 78 engine cases skipped
