@@ -259,6 +259,7 @@ const LAYOUT_SHORTCUT_IDS = [
 type LoadedExternalFile = { name: string; kind: 'file' | 'ogs' | 'pasted' };
 type SaveToLibraryDialogState = {
   sgf: string;
+  gameId: string;
   initialName: string;
   initialFolderId: string | null;
   folderOptions: LibraryFolderOption[];
@@ -1410,6 +1411,7 @@ export const Layout: React.FC = () => {
     try {
       finishPendingGameEdits();
       const sgf = generateCurrentSgf();
+      const gameId = getCurrentGameId();
       const items = await loadLibrary();
       if (saveToLibraryOpenRequestRef.current !== request) return;
       const initialFolderId = getLibrarySaveTargetFolderId({
@@ -1420,6 +1422,7 @@ export const Layout: React.FC = () => {
       const fallbackName = loadedLibraryFileName ?? loadedExternalFile?.name ?? nextUntitledGameName(items);
       setSaveToLibraryDialog({
         sgf,
+        gameId,
         initialName: suggestLibraryItemNameFromSgf(sgf, fallbackName),
         initialFolderId,
         folderOptions: getLibraryFolderOptions(items),
@@ -1434,7 +1437,7 @@ export const Layout: React.FC = () => {
         setIsOpeningSaveToLibrary(false);
       }
     }
-  }, [generateCurrentSgf, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
+  }, [generateCurrentSgf, getCurrentGameId, loadedExternalFile?.name, loadedLibraryFileId, loadedLibraryFileName, toast]);
 
   const handleOpenSaveToLibraryDialog = useCallback((returnFocus?: HTMLElement | null) => {
     void openSaveToLibraryDialog(returnFocus);
@@ -1442,6 +1445,7 @@ export const Layout: React.FC = () => {
 
   const handleSaveCopyToLibrary = useCallback(async (name: string, folderId: string | null): Promise<boolean> => {
     const sgf = saveToLibraryDialog?.sgf ?? generateCurrentSgf();
+    const gameId = saveToLibraryDialog?.gameId ?? getCurrentGameId();
     const itemName = name.trim().replace(GAME_RECORD_EXTENSION, '').trim() || 'Untitled';
     try {
       const newItem = await updateStoredLibrary((items) => {
@@ -1451,10 +1455,14 @@ export const Layout: React.FC = () => {
         const item = createLibraryItem(uniqueName, sgf, targetFolderId);
         return { items: [item, ...items], result: item };
       });
-      setLoadedLibraryFile(newItem.id, newItem.name);
+      // An OS file launch can replace the board while this copy is writing.
+      // Persist the requested snapshot, but acknowledge only its original game.
+      if (getCurrentGameId() === gameId) {
+        setLoadedLibraryFile(newItem.id, newItem.name);
+        markCurrentGameCleanAndClearAutoSave(sgf);
+      }
       setExternalLibraryItemCreate({ item: newItem, updatedAt: newItem.updatedAt });
       setLibraryVersion((prev) => prev + 1);
-      markCurrentGameCleanAndClearAutoSave(sgf);
       toast(`Saved "${newItem.name}" to Library.`, 'success');
       setSaveToLibraryDialog(null);
       return true;
@@ -1462,7 +1470,7 @@ export const Layout: React.FC = () => {
       toast(withFailureReason('Failed to save game to Library.', error), 'error');
       return false;
     }
-  }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
+  }, [generateCurrentSgf, getCurrentGameId, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.gameId, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
     if (!hasUnsavedChanges()) return 'discard';

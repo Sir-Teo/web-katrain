@@ -13,6 +13,7 @@ import { assertLibraryRestoreSave } from './lib/library-restore-save-check.mjs';
 import { assertLibraryRestoreRead } from './lib/library-restore-read-check.mjs';
 import { assertLibraryRestorePeer } from './lib/library-restore-peer-check.mjs';
 import { assertLibraryBackgroundSave } from './lib/library-background-save-check.mjs';
+import { assertLibraryCopyLaunch } from './lib/library-copy-launch-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
 import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
@@ -4286,6 +4287,7 @@ async function main() {
     await assertLibraryRestoreRead(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryRestorePeer(cdp, `http://127.0.0.1:${appPort}/`, devtoolsPort, screenshotDir);
     await assertLibraryBackgroundSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryCopyLaunch(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardTooltipsFit(cdp, screenshotDir);

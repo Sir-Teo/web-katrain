@@ -8,6 +8,36 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- A pending Save Copy now acknowledges only the game that requested it.
+  Baseline `jQVtFp` opens a file through the registered OS launch callback while
+  the copy is writing. All six cases attach the completed copy to the new file;
+  in the three different-game cases, pressing Save then overwrites the original
+  Library copy with the new game's SGF. Identical-SGF replacement also loses its
+  file association. The dialog now captures the game ID with its SGF before
+  reading folders, and completion checks that identity before changing the
+  current file or clean baseline. The requested copy still persists normally.
+  New durable browser coverage checks both kinds of replacement at three widths
+  and verifies that saving the new file leaves the old copy untouched.
+  Production `HExHvy` passes all six new cases; its later original delayed-save
+  helper fails because it needs development-only module imports. Corrected
+  production tail `dN0q1n` passes the original pending-focus/loading workflows.
+  Development `BCsLEH` passes the six new cases and all three original delayed
+  Save Copy cases, including newer moves and recovery. Nineteen focused tests,
+  source/runner/helper lint and the build pass (Vite 12.1 s).
+
+- Full browser run 112 passes all 11 base layouts and the native prefix through
+  restore, background saves, scoring, notifications, Paste cancellation, keyboard
+  submission and draft ordering. It fails clipboard-command ordering at 320 px:
+  the first pending read expires before a second read is recorded, leaving both
+  palette and fallback editor open. Later helpers, including engine-error copy,
+  do not run. An isolated original-helper run (`CJuA5h`) also fails and records
+  debugging calls taking up to six seconds. A profiled development run (`vOwlOT`)
+  passes all three widths but still records a 4,767 ms main-thread task while
+  reopening the palette. The same original checks pass against production
+  (`hHEl8r`), with no long tasks recorded on its final page and a longest debugging
+  call of 232 ms. Those isolated results do not explain the failed full run or
+  establish an overall pass. No app timeout or test timing budget was changed.
+
 - Save Copy's folder-loading dialog stays within short viewports at enlarged
   text. Baseline `4Ej6Ij` extends from -10 to 330 px in a 320 px landscape
   window at 200% text. The panel now has a maximum height and vertical scrolling;
