@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The full unit and lint pass at `959a171` succeeds: 515 test files and
+  3,552 cases pass, with two files and eight cases skipped (811.0 s).
+  This includes the SGF size notices, Library export-byte counts, accessible
+  metadata, compact copy targets and bounded error notifications. It does not
+  resolve the separately retained browser timing failures below.
+
 - Long compact error notifications now scroll within a viewport-based message
   height, with focusable text for keyboard reading. Short-landscape feedback
   aligns left to leave the analysis rail reachable. The real failed-model
