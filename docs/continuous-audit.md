@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Verification at `c3a8995` passes all 503 unit files and 3,464 cases, with
+  78 existing engine skips, in 408.3 s. Current app/test TypeScript, full lint
+  and the production build pass (Vite phase 21.5 s). The focused browser sweep
+  passes all 11 original layout/modal assertions, all four score-focus flows,
+  existing score ordering, both short-screen board-scroll cases, 80 problem
+  feedback checks, 16 lesson answers, 12 guess results and four paste shortcuts.
+  Evidence is under `katrain-batch-eighty-one-layouts`, with no competing jobs.
+  This is a focused layout/study/import pass, not the complete all-native suite.
+  The earlier standard Settings timing failure remains unresolved; no new
+  timing sample or performance fix is claimed here.
+
 - Pro Library's Surprise Me action now chooses a different displayed game
   whenever alternatives exist. It excludes the actual filtered fallback, clears
   the search, and still recovers from an empty result set. A deterministic
