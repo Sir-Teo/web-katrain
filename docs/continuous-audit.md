@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full verification at `ac292cc` passes 515 unit files and 3,534 cases,
+  with two files and eight cases skipped, in 697.1 s. Full lint also passes.
+  Logs are retained as `katrain-batch-eighty-five-tests` and
+  `katrain-batch-eighty-five-lint`. Application source stayed unchanged for
+  the run; the later preview-scroll fix is verified separately below.
+
 - Changing the selected Pro Library game now starts its detail pane at the
   top. Native wheel scrolling followed by keyboard selection previously kept
   the new preview 186/342 px down on phone/narrow phone, leaving its board
