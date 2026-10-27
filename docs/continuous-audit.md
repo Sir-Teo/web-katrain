@@ -8,6 +8,12 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The complete browser sweep at `cc1adee` passes all 11 sizes and every native
+  suite. Frozen PNGs and coordinates pass all 9/13/19 boards at desktop and
+  phone widths, all rotations and hidden coordinates; the 54 file/acquisition
+  cases, trusted paste, storage, OGS and final recovery suites also pass.
+  This sweep precedes the text-copy fallback race fix under verification.
+
 - Full unit verification at `cc1adee`, including frozen PNG positions and
   displayed coordinates, passes 501 files and 3,428 cases with 78 engine
   cases skipped in CI. App/test TypeScript and full lint pass. The production
@@ -22,7 +28,7 @@ reproduced failures separate from candidates that still need investigation.
   desktop/phone AI Stop 143/168 ms, explicit Stop 326 ms, old-request
   cancellation 303 ms, fresh response 679 ms and rendered evaluation 708 ms.
   No engine code changed; these are verification results, not proven speedups.
-  The complete integrated browser sweep is next.
+  The complete integrated browser sweep passes as recorded above.
 
 - Full unit verification at `41b7a1f`, including the board-snapshot freeze,
   passes 501 files and 3,427 cases with 78 engine cases skipped in CI. The
