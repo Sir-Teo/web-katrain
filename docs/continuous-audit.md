@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Pro Library now reveals the selected result after Surprise Me and featured
+  game choices while keeping focus on the initiating control. The native
+  baseline left the selected name outside the results pane on phone/narrow/
+  landscape layouts (`rUNiCQ`); all eight entry/size cases now expose it using
+  only local scrolling (`USKf6M`). Keyboard browsing (`pqIyN2`) and detail-pane
+  reset/same-selection preservation (`2FnVwK`) also pass. Targeted lint,
+  37 related cases and the build pass (Vite phase 17.3 s). All three native
+  checks pass in production under `katrain-pro-selection-production-iwowTI`.
+  The existing desktop/phone unsaved-game replacement regression also passes
+  against production (`WXzULB`), including cancellation, focus and loading.
+
 - Full verification at `ac292cc` passes 515 unit files and 3,534 cases,
   with two files and eight cases skipped, in 697.1 s. Full lint also passes.
   Logs are retained as `katrain-batch-eighty-five-tests` and

@@ -53,6 +53,9 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
 
   React.useLayoutEffect(() => {
     if (detailRef.current) detailRef.current.scrollTop = 0;
+    const pane = resultsRef.current;
+    const row = pane?.querySelector<HTMLButtonElement>('[aria-current="true"]');
+    if (pane && row) revealPaneFeedback(row, pane);
   }, [selected?.id]);
 
   const focusGame = (index: number) => {
