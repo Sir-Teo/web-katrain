@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The compact engine-error copy control now has a 44×44 target. Its status
+  column sizes to its contents so the complete “Error” label remains visible.
+  The real failed-model baseline measured 28×28 at 390×844, 320×568 and
+  568×320 (`4zfWX4`). Native center/edge taps now copy the actual error report
+  at all three sizes, with no horizontal overflow, the complete board visible
+  and the game unchanged (`pfMh2G`). Fourteen related cases and the final
+  build pass (Vite phase 14.8 s). The same checks pass against production
+  under `katrain-engine-copy-touch-production-eXHIco` (`hdNpSR`). Earlier
+  prototype/probe failures are retained separately. The long error toast is
+  dismissed before target testing; its landscape obstruction and the earlier
+  clipboard timing failures are not resolved by this change.
+
 - Library game rows now expose their existing metadata text as an accessible
   description. The baseline accessibility tree had no description for either
   imported or restored rows on desktop/phone (`txI4V0`). Descriptions now

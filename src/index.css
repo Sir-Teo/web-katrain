@@ -1723,6 +1723,11 @@
       border-radius: 6px;
     }
 
+    .analysis-command-bar__status-copy {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
     .new-game-modal button,
     .new-game-modal select,
     .new-game-modal textarea,
@@ -2596,7 +2601,7 @@
 
     .analysis-command-bar-slot
       .analysis-command-bar:has(.analysis-command-bar__status-copy) {
-      grid-template-columns: 6.25rem minmax(5rem, 1fr) minmax(6.5rem, 32vw);
+      grid-template-columns: max-content minmax(5rem, 1fr) minmax(6.5rem, 32vw);
     }
 
     .analysis-command-bar__metric {
