@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Photo auto-tracing now retains dialog focus while its action is disabled,
+  restores Auto Trace when recognition finishes, and announces its existing
+  status text. A native baseline left focus on Body during and after recognition
+  (`katrain-photo-focus-probe-VBruZA`). The focused check now passes at desktop,
+  phone, narrow phone and short landscape sizes (`I9FNq5`), preserving a control
+  chosen while waiting. The existing desktop/phone race regression passes with
+  added pending/completion/chosen-control focus assertions (`u1ZBvg`), including
+  unchanged late-result, manual-edit, retry and source-failure checks. Existing
+  trace-grid keyboard checks also pass (`O66vMH`). App/test TypeScript, targeted
+  lint and 67 related photo cases pass. The build passes (Vite phase 15.1 s),
+  and the same four focused recognition flows pass against the production
+  bundle under `katrain-photo-focus-production-Jf0qfF`. This production probe
+  covers recognition focus and status, rather than repeating the full race suite.
+
 - Report printing now cancels its delayed browser print action when the
   report is dismissed, and keeps focus inside during preparation. A native
   baseline showed focus on Body and one print call after Escape closed the

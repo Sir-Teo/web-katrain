@@ -48,6 +48,8 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
     await panel('trace');
     await click('[data-photo-board-auto-trace]');
     await wait('photoTraceHeld.length > 0');
+    assert.equal(await evaluate(cdp, `document.querySelector('[aria-labelledby=photo-board-title]').contains(document.activeElement)`), true, 'Pending photo recognition must retain dialog focus');
+    assert.equal(await evaluate(cdp, `document.querySelector('[aria-labelledby=photo-board-title]').getAttribute('aria-busy')`), 'true');
   };
   const release = async (count = 1) => {
     await evaluate(cdp, `photoTraceHeld.splice(0, ${count}).forEach(release => release()); void 0`);
@@ -153,6 +155,8 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
       await release();
       await wait("document.querySelector('[data-photo-board-auto-trace-status]')?.textContent.includes('Auto traced')");
       assert.equal((await traceState()).stones.length, 1);
+      assert.equal(await evaluate(cdp, 'document.activeElement===document.querySelector("[data-photo-board-auto-trace]")'), true, 'Completing recognition must restore its action when focus was on the pending container');
+      assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-auto-trace-status]").getAttribute("role")'), 'status');
       await hold();
       await click('[data-photo-board-clear]');
       await release();
@@ -177,6 +181,7 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
       await hold();
       await click('[data-photo-board-reset-corners]');
       await release();
+      assert.equal(await evaluate(cdp, 'document.activeElement===document.querySelector("[data-photo-board-reset-corners]")'), true, 'Cancelling recognition must preserve the control the user chose');
       assert.deepEqual(await traceState(), { points: 81, stones: [] });
       await panel('photo');
       await waitForPhotoAlignment();

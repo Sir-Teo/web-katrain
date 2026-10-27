@@ -145,6 +145,8 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   const [liveCameraSupported, setLiveCameraSupported] = React.useState(false);
   const [cameraCaptureOpen, setCameraCaptureOpen] = React.useState(false);
   const [isAutoTracing, setIsAutoTracing] = React.useState(false);
+  const autoTraceButtonRef = React.useRef<HTMLButtonElement>(null);
+  const wasAutoTracingRef = React.useRef(false);
   const autoTraceRequestRef = React.useRef(0);
   const [autoTraceStatus, setAutoTraceStatus] = React.useState<string | null>(null);
   const [autoTraceSensitivity, setAutoTraceSensitivity] = React.useState(DEFAULT_PHOTO_BOARD_RECOGNITION_SENSITIVITY);
@@ -159,6 +161,18 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
   }, []);
   useEscapeToClose(onClose, !cameraCaptureOpen);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
+  React.useLayoutEffect(() => {
+    const wasTracing = wasAutoTracingRef.current;
+    wasAutoTracingRef.current = isAutoTracing;
+    if (!isAutoTracing && !wasTracing) return;
+    const dialog = dialogRef.current;
+    const active = document.activeElement;
+    if (active === document.body || active === dialog || (active instanceof HTMLElement && active.matches(':disabled'))) {
+      const button = autoTraceButtonRef.current;
+      const target = !isAutoTracing && button && !button.disabled && button.offsetParent ? button : dialog;
+      target?.focus({ preventScroll: true });
+    }
+  }, [isAutoTracing, dialogRef]);
 
   const currentBoardSize = React.useMemo<BoardSize | null>(() => {
     const size = currentBoard?.length;
@@ -678,6 +692,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="photo-board-title"
+        aria-busy={isAutoTracing}
       >
         <div className="ui-bar flex items-center justify-between border-b border-[var(--ui-border)] px-3 py-2 sm:px-4 sm:py-3">
           <h2 id="photo-board-title" className="text-lg font-semibold text-[var(--ui-text)]">Photo Board</h2>
@@ -1023,6 +1038,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 className="min-h-11 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] not-disabled:hover:bg-[var(--ui-surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!photoUrl || isAutoTracing}
                 onClick={() => void autoTracePhoto()}
+                ref={autoTraceButtonRef}
                 title={photoUrl ? 'Auto trace stones from an aligned board photo' : 'Choose a board photo before auto tracing'}
                 data-photo-board-auto-trace="true"
               >
@@ -1079,7 +1095,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
                 </span>
               )}
               {autoTraceStatus && (
-                <span className="basis-full text-xs font-medium text-[var(--ui-text-muted)]" data-photo-board-auto-trace-status="true">
+                <span role="status" aria-live="polite" aria-atomic="true" className="basis-full text-xs font-medium text-[var(--ui-text-muted)]" data-photo-board-auto-trace-status="true">
                   {autoTraceStatus}
                 </span>
               )}
