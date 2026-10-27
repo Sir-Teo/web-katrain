@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The fifth PR CI attempt passes the repaired navigation boundaries and
+  clipboard workflows, then the native prefix through lessons, cross-tab
+  progress, Game Info and numeric editors. Metadata recovery fails reading
+  getAttribute from a missing Analysis button. Its board-ready check does not
+  establish that this desktop control is mounted. The helper now waits for
+  that control's actual expanded state before opening Game Info. Native
+  b1159A passes canceled reload, accepted reload/restore and later komi/handicap
+  pagehide recovery under the CI root redirect; helper lint passes. The
+  fifth complete attempt remains failed and later workflows were not run.
+
 - The fourth PR CI attempt passes cancellation cleanup, all four Paste
   keyboard layouts and the first two clipboard-draft widths, then aborts the
   next navigation after closing the 390 px editor. Clipboard-draft cleanup now

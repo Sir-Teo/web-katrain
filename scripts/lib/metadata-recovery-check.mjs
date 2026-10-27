@@ -21,7 +21,8 @@ export async function assertMetadataRecovery(cdp, appUrl, screenshotDir) {
     metadataRecoveryStore.getState().updateSettings({soundEnabled:false,loadSgfFastAnalysis:false});
   })()`);
   const openInfo=async()=>{
-    if(await evaluate(cdp,`document.querySelector('button[aria-label="Analysis"]').getAttribute('aria-expanded')==='false'`)) await click('button[aria-label="Analysis"]');
+    const expanded=await wait(`document.querySelector('button[aria-label="Analysis"]')?.getAttribute('aria-expanded')`);
+    if(expanded==='false') await click('button[aria-label="Analysis"]');
     await click('.sidebar .section:first-child .section-head-toggle');
     await click('[data-game-info-edit-toggle]');
   };
