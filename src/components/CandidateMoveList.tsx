@@ -296,6 +296,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     <button
                       type="button"
                       className="cl-pv-action"
+                      aria-label={`Copy variation starting at ${label}`}
                       onClick={async () => {
                         const request = beginClipboardWriteRequest();
                         const ok = await copyTextToClipboard(move.pv!.join(' '), undefined, undefined, request);
@@ -309,7 +310,12 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     >
                       Copy
                     </button>
-                    <button type="button" className="cl-pv-action" onClick={() => addPvVariation(move.pv ?? [])}>
+                    <button
+                      type="button"
+                      className="cl-pv-action"
+                      aria-label={`Add variation starting at ${label} to the game tree`}
+                      onClick={() => addPvVariation(move.pv ?? [])}
+                    >
                       Keep in tree
                     </button>
                   </span>

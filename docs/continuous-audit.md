@@ -345,6 +345,13 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Variation actions name their context for screen readers:** the browser's
+  accessibility tree previously exposed just "Copy" and "Keep in tree".
+  Their names now identify the variation's starting move and the tree action's
+  purpose, while the compact visible labels remain. Native accessibility-tree
+  inspection confirms both contextual button names and the existing disclosure
+  control. Targeted lint and the production build pass (Vite phase 11.3 s).
+
 - **Variation actions are easier to tap:** native measurements found Copy
   at 41×24 px and Keep in tree at 94×24 px on phones. Their controls now
   have a 44 px minimum width/height in mobile panels and on coarse-pointer
