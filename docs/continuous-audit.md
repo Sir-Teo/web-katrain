@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Library naming and confirmation dialogs now stay within the viewport and
+  scroll when needed. Baseline `zPNaJ8` at 200% text placed New Folder at
+  −19.5…339.5 px in 568×320 landscape; a long-name delete confirmation reached
+  −439.5…1007.5 px at 320×568, with its buttons outside the screen.
+  Production `7L0esW` passes eight size/text combinations for both dialogs:
+  bounded height, no horizontal scrolling, every control reachable by native
+  pointer/touch, persisted folder creation, cancellation preserving storage,
+  persisted deletion and an unchanged game. The unchanged desktop/phone save
+  destination composition helper also passes. Targeted lint, 30 existing cases
+  in three files and the build pass (Vite phase 25.0 s).
+
 - Auto-save recovery now stays within the viewport and scrolls as needed.
   At 200% text, baseline `8fkzU8` placed Discard below the screen on both
   320×568 and 568×320 layouts. Production `BULI9U` passes sixteen cases

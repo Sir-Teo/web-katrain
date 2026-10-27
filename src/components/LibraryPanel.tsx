@@ -227,7 +227,7 @@ const LibraryTextDialog: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-text-dialog-title"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
           <h2 id="library-text-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
@@ -330,7 +330,7 @@ const LibraryConfirmDialog: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-confirm-dialog-title"
-        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+        className="ui-panel border rounded-lg shadow-xl w-full max-w-sm max-h-full overflow-y-auto"
       >
         <div className="ui-bar border-b border-[var(--ui-border)] px-4 py-3 flex items-center justify-between">
           <h2 id="library-confirm-dialog-title" className="text-base font-semibold text-[var(--ui-text)]">
