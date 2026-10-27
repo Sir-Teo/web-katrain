@@ -10,6 +10,7 @@ import { assertLibraryTags } from './lib/library-tags-check.mjs';
 import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
 import { assertLibrarySaveRecovery, assertPendingSaveKeyboard, assertSaveDialogLoading } from './lib/library-save-check.mjs';
 import { assertLibraryRestoreSave } from './lib/library-restore-save-check.mjs';
+import { assertLibraryRestoreRead } from './lib/library-restore-read-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
 import { assertBoardTooltipsFit } from './lib/board-tooltip-check.mjs';
@@ -4280,6 +4281,7 @@ async function main() {
     await assertEmptyLibraryPersists(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibrarySaveRecovery(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryRestoreSave(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryRestoreRead(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardTooltipsFit(cdp, screenshotDir);

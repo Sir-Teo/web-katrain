@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Backup replacement now checks the latest in-panel Library count after its
+  file read completes. Production baseline `wjhqri` held the read while saving
+  into an initially empty Library; at all three widths, the backup then replaced
+  the newly persisted game without asking. Candidate `HgVaKf` instead asks
+  about the current one-item Library, preserves the exact saved SGF on Cancel
+  and restores the backup after explicit Replace, with the board unchanged.
+  A second durable helper now covers this sequence in the browser suite.
+  The same production run passes the previous three restore/save cases and
+  all four original empty-Library IndexedDB/fallback cases. Targeted lint,
+  80 existing Library/backup/runner cases and the build pass (Vite phase
+  14.6 s). This verifies the in-panel save-during-read race; broader cross-tab
+  replacement ordering remains a separate investigation.
+
 - Completing a Library backup restore now rebases edits made after restoration
   began and retains later game-save acknowledgements. Production baseline
   `t71Z8y` saved the exact current SGF but lost its file association and left a

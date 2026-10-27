@@ -1514,14 +1514,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       }
     };
 
-    // Nothing to lose, so nothing to ask about.
-    if (items.length === 0) {
+    // A save or import can finish while the backup file is being read. Ask
+    // about the collection that exists now before replacing any of its games.
+    const currentItemCount = saveStateRef.current.items.length;
+    if (currentItemCount === 0) {
       await applyRestore();
       return;
     }
     setConfirmDialog({
       title: 'Restore Backup',
-      message: describeLibraryReplacement(items.length, restored.length),
+      message: describeLibraryReplacement(currentItemCount, restored.length),
       confirmLabel: 'Replace',
       danger: true,
       onConfirm: () => void applyRestore(),
