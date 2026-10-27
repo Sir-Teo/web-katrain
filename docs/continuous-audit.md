@@ -318,6 +318,24 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Engine-copy feedback follows the report being displayed:** a native
+  regression copied error A, displayed error B, then completed A's held write;
+  B incorrectly read "Engine error details copied" while the clipboard held A.
+  Both error controls now share a report-aware copy hook, with current-request
+  and mounted-report checks. Its copied state records the acknowledged report
+  directly, including backend/model metadata. A second regression found that
+  a successful retry left its earlier failure toast visible; copy updates now
+  share an operation identity so that success replaces that failure.
+  All 24 native cases pass across the board bar and Review panel at 390/320 px,
+  covering report/model changes, newer copies, rejection/timeout, genuine
+  current failure, keyboard retry and leaving/clearing the view. Actual legacy
+  attempts are checked: only the deliberately denied current copy uses that
+  route. App TypeScript, full lint and 51 related tests pass. Initial unused
+  import and effect-reset lint failures are retained; the final state is derived
+  from the acknowledged report. The compact touch-retry probe also captured
+  a failure toast covering the Review copy icon; keyboard retry works and the
+  overlap remains a separate UI follow-up, with geometry and screenshots saved.
+
 - **Lessons lead into a small practice board:** the lesson list now offers an
   always-visible action to open an empty 9×9 board and practice both colors.
   It uses the normal unsaved-game choice: Cancel returns to Lessons, Discard
