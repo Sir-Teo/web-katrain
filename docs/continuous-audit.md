@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Browser run 111 passes all 11 base layouts and the native prefix through
+  delayed Library saves, then fails the first restore/save overlap check.
+  That check requires an absent history marker after a desktop reload, even
+  when an earlier mobile entry was restored. Reproduction `D8EACY` retains
+  the marker and foreign state with no dialog present; the application's
+  existing back-stack tests deliberately protect that inherited entry.
+  The three restore helpers and background-save helper now require the exact
+  original history state and navigation key after dismissal, using the same
+  shared checks as other dialog tests. They retain all data assertions and
+  timing budgets. Nine restore cases (`8SGpY3`) and 15 background-save cases
+  (`2k2kG4`) pass with an inherited marker plus foreign history state. Syntax
+  checks and targeted lint pass. Run 111 remains a failed complete attempt;
+  its later native helpers, including engine-error copy, did not execute.
+
 - Full unit verification now passes at `4de8828`: 515 files pass and two are
   skipped; 3,553 tests pass and eight are skipped, in 761.1 s. Repository-wide
   lint also passes on that revision. This is a fresh complete run after the

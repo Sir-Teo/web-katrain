@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {evaluate,navigate,setViewport,waitForExpression} from './browser.mjs';
+import {evaluate,navigate,setViewport,waitForExpression,captureHistoryEntry,waitForHistoryEntry} from './browser.mjs';
 import {installStorageControls} from './library-save-check.mjs';
 
 // A completed full-library replacement must not erase a later game's save
@@ -35,12 +35,15 @@ try{for(const[width,height]of[[1440,900],[390,844],[320,568]]){
  if(mobile)await click('#mobile-tab-board');
  await evaluate(cdp,"document.querySelector('[data-board-snapshot]').focus()");await key('ArrowRight','ArrowRight',39);await key('Enter','Enter',13);await wait('document.querySelector("[data-board-snapshot]").dataset.boardMoveCount==="1"');const before=await game();
  if(mobile)await click('#mobile-tab-library');await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');
+ // A reload can retain an earlier mobile marker. Closing must restore this
+ // exact entry, including foreign state, rather than assume an empty history.
+ const entry=await captureHistoryEntry(cdp);
  const root=(await cdp.send('DOM.getDocument')).result.root.nodeId;
  const input=(await cdp.send('DOM.querySelector',{nodeId:root,selector:'input[type=file][accept=".json,application/json"]'})).result.nodeId;assert.ok(input);
  await cdp.send('DOM.setFileInputFiles',{nodeId:input,files:[`${dir}/library-restore-save-backup.json`]});await wait('document.querySelector("#library-confirm-dialog-title")?.textContent==="Restore Backup"');
- await evaluate(cdp,installStorageControls.replace("if(librarySaveAudit.mode==='delay'&&librarySaveAudit.skipDelayedOpens--<=0)","if(librarySaveAudit.mode==='delay'&&args[0]==='web-katrain-library'&&librarySaveAudit.skipDelayedOpens--<=0)"));await evaluate(cdp,"librarySaveAudit.mode='delay'");await click('[aria-labelledby=library-confirm-dialog-title] button.danger');await wait('librarySaveAudit.held.length>0&&!document.querySelector("[role=dialog]")');
+ await evaluate(cdp,installStorageControls.replace("if(librarySaveAudit.mode==='delay'&&librarySaveAudit.skipDelayedOpens--<=0)","if(librarySaveAudit.mode==='delay'&&args[0]==='web-katrain-library'&&librarySaveAudit.skipDelayedOpens--<=0)"));await evaluate(cdp,"librarySaveAudit.mode='delay'");await click('[aria-labelledby=library-confirm-dialog-title] button.danger');await wait('librarySaveAudit.held.length>0');await waitForHistoryEntry(cdp,entry,'!document.querySelector("[role=dialog]")');
  await click('[aria-label="Save current game to Library"]');await wait('!!document.querySelector("[aria-labelledby=library-text-dialog-title] input")');
- await click('[aria-labelledby=library-text-dialog-title] input');await key('a','KeyA',65,2);const name=`Saved during restore ${width}`;await cdp.send('Input.insertText',{text:name});await click('[aria-labelledby=library-text-dialog-title] button.active');await wait('!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');
+ await click('[aria-labelledby=library-text-dialog-title] input');await key('a','KeyA',65,2);const name=`Saved during restore ${width}`;await cdp.send('Input.insertText',{text:name});await click('[aria-labelledby=library-text-dialog-title] button.active');await waitForHistoryEntry(cdp,entry,'!document.querySelector("[role=dialog]")');
  await wait(`!!document.querySelector('[data-library-row-name="${name}"]')`);await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
  await evaluate(cdp,"window.restoreOverlapRows=[];const observer=new MutationObserver(()=>{const names=[...document.querySelectorAll('[data-library-row]')].map(e=>e.dataset.libraryRowName);if(JSON.stringify(names)!==JSON.stringify(restoreOverlapRows.at(-1)))restoreOverlapRows.push(names)});observer.observe(document.body,{childList:true,subtree:true});window.restoreOverlapObserver=observer;librarySaveAudit.mode='normal';librarySaveAudit.held.splice(0).forEach(release=>release())");
  const saved=await wait(`${stored}.then(items=>{const e=items.find(e=>e.name===${JSON.stringify(name)});return e&&items.some(e=>e.id==='restored-study')?e:false})`);await wait('document.querySelector("[data-library-storage-badge]")?.textContent==="IndexedDB"');await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');assert.ok(saved.sgf.includes(';B['));assert.deepEqual(await game(),before);
@@ -49,7 +52,7 @@ try{for(const[width,height]of[[1440,900],[390,844],[320,568]]){
  await key('k','KeyK',75,2);await wait('!!document.querySelector("[data-command-palette-search]")');await cdp.send('Input.insertText',{text:'Copy SGF'});await click('[data-command-palette-item=copy-sgf]');await wait('document.querySelector(".notification-toast-message")?.title==="Copied SGF to clipboard."');
  const currentSgf=await evaluate(cdp,'navigator.clipboard.readText()');fs.writeFileSync(`${dir}/library-restore-save-${width}-stored.sgf`,saved.sgf);fs.writeFileSync(`${dir}/library-restore-save-${width}-current.sgf`,currentSgf);assert.equal(currentSgf,saved.sgf,'The saved record must still match the exact current game when checking its acknowledgement');
  await key('k','KeyK',75,2);await wait('!!document.querySelector("[data-command-palette-search]")');await cdp.send('Input.insertText',{text:'Quick new game'});await click('[data-command-palette-item=quick-new-game]');await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
- const prompt=await evaluate(cdp,'!!document.querySelector("[aria-labelledby=unsaved-changes-title]")');if(prompt){await key('Escape','Escape',27);await wait('!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');}else await wait('document.querySelector("[data-board-snapshot]").dataset.boardMoveCount==="0"');
+ const prompt=await evaluate(cdp,'!!document.querySelector("[aria-labelledby=unsaved-changes-title]")');if(prompt){await key('Escape','Escape',27);await waitForHistoryEntry(cdp,entry,'!document.querySelector("[role=dialog]")');}else await wait('document.querySelector("[data-board-snapshot]").dataset.boardMoveCount==="0"');
  reports.push({width,height,savedId:saved.id,state,unsavedPromptAfterSave:prompt});console.log('Restore overlap',JSON.stringify(reports.at(-1)));await shot(`${width}-after`);
  assert.ok(state.restoreTransitions.length,'Observe the restore acknowledgement before checking row preservation');
  assert.ok(state.restoreTransitions.every(rows=>rows.includes(name)),'The restored snapshot must not flash over a newer saved row');
