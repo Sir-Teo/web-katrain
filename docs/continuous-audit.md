@@ -8,6 +8,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- The Paste dialog now recognizes Web KaTrain share-link envelopes and explains
+  that the embedded game opens directly. Baseline `7fqbif` loads valid links
+  correctly but labels them unsupported URLs; damaged and empty fragments get
+  unrelated SGF guidance. Detection now checks the fragment key without
+  inflating or parsing on each edit, and damaged links ask for a complete link
+  or an SGF file. Production `NUHbvd` passes 12 valid/damaged/empty cases across
+  four sizes, retaining the current board on failure, exact setup stones on
+  success and zero remote downloads. The original keyboard submission,
+  cancellation/focus and clipboard-draft helpers also pass. Fifty focused tests,
+  source/test lint, test typecheck and production build pass (Vite 25.2 s).
+  The first external baseline probe had a quoting error in its browser
+  expression; the corrected baseline completed before these app changes.
+
 - Browser run 111 passes all 11 base layouts and the native prefix through
   delayed Library saves, then fails the first restore/save overlap check.
   That check requires an absent history marker after a desktop reload, even

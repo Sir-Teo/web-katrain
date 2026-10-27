@@ -161,7 +161,7 @@ export const PasteSgfModal: React.FC<PasteSgfModalProps> = ({ onClose, onSubmit,
             aria-describedby="paste-sgf-helper paste-sgf-detection"
           />
           <div id="paste-sgf-helper" className="text-xs ui-text-faint">
-            Paste a complete SGF, a game tree snippet, or a public Online-Go game URL.
+            Paste SGF, a board diagram, a Web KaTrain share link, or a public Online-Go game URL.
             <span className="block mt-1">Ctrl+Enter or ⌘+Enter to open.</span>
           </div>
           <div
