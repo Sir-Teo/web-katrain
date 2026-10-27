@@ -1957,6 +1957,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
         aria-label={`${item.name}, game file, ${moveSummary}${isLoadedDirty ? ', unsaved changes' : ''}`}
+        aria-description={metaText}
         data-library-row="file"
         data-library-row-id={item.id}
         data-library-row-name={item.name}

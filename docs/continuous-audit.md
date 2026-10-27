@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Library game rows now expose their existing metadata text as an accessible
+  description. The baseline accessibility tree had no description for either
+  imported or restored rows on desktop/phone (`txI4V0`). Descriptions now
+  match each row's metadata while its accessible name stays unchanged
+  (`jBqh1A`). Targeted lint, 17 existing accessibility cases and the build pass
+  (Vite phase 14.3 s). Production accessibility-tree, byte-size, import,
+  restore, reload and actual-download checks pass under
+  `katrain-library-row-description-production-wTsqBa` (`B185m2`). This verifies
+  the exposed accessibility tree, not screen-reader speech.
+
 - Library sizes now count UTF-8 export bytes, including the encoding
   declaration, when creating, updating or reading games and backups. The
   native desktop/phone baseline displayed 1.5 KB for an actual 2,752-byte SGF
