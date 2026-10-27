@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Lesson feedback now scrolls only its own pane when a short screen would hide
+  the hint or answer explanation behind the footer. The 320×568 baseline hid
+  44–64 px of feedback; the corrected pane moves 51–71 px while preserving
+  board focus and the page position. All 16 native wrong/correct answers with
+  pointer and keyboard pass at 1440×900, 390×844, 320×568 and 568×320, including
+  answer gating and reset on reopening. The other three sizes do not scroll
+  unnecessarily. Baseline screenshots remain under
+  `katrain-lesson-feedback-5S3tcT`; passing assertions/screenshots are under
+  `katrain-lesson-feedback-native-JbC8EB`. App TypeScript, targeted lint and
+  25 related cases pass. The production build passes (Vite phase 15.5 s), and
+  the same 16 native cases pass against that build under
+  `katrain-lesson-feedback-production-rOc96T`. This is focused validation,
+  not a complete sweep.
+
 - The next integrated browser sweep at `dbff8cc` also failed a timing
   precondition: a held clipboard read completed at 1,211 ms while choosing a
   Library game at 320 px, beyond the unchanged 1,000 ms fixture limit and

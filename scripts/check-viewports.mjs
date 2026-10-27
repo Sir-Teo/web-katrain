@@ -32,6 +32,7 @@ import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs
 import { assertFastNavigation } from './lib/fast-navigation-check.mjs';
 import { assertNewGameBoard } from './lib/new-game-board-check.mjs';
 import { assertLessonPractice } from './lib/lesson-practice-check.mjs';
+import { assertLessonFeedback } from './lib/lesson-feedback-check.mjs';
 import { assertLessonProgressPeers } from './lib/lesson-progress-peer-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
@@ -4255,6 +4256,7 @@ async function main() {
     await assertBoardSnapshotOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertFastNavigation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNewGameBoard(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonFeedback(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLessonPractice(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLessonProgressPeers(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

@@ -14,6 +14,7 @@ interface LessonsModalProps {
 export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
+  const feedbackRef = React.useRef<HTMLDivElement>(null);
   const lastLessonRef = React.useRef<string | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -58,6 +59,21 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice 
   const completedCount = LESSONS.filter((item) => progress[item.id]?.completed).length;
 
   useEffect(() => { saveLessonProgress(progress); }, [progress]);
+
+  React.useLayoutEffect(() => {
+    const feedbackElement = feedbackRef.current;
+    const body = feedbackElement?.closest('.lessons-body');
+    if (!feedbackElement || !(body instanceof HTMLElement)) return;
+    const bounds = feedbackElement.getBoundingClientRect();
+    const viewport = body.getBoundingClientRect();
+    // Feedback can grow below the fixed footer on short phones. Scroll only
+    // the lesson pane, leaving keyboard focus on the exercise board.
+    if (bounds.bottom > viewport.bottom) {
+      body.scrollTop += Math.min(bounds.bottom - viewport.bottom + 8, bounds.top - viewport.top);
+    } else if (bounds.top < viewport.top) {
+      body.scrollTop += bounds.top - viewport.top - 8;
+    }
+  }, [feedback]);
 
   useEffect(() => {
     const refresh = () => setProgress(previous => mergeLessonProgress(previous, loadLessonProgress(LESSONS)));
@@ -203,6 +219,7 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice 
               )}
               {feedback && (
                 <div
+                  ref={feedbackRef}
                   className="lessons-feedback rounded-lg border px-3 py-2 text-sm font-medium"
                   role="status"
                   style={{ borderColor: feedback.tone, color: feedback.tone }}
