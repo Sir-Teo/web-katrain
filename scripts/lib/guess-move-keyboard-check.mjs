@@ -11,7 +11,7 @@ export async function assertGuessMoveKeyboard(cdp, appUrl, runDir, screenshotDir
     diagnose: `({ active: document.activeElement?.getAttribute('aria-label') || document.activeElement?.tagName,
       phase: document.querySelector('[data-guess-move-phase]')?.dataset.guessMovePhase,
       prompt: document.querySelector('[data-guess-move-prompt]')?.textContent,
-      stats: document.querySelector('[data-guess-move-stats]')?.textContent })`,
+      stats: document.querySelector('[data-guess-move-stats]')?.textContent, history: history.state })`,
   });
   const key = async (key, code, virtual, modifiers = 0) => {
     for (const type of ['keyDown', 'keyUp']) await cdp.send('Input.dispatchKeyEvent', {

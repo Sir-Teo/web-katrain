@@ -8,6 +8,24 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Problem Practice now reveals its verdict inside its own pane when the
+  board would push it below the footer, and resets that pane for a new problem
+  or retry. The before screenshot at 320×568 hid the whole message. Lessons,
+  Guess the Move and Problem Practice share the same small reveal helper.
+  The combined native run passes all 88 feedback checks: 60 problem hints,
+  refuted lines and shown solutions, 16 lesson answers and 12 guess results,
+  across four screen sizes. Focus, page position, answer grading and the
+  loaded game are preserved. App/test TypeScript, full lint and 70 related
+  cases pass. Evidence is under `katrain-study-feedback-native-9It8cJ`.
+  The build passes (Vite phase 13.2 s); the production bundle also passes
+  all 88 feedback checks and the four paste-shortcut flows under
+  `katrain-study-feedback-production-nqa0f6`.
+  Two earlier combined runs are retained: one fixture matched the wrong
+  contraction in the hint, and another left a lesson dialog open between
+  viewport navigations, carrying an old history marker into later checks.
+  The helpers now dismiss their dialogs and await history cleanup; app history
+  behavior is unchanged. Those failed runs remain separate from this pass.
+
 - Problem grading now checks explicit negative verdict phrases before positive
   keywords. A native imported `C[Not correct.]` previously displayed
   “Correct — that solves it!”, and Show Solution chose a refuted branch.
@@ -18,7 +36,8 @@ reproduced failures separate from candidates that still need investigation.
   focus Retry, select the correct alternative solution, and preserve the
   loaded game. Evidence is under `katrain-problem-negation-native-HLC9zo`;
   app/test TypeScript and targeted lint pass. This is a focused correctness
-  check; the production build still precedes this change.
+  check; the subsequent production batch above also validates this grading
+  change and its solution selection.
 
 - Guess the Move now reveals the whole result card within its pane and resets
   that pane for the next round. A production 320×568 miss placed its distance

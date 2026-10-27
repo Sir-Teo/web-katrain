@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 import {
   classifyProblemNode,
   findChildForMove,
@@ -160,6 +161,17 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     if (next < 0 || next >= problems.length) return;
     setProblemIndex(next);
   };
+
+  React.useLayoutEffect(() => {
+    const body = dialogRef.current?.querySelector<HTMLElement>('.problem-body');
+    if (!body) return;
+    if (!message) {
+      body.scrollTop = 0;
+      return;
+    }
+    const feedback = body.querySelector<HTMLElement>('[data-problem-message]');
+    if (feedback) revealPaneFeedback(feedback, body);
+  }, [message, start?.id, attempt, dialogRef]);
 
   const markers: StaticBoardMarker[] = [];
   if (node?.move && node.move.x >= 0) {

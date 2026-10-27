@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 import {
   buildGuessPositions,
   guessVerdict,
@@ -82,17 +83,11 @@ export const GuessMoveModal: React.FC<GuessMoveModalProps> = ({ onClose, onBrows
       body.scrollTop = 0;
       return;
     }
-    const result = body.querySelector('[data-guess-move-result]');
+    const result = body.querySelector<HTMLElement>('[data-guess-move-result]');
     if (!result) return;
-    const bounds = result.getBoundingClientRect();
-    const viewport = body.getBoundingClientRect();
     // A missed guess adds a distance row. Keep that row above the footer
     // without moving focus away from the next-round action.
-    if (bounds.bottom > viewport.bottom) {
-      body.scrollTop += Math.min(bounds.bottom - viewport.bottom + 8, bounds.top - viewport.top);
-    } else if (bounds.top < viewport.top) {
-      body.scrollTop += bounds.top - viewport.top - 8;
-    }
+    revealPaneFeedback(result, body);
   }, [phase, safeIndex, filter, rootNode.id, dialogRef]);
 
   useEffect(() => {

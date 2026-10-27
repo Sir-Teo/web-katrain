@@ -22,6 +22,23 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
     for (const type of ['mousePressed', 'mouseReleased']) await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
   };
   const boardFocused = 'document.activeElement?.getAttribute("data-static-board-interactive")==="true"';
+  const feedbackReports = [];
+  const assertFeedbackFits = async (width, index, kind, focusSelector) => {
+    await evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+    const state = await evaluate(cdp, `(()=>{
+      const e=document.querySelector('[data-problem-message]'),r=e.getBoundingClientRect();
+      const body=document.querySelector('.problem-body'),b=body.getBoundingClientRect();
+      return {text:e.textContent,visible:r.top>=b.top&&r.bottom<=b.bottom,scroll:body.scrollTop,
+        focused:document.activeElement?.matches(${JSON.stringify(focusSelector)}),pageScroll:{x:scrollX,y:scrollY}};
+    })()`);
+    const shot=await cdp.send('Page.captureScreenshot',{format:'png'});
+    fs.writeFileSync(path.join(screenshotDir,`problem-feedback-${width}-${index}-${kind}.png`),Buffer.from(shot.result.data,'base64'));
+    assert.equal(state.visible,true,`${kind} problem feedback must be fully visible at ${width}px`);
+    assert.equal(state.focused,true,'Revealing feedback must preserve the action or board focus');
+    assert.deepEqual(state.pageScroll,{x:0,y:0});
+    if(width!==320)assert.equal(state.scroll,0,'Roomy problem panes must not scroll unnecessarily');
+    feedbackReports.push({width,index,kind,...state});
+  };
   const reports = [];
   for (const [width, height] of [[1440, 900], [390, 844], [320, 568], [568, 320]]) {
     const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
@@ -42,7 +59,13 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
     await key('k', 'KeyK', 75, 2);await click('[data-command-palette-search]');
     await cdp.send('Input.insertText', { text: 'problem practice' });await click('[data-command-palette-item=problem-practice]');
     for (const [index, comment] of comments.entries()) {
-      await wait(boardFocused);await key('Enter', 'Enter', 13);
+      await wait(boardFocused);
+      await evaluate(cdp,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+      assert.equal(await evaluate(cdp,'document.querySelector(".problem-body").scrollTop'),0,'A new problem must reset its pane');
+      await key('ArrowRight','ArrowRight',39);await key('Enter','Enter',13);
+      await wait('document.querySelector("[data-problem-message]")?.textContent.includes("part of this problem")');
+      await assertFeedbackFits(width,index,'unrecorded','[data-static-board-interactive=true]');
+      await key('ArrowLeft','ArrowLeft',37);await key('Enter','Enter',13);
       await wait('!!document.querySelector("[data-problem-message]")');
       await evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
       const state = await evaluate(cdp, `({message:document.querySelector('[data-problem-message]').textContent,
@@ -52,17 +75,20 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
       fs.writeFileSync(path.join(screenshotDir, 'problem-negation-current.json'), JSON.stringify({ width, comment, ...state }, null, 2));
       assert.match(state.message, /^That line fails/, `Negated verdict ${comment} must not be graded correct`);
       assert.equal(state.retryFocused, true);
+      await assertFeedbackFits(width,index,'refuted','[data-problem-retry]');
       await click('[data-problem-solution]');
       await wait('document.querySelector("[data-problem-message]")?.textContent==="Solution shown."');
+      await assertFeedbackFits(width,index,'solution','[aria-label="Next problem"], [data-problem-retry]');
       assert.equal(await evaluate(cdp, `!!document.querySelector('[data-problem-modal] circle[fill="url(#sb-black)"][cx="3.7"][cy="4.7"]')`), true, 'Show Solution must select the correct D5 branch');
       assert.equal(await evaluate(cdp, `!!document.querySelector('[data-problem-modal] circle[fill="url(#sb-black)"][cx="4.7"][cy="4.7"]')`), false, 'Show Solution must skip the refuted E5 branch');
       if (index < comments.length - 1) await click('[aria-label="Next problem"]');
       reports.push({ width, height, comment, gradedWrong: true, retryFocused: true, correctSolution: true });
     }
     await click('[aria-label="Close problem practice"]');
-    await wait('!document.querySelector("[data-problem-modal]")');
+    await wait('!document.querySelector("[data-problem-modal]")&&!history.state?.webKatrainOverlay');
     assert.equal(await evaluate(cdp, 'document.querySelector("[data-board-snapshot]").dataset.boardMoveCount'), '0');
     console.log('Negated problem verdicts', JSON.stringify({ width, height, cases: comments.length, gameUnchanged: true }));
   }
+  fs.writeFileSync(path.join(screenshotDir, 'problem-feedback.json'), JSON.stringify(feedbackReports,null,2));
   fs.writeFileSync(path.join(screenshotDir, 'problem-negation.json'), JSON.stringify(reports, null, 2));
 }

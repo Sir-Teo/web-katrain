@@ -97,6 +97,8 @@ export async function assertLessonFeedback(cdp, appUrl, screenshotDir) {
       assert.deepEqual(state.pageScroll, { x: 0, y: 0 });
       reports.push({ width, height, input: 'keyboard', outcome, ...state });
     }
+    await click('[aria-label="Close lessons"]');
+    await wait('!document.querySelector("[aria-labelledby=lessons-title]")&&!history.state?.webKatrainOverlay');
     console.log('Lesson feedback', JSON.stringify({ width, height, wrong: true, correct: true, keyboard: true, focusPreserved: true, reset: true }));
   }
   fs.writeFileSync(path.join(screenshotDir, 'lesson-feedback.json'), JSON.stringify(reports, null, 2));

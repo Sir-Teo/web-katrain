@@ -5,6 +5,7 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard, type StaticBoardMarker } from './StaticBoard';
 import { LESSONS, getLessonBoard } from '../data/lessons';
 import { advanceLessonProgress, LESSON_PROGRESS_KEY, LESSON_PROGRESS_MILESTONE_PREFIX, loadLessonProgress, mergeLessonProgress, saveLessonProgress } from '../utils/lessonProgress';
+import { revealPaneFeedback } from '../utils/revealPaneFeedback';
 
 interface LessonsModalProps {
   onClose: () => void;
@@ -64,15 +65,9 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice 
     const feedbackElement = feedbackRef.current;
     const body = feedbackElement?.closest('.lessons-body');
     if (!feedbackElement || !(body instanceof HTMLElement)) return;
-    const bounds = feedbackElement.getBoundingClientRect();
-    const viewport = body.getBoundingClientRect();
     // Feedback can grow below the fixed footer on short phones. Scroll only
     // the lesson pane, leaving keyboard focus on the exercise board.
-    if (bounds.bottom > viewport.bottom) {
-      body.scrollTop += Math.min(bounds.bottom - viewport.bottom + 8, bounds.top - viewport.top);
-    } else if (bounds.top < viewport.top) {
-      body.scrollTop += bounds.top - viewport.top - 8;
-    }
+    revealPaneFeedback(feedbackElement, body);
   }, [feedback]);
 
   useEffect(() => {
