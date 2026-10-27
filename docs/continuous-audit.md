@@ -8,6 +8,18 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Verification at `59bd883`, including the Lessons practice-board shortcut,
+  passes all 503 unit files and 3,445 cases, with 78 engine cases skipped in
+  CI. App/test TypeScript, targeted lint and 38 related cases pass. The build
+  passes (Vite phase 15.3 s). Native practice flows pass all four selected
+  desktop/phone/landscape sizes; the production build also opens an empty
+  9×9 board and focuses it at 1440×900, 320×568 and 568×320 without runtime
+  exceptions. The first production probe sent Ctrl+K immediately after board
+  mount and failed to open the phone palette; waiting two rendered frames
+  before that first input repairs the fixture, without changing app code or
+  deadlines. The original failure and screenshot are retained. The latest
+  complete integrated sweep remains `811e40f`, before this shortcut.
+
 - Full verification at `811e40f` passes 503 unit files and 3,445 cases, with
   78 engine cases skipped in CI. App/test TypeScript, full lint and the
   18 native fast-navigation cases pass. The production build passes (Vite
