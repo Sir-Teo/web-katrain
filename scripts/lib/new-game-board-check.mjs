@@ -9,7 +9,7 @@ export async function assertNewGameBoard(cdp, appUrl, output) {
   const settle = () => evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
   const wait = expression => waitForExpression(cdp, expression, {
     label: 'New game board handoff',
-    diagnose: `({focus:document.activeElement?.outerHTML.slice(0,180),dialog:document.querySelector('[role=dialog]')?.getAttribute('aria-labelledby'),board:document.querySelector('[data-board-snapshot]')?.dataset.boardMoveCount})`,
+    diagnose: `({focus:document.activeElement?.outerHTML.slice(0,180),dialog:document.querySelector('[role=dialog]')?.getAttribute('aria-labelledby'),board:document.querySelector('[data-board-snapshot]')?.dataset.boardMoveCount,history:history.state})`,
   });
   try {
     for (const viewport of [
@@ -31,7 +31,16 @@ export async function assertNewGameBoard(cdp, appUrl, output) {
       const command = async (id, text) => {
         await key('k', 'KeyK', 75, 2);await click('[data-command-palette-search]');await cdp.send('Input.insertText', { text });await click(`[data-command-palette-item=${id}]`);
       };
+      const dismissHome = async () => {
+        if (await evaluate(cdp, '!!document.querySelector("[data-mobile-home=true]")')) {
+          await click('[data-mobile-home=true] [aria-label="Return to board"]');
+        }
+        await wait('!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');
+      };
       const reset = async () => {
+        // Cancelled Home flows deliberately restore Home. Dismiss it natively
+        // before navigation so its history entry cannot become a stale marker.
+        await dismissHome();
         const setup = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
           localStorage.removeItem('web-katrain:auto_saved_game:v1');localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
           localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');localStorage.setItem('web-katrain:library_open:v1','false');
@@ -98,9 +107,10 @@ export async function assertNewGameBoard(cdp, appUrl, output) {
       }
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(output, `new-game-board-${viewport.width}.png`), Buffer.from(shot.result.data, 'base64'));
+      await dismissHome();
     }
   } catch (error) {
-    const state = await evaluate(cdp, '({body:document.body.innerText,focus:document.activeElement?.outerHTML})').catch(() => null);
+    const state = await evaluate(cdp, '({body:document.body.innerText,focus:document.activeElement?.outerHTML,history:history.state})').catch(() => null);
     fs.writeFileSync(path.join(output, 'new-game-board-failure.json'), JSON.stringify({ case: currentCase, error: String(error), state }, null, 2));
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
     if (shot) fs.writeFileSync(path.join(output, 'new-game-board-failure.png'), Buffer.from(shot.result.data, 'base64'));

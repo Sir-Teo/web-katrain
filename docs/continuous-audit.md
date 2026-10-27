@@ -8,6 +8,26 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Full unit verification at `ae9f45a` passes 503 files and 3,464 cases, with
+  78 existing engine skips, in 338.1 s. App/test TypeScript, full lint, 70
+  related cases and the production build pass. Standard responsiveness fails
+  Settings at 135.7 ms against 120 ms; first move, median, input latency and
+  longest task pass at 9.27/1.25/80/109 ms. The single diagnostic trace also
+  fails Settings/longest task at 232.6/417 ms and includes profiling overhead;
+  it does not explain or replace the standard failure. Limits are unchanged.
+  The focused browser sweep passes all 11 base layouts and all 55 new-game
+  cases, then fails history cleanup after the desktop problem cases. Its first
+  external wrapper also retained a module-path failure before browser startup.
+  The new-game helper left Home open after cancellation before navigating;
+  it now uses the native Return to board action and waits for history cleanup
+  before leaving each case. Its original assertions still verify Home restoration.
+  A subsequent selected handoff run passes new-game, all 88 study-feedback
+  checks, four paste-shortcut flows, four practice boards, three two-tab progress
+  cases and the existing desktop/phone problem keyboard flows. Evidence is under
+  `katrain-batch-seventy-nine-handoff-oS6rp0`. These focused results remain
+  separate from the failed sweep and timing samples; this is not a complete
+  integrated pass. The application is unchanged by this fixture cleanup.
+
 - Problem Practice now reveals its verdict inside its own pane when the
   board would push it below the footer, and resets that pane for a new problem
   or retry. The before screenshot at 320×568 hid the whole message. Lessons,
