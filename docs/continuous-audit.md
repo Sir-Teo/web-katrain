@@ -8,6 +8,17 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Verification at `00d911f`, including cross-tab lesson progress, passes all
+  503 unit files and 3,450 cases, with the existing 78 engine cases skipped
+  in CI. App/test TypeScript, full lint and 22 related cases pass. The build
+  passes (Vite phase 13.9 s). A focused browser pass keeps the unchanged base
+  checks for all 11 layouts, including each modal's lesson-completion fixture,
+  then runs the four practice-board sizes and three native two-tab progress
+  cases with visible updates and both reloads. All pass, with no competing
+  jobs. This is a focused layout/lesson pass; the latest complete sweep of
+  every native suite remains `b7a92c3` below. Evidence is retained under
+  `/workspace/.katrain-audit-artifacts/katrain-batch-seventy-three-layouts`.
+
 - Verification at `b7a92c3`, including report-aware engine-error copy feedback
   and focused mobile actions clearing their toast, passes all 503 unit files
   and 3,445 cases, with the existing 78 engine cases skipped in CI.
