@@ -2107,22 +2107,24 @@ export const Layout: React.FC = () => {
     setIsNewGameOpen(true);
   }, [prepareForGameReplacement]);
 
-  const startQuickNewGame = useCallback(async () => {
+  const startQuickNewGame = useCallback(async (options: { boardSize?: BoardSize; handicap?: number } = {}) => {
     setMenuOpen(false);
     setMobileHomeOpen(false);
     setIsNewGameOpen(false);
-    if (!(await prepareForGameReplacement())) return;
+    if (!(await prepareForGameReplacement())) return false;
+    const boardSize = options.boardSize ?? settings.defaultBoardSize;
     startNewGame({
       komi,
       rules: settings.gameRules,
-      boardSize: settings.defaultBoardSize,
-      handicap: settings.defaultHandicap,
+      boardSize,
+      handicap: options.handicap ?? settings.defaultHandicap,
     });
     setLoadedLibraryFile(null);
     setScoringMode(false);
     setManualDeadStones(new Set());
     markCurrentGameCleanAndClearAutoSave();
-    toast(`Started ${settings.defaultBoardSize}×${settings.defaultBoardSize} game.`, 'success');
+    toast(`Started ${boardSize}×${boardSize} game.`, 'success');
+    return true;
   }, [
     komi,
     markCurrentGameCleanAndClearAutoSave,
@@ -2134,6 +2136,25 @@ export const Layout: React.FC = () => {
     setLoadedLibraryFile,
     toast,
   ]);
+
+  const startLessonPractice = async () => {
+    // Close Lessons so the existing unsaved-game choice can take focus.
+    setIsLessonsOpen(false);
+    if (!(await startQuickNewGame({ boardSize: 9, handicap: 0 }))) {
+      setIsLessonsOpen(true);
+      return;
+    }
+    setLessonsReturnHome(false);
+    setMobileHomeOpen(false);
+    setMobileTab('board');
+    setLibraryOpen(false);
+    setRightPanelOpen(false);
+    requestAnimationFrameSafe(() => {
+      if (!document.querySelector('[role="dialog"]')) {
+        document.querySelector<HTMLElement>('[data-board-snapshot]')?.focus({ preventScroll: true });
+      }
+    });
+  };
 
   // Only 9, 13 and 19 are supported, so any other declared size quietly became
   // a 19x19 board with the stones scattered across it. Call after loadGame:
@@ -3999,11 +4020,14 @@ export const Layout: React.FC = () => {
           />
         )}
         {isLessonsOpen && (
-          <LessonsModal onClose={() => {
-            setIsLessonsOpen(false);
-            if (lessonsReturnHome) setMobileHomeOpen(true);
-            setLessonsReturnHome(false);
-          }} />
+          <LessonsModal
+            onPractice={() => void startLessonPractice()}
+            onClose={() => {
+              setIsLessonsOpen(false);
+              if (lessonsReturnHome) setMobileHomeOpen(true);
+              setLessonsReturnHome(false);
+            }}
+          />
         )}
         {isGuessMoveOpen && (
           <GuessMoveModal

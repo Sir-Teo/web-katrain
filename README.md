@@ -70,7 +70,8 @@ PWA. There is no analysis server to run.
   searchable pro game library. Open any of them from the menu's Study &
   Practice section or the command palette.
 - Lessons remember your progress on this device, offer unfinished exercises
-  to resume, and mark completed lessons for review.
+  to resume, and mark completed lessons for review. Open a 9×9 practice board
+  from Lessons to try placing stones and making captures with both colors.
 - Guess the next move in a loaded game, with keyboard answers and a player
   filter. Start again after the final answer to repeat the drill with a fresh score.
 - Practice recorded tsumego branches with automatic opponent replies and

@@ -8,9 +8,10 @@ import { advanceLessonProgress, loadLessonProgress, saveLessonProgress } from '.
 
 interface LessonsModalProps {
   onClose: () => void;
+  onPractice?: () => void;
 }
 
-export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
+export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose, onPractice }) => {
   useEscapeToClose(onClose);
   const dialogRef = useInitialDialogFocus<HTMLDivElement>();
   const lastLessonRef = React.useRef<string | null>(null);
@@ -201,6 +202,22 @@ export const LessonsModal: React.FC<LessonsModalProps> = ({ onClose }) => {
             </>
           )}
         </div>
+
+        {!lesson && onPractice && (
+          <div className="lessons-practice shrink-0 border-t border-[var(--ui-border)] px-4 py-3">
+            <p id="lessons-practice-description" className="text-xs text-[var(--ui-text-muted)]">
+              Practice placing stones and making captures with both colors.
+            </p>
+            <button
+              type="button"
+              onClick={onPractice}
+              aria-describedby="lessons-practice-description"
+              className="mt-2 min-h-11 w-full rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-accent-soft,var(--ui-surface-2))] px-3 py-2 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-2)]"
+            >
+              Open a 9×9 practice board
+            </button>
+          </div>
+        )}
 
         {lesson && (
           <div className="lessons-footer ui-bar flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ui-border)] px-4 py-3">

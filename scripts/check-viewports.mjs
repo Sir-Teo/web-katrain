@@ -29,6 +29,7 @@ import { assertLazyModalInput } from './lib/lazy-modal-input-check.mjs';
 import { assertLibraryCrossTab } from './lib/library-cross-tab-check.mjs';
 import { assertLibraryPendingNames } from './lib/library-pending-names-check.mjs';
 import { assertFastNavigation } from './lib/fast-navigation-check.mjs';
+import { assertLessonPractice } from './lib/lesson-practice-check.mjs';
 import { assertLatestLibraryLoads } from './lib/library-load-check.mjs';
 import { assertLibraryCollectionSplit } from './lib/library-collection-check.mjs';
 import { assertBoardComposition } from './lib/board-composition-check.mjs';
@@ -4243,6 +4244,7 @@ async function main() {
     await assertLocalFileOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertBoardSnapshotOrder(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertFastNavigation(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLessonPractice(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoNumericEdits(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNumericEditorComposition(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertMetadataRecovery(cdp, `http://127.0.0.1:${appPort}/`, screenshotDir);

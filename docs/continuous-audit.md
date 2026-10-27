@@ -306,6 +306,19 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Changes completed
 
+- **Lessons lead into a small practice board:** the lesson list now offers an
+  always-visible action to open an empty 9×9 board and practice both colors.
+  It uses the normal unsaved-game choice: Cancel returns to Lessons, Discard
+  retains the stored original, and Save persists the edited Library game
+  before replacement. The board receives keyboard focus, and lesson progress
+  stays on the device. The existing quick-new-game path now accepts explicit
+  board-size/handicap overrides for this action. App/test TypeScript, targeted
+  lint and 38 related tests pass. Native flows pass at 1440×900, 390×844,
+  320×568 and 568×320, verifying clean opening, cancellation, discard, Save,
+  both colors, progress, focus and a visible 44 px action. Phone and landscape
+  screenshots were reviewed. This is a practice shortcut; guided play remains
+  follow-up work.
+
 - **Fast navigation publishes one final position:** a trusted desktop Back 10
   click previously published ten positions; the regression captured all ten
   while still reaching the expected move. The store now traverses the chosen
@@ -1675,8 +1688,9 @@ file selection through the success toast and checks persisted content afterward.
 
 ## Feature order for beginners and experienced players
 
-1. **Guided first game:** Learn Go now exposes the existing fundamentals lessons
-   on both start screens. Next add a guided 9×9 first game. Keep Coach as the
+1. **Guided first game:** Learn Go exposes the fundamentals lessons on both
+   start screens, and Lessons now opens a 9×9 practice board for both colors.
+   Next add a guided first game. Keep Coach as the
    plain-language path and let players reveal technical detail when useful.
 2. **Professional import compatibility:** GIB/NGF now work through normal
    file, drop, launch, and library/ZIP paths. Auto tries UTF-8 then Korean;
