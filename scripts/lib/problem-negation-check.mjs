@@ -65,6 +65,13 @@ export async function assertProblemNegation(cdp, appUrl, runDir, screenshotDir) 
       await key('ArrowRight','ArrowRight',39);await key('Enter','Enter',13);
       await wait('document.querySelector("[data-problem-message]")?.textContent.includes("part of this problem")');
       await assertFeedbackFits(width,index,'unrecorded','[data-static-board-interactive=true]');
+      const wheelPoint=await evaluate(cdp,`(()=>{const r=document.querySelector('.problem-body').getBoundingClientRect();return {x:r.right-12,y:r.top+Math.min(80,r.height/2)}})()`);
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseWheel',...wheelPoint,deltaX:0,deltaY:-400});
+      await wait('document.querySelector(".problem-body").scrollTop===0');
+      await key('ArrowDown','ArrowDown',40);await key('Enter','Enter',13);
+      await assertFeedbackFits(width,index,'unrecorded-repeat','[data-static-board-interactive=true]');
+      await key('ArrowUp','ArrowUp',38);
+
       await key('ArrowLeft','ArrowLeft',37);await key('Enter','Enter',13);
       await wait('!!document.querySelector("[data-problem-message]")');
       await evaluate(cdp, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');

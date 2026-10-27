@@ -8,6 +8,16 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Repeated unrecorded problem moves now reveal their hint again after the
+  learner scrolls back to the board. The message text stays the same, so it
+  previously skipped the reveal effect. A native 320 px wheel/keyboard
+  reproduction is retained under `katrain-problem-repeat-native-qS1b5P`.
+  All 80 problem feedback checks now pass at four sizes, including 20 repeated
+  attempts with preserved cursor, focus, page position and correct solution
+  selection, under `katrain-problem-negation-native-sY4nxR`. App TypeScript,
+  targeted lint and 47 related cases pass. Production validation still
+  precedes this small follow-up.
+
 - Full unit verification at `ae9f45a` passes 503 files and 3,464 cases, with
   78 existing engine skips, in 338.1 s. App/test TypeScript, full lint, 70
   related cases and the production build pass. Standard responsiveness fails

@@ -51,6 +51,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
   const [cursor, setCursor] = useState<GameNode | null>(start);
   const [status, setStatus] = useState<Status>('solving');
   const [message, setMessage] = useState<string | null>(null);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,6 +118,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     if (!node || status !== 'solving') return;
     const child = findChildForMove(node, x, y);
     if (!child) {
+      // Repeating an unrecorded move keeps the same text, but must reveal
+      // the hint again if the learner scrolled back to the board.
+      setFeedbackRevision(value => value + 1);
       setMessage("That move isn't part of this problem — try another point.");
       return;
     }
@@ -171,7 +175,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({ onClose, onOpenSgf }
     }
     const feedback = body.querySelector<HTMLElement>('[data-problem-message]');
     if (feedback) revealPaneFeedback(feedback, body);
-  }, [message, start?.id, attempt, dialogRef]);
+  }, [message, feedbackRevision, start?.id, attempt, dialogRef]);
 
   const markers: StaticBoardMarker[] = [];
   if (node?.move && node.move.x >= 0) {
