@@ -46,6 +46,7 @@ export async function assertPhotoTraceRaces(cdp, appUrl, runDir, screenshotDir) 
   })`);
   const hold = async () => {
     await panel('trace');
+    assert.ok(await evaluate(cdp, 'document.querySelector("[data-photo-board-photo-align]").getBoundingClientRect().height>0'), 'Choosing a photo must make its alignment controls available');
     await click('[data-photo-board-auto-trace]');
     await wait('photoTraceHeld.length > 0');
     assert.equal(await evaluate(cdp, `document.querySelector('[aria-labelledby=photo-board-title]').contains(document.activeElement)`), true, 'Pending photo recognition must retain dialog focus');

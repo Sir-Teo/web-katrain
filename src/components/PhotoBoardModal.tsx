@@ -1270,7 +1270,7 @@ export const PhotoBoardModal: React.FC<PhotoBoardModalProps> = ({
               </div>
             )}
 
-            <div className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3">
+            <div hidden={!photoUrl} className="rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-3">
               <div className="flex flex-wrap items-center gap-3">
                 <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--ui-text)] desktop-shell:min-h-6">
                   <input

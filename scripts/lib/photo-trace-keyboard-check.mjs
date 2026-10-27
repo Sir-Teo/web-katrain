@@ -44,6 +44,7 @@ export async function assertPhotoTraceKeyboard(cdp, appUrl, screenshotDir) {
     await wait('!!document.querySelector("[aria-labelledby=photo-board-title]")');
     if (width === 390) await click('[data-photo-board-mobile-tab=trace]');
     await wait('document.querySelectorAll("[data-photo-board-point]").length===361');
+    assert.equal(await evaluate(cdp, 'document.querySelector("[data-photo-board-photo-align]").getBoundingClientRect().height'), 0, 'Manual tracing must not spend space on controls for an absent photo');
     assert.equal(await evaluate(cdp, `document.querySelectorAll('[data-photo-board-point][tabindex="0"]').length`), 1);
     // Tab into the grid from its actual preceding visible control.
     await evaluate(cdp, `(() => {

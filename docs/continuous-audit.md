@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- Manual photo tracing now hides underlay-alignment controls until a photo
+  is selected. At initial scroll position, the unused controls pushed the grid
+  below the phone pane (`katrain-photo-empty-layout-IUWgB2`). Hiding that group
+  moves the grid up by 228/350/430/350 px at desktop/phone/narrow/landscape
+  sizes without changing its dimensions or pane position (`oNL3Rf`). Visible
+  grid height increases from 99 to 327 px on desktop and 0 to 174 px on the
+  larger phone; narrow phone and short landscape still require scrolling.
+  Desktop/phone keyboard and recognition-race checks pass (`PtyK9r`), including
+  hidden controls without a photo and available controls after upload. Targeted
+  lint, 14 component cases and the production build pass (Vite phase 15.5 s);
+  test TypeScript also passes. The production four-size layout check (`JkXJE1`)
+  and both expanded desktop/phone regressions pass under
+  `katrain-photo-empty-production-sZW5z2`.
+
 - The browser sweep at `5330286` passes all 11 base viewports and the
   integration checks through pro-game replacement, including Library save
   failures/ordering, clipboard and file ordering, board exports, new-game
