@@ -67,11 +67,26 @@ export function NotificationToast({
 
   React.useEffect(() => {
     if (placement !== 'mobile-panel') return;
+    const region = toastRef.current?.parentElement;
+    if (!region) return;
+    const root = document.documentElement;
+    // Let panel content scroll above the notice even when its text wraps.
+    // Keep the board's available space independent of notifications.
+    const measure = () => root.style.setProperty(
+      '--mobile-panel-notification-space',
+      `calc(${region.getBoundingClientRect().height}px + 1rem)`,
+    );
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(region);
     const frame = requestAnimationFrame(() => {
-      const region = toastRef.current?.parentElement;
-      if (region) revealFocusedButton(region);
+      revealFocusedButton(region);
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      root.style.removeProperty('--mobile-panel-notification-space');
+    };
   }, [notification, placement]);
 
   const syncHold = React.useCallback(() => {

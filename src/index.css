@@ -4074,6 +4074,14 @@
     );
   }
 
+  .mobile-safe-bottom[role='tabpanel'] {
+    padding-bottom: calc(
+      var(--mobile-tabbar-height) + var(--mobile-bottom-controls-height, 0px) +
+        max(var(--pwa-banner-height, 0px), var(--mobile-panel-notification-space, 0px)) +
+        env(safe-area-inset-bottom)
+    );
+  }
+
   .mobile-safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }

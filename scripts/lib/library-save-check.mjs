@@ -46,6 +46,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
   const reports = [], failures = [];
   const scenarios = [
     ...[1280, 390, 320].flatMap(width => ['save', 'update'].map(action => ({ width, action, mode: 'fail' }))),
+    ...['125%', '200%'].map(font => ({ width: 320, action: 'save', mode: 'fail', font })),
     ...['save', 'update'].map(action => ({ width: 1280, action, mode: 'delay' })),
     { width: 1280, action: 'update', mode: 'delay', entry: 'shortcut' },
     { width: 1280, action: 'update', mode: 'delay', entry: 'header' },
@@ -65,12 +66,12 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
   ];
   try {
     for (const scenario of scenarios.filter(scenarioFilter)) {
-      const { width, action, mode, entry, overlap, panelUpdate, metadataEdit } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
+      const { width, action, mode, entry, overlap, panelUpdate, metadataEdit, font } = scenario, mobile = width < 1000, height = width === 320 ? 568 : mobile ? 844 : 800;
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
       await cdp.ready;
-      const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}${overlap ? `-overlap-${overlap}` : ''}${panelUpdate ? '-panel' : ''}${metadataEdit ? '-star' : ''}`, report = { ...scenario, stages: [] }, errors = [];
+      const stem = `${width}x${height}-library-${action}-${mode}${entry ? `-${entry}` : ''}${overlap ? `-overlap-${overlap}` : ''}${panelUpdate ? '-panel' : ''}${metadataEdit ? '-star' : ''}${font ? `-font-${font.replace('%', '')}` : ''}`, report = { ...scenario, stages: [] }, errors = [];
       const wait = expression => waitForExpression(cdp, expression, { label: 'Library save check' });
       const point = expression => wait(`(()=>{
         const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});
@@ -204,6 +205,7 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
           continue;
         }
         await openLibrary();
+        if (font) await evaluate(cdp, `document.documentElement.style.fontSize=${JSON.stringify(font)};void 0`);
         if (action === 'update') {
           const sgf = '(;GM[1]SZ[9]C[Original study]AB[dd])';
           const file = path.join(runDir, `${stem}.json`);

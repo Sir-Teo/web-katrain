@@ -8,6 +8,20 @@ reproduced failures separate from candidates that still need investigation.
 
 ## Latest verification
 
+- PR #30's first CI run passes audit and the full verify command, then fails
+  one native 320 px save-error scenario: the wrapped Library header pushes
+  Retry behind a persistent notification. The failure screenshot and artifact
+  are retained. The same normal-text case passes locally; enlarging text to
+  125% reproduces the identical unreachable-button timeout. Mobile tab panels
+  now reserve the measured notification height, allowing content to scroll
+  above it while the toast stays anchored. This reserve excludes the board.
+  The original native recovery scenario passes at 100%, 125% and 200%, including
+  retry persistence and recovery clearing; the latter two cases now run in CI.
+  Fifty-nine focused tests, helper/component lint and the production build pass.
+  Production regression O1uKR0 passes four stationary PWA-dismissal cases, four
+  original empty-Library cases and three header layouts.
+  The first CI attempt remains failed; a complete updated-head run is required.
+
 - Publication checks retain the complete local history. Attempt 115 at
   `fe8ef01` passes all 11 base layouts and the native workflows through
   notification copying, including the new PWA-anchor and OS-open save checks.
