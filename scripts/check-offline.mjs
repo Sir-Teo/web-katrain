@@ -20,9 +20,9 @@ import {
  * workers inherit the page's network conditions; an uncached CORS endpoint
  * verifies that inheritance rather than trusting navigator.onLine.
  *
- * Reloading an analyzed game opens recovery. Restore it, play a new position,
- * and require a real worker result for that position. A cached win rate or a
- * shortcut ignored behind the recovery dialog cannot pass this check.
+ * Exercise both a first-ever analysis and recovery of an analyzed game. Play a
+ * new position offline and require a real worker result. A cached win rate or
+ * a shortcut ignored behind the recovery dialog cannot pass this check.
  */
 const TIMEOUT_MS = 60_000;
 const OFFLINE = { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 };
@@ -44,10 +44,12 @@ const FIXTURE_SCRIPT = `
     }));
   }
   localStorage.setItem('web-katrain:pwa-install-dismissed:v1', 'true');
-  window.offlineCheckTrace = { requests: [], results: [] };
+  window.offlineCheckTrace = { requests: [], results: [], workers: [], errors: [] };
   window.Worker = new Proxy(window.Worker, {
     construct(Type, args) {
       const worker = Reflect.construct(Type, args);
+      offlineCheckTrace.workers.push(String(args[0]));
+      worker.addEventListener('error', () => offlineCheckTrace.errors.push(String(args[0])));
       const post = worker.postMessage.bind(worker);
       worker.postMessage = (message, ...rest) => {
         if (message?.type === 'katago:analyze') offlineCheckTrace.requests.push({
@@ -124,7 +126,7 @@ async function analyzePosition(cdp, stones) {
       const result=t.results.find(r=>r.id===request.id&&r.ok&&!r.canceled&&r.visits>=16);
       if(result)return {request,result};
     }
-    return t.results.some(r=>!r.ok&&!r.canceled)?{error:t.results}:false;
+    return t.errors.length||t.results.some(r=>!r.ok&&!r.canceled)?{error:t}:false;
   })()`, `Fresh analysis of ${stones} stones`);
   assert.ok(!proof.error, JSON.stringify(proof));
   assert.equal(proof.result.backend, 'wasm');
@@ -208,7 +210,7 @@ async function stopChrome(chrome) {
   });
 }
 
-async function main() {
+async function main({ coldStart }) {
   const root = path.resolve(import.meta.dirname, '../dist'), index = path.join(root, 'index.html');
   assert.ok(fs.existsSync(index), 'No production build. Run npm run build before test:offline.');
   const base = deploymentBase(fs.readFileSync(index, 'utf8'));
@@ -251,16 +253,37 @@ async function main() {
       return urls.length>0&&(await Promise.all(urls.map(u=>caches.match(u)))).every(Boolean);
     })()`, 'First-visit board assets');
     console.log(`First visit cached the board at ${base}`);
-    const online = await analyzePosition(cdp, 0);
-    console.log(`Online control: ${online.result.visits} WASM visits`);
-    await click(cdp, 'document.querySelector("button.analyze-toggle")');
+    const workers = await evaluate(cdp, `(async()=>{
+      const urls=[...document.querySelectorAll('meta[name=web-katrain-offline-worker]')].map(e=>new URL(e.content,location.href).href);
+      return Promise.all(urls.map(async url=>({url,cached:!!await caches.match(url)})));
+    })()`);
+    assert.equal(workers.length, 1, 'The build must identify its offline engine worker');
+    assert.ok(workers.every(worker => worker.cached), 'The engine worker is missing from the first-visit cache');
+    if (coldStart) {
+      assert.deepEqual(await evaluate(cdp, 'offlineCheckTrace.workers'), [], 'The cold fixture already started a worker');
+      assert.deepEqual(await evaluate(cdp, 'offlineCheckTrace.requests'), []);
+      // Reach the online canary in a separate, test-owned worker. Starting the
+      // real engine here would conceal a missing first-install worker cache.
+      await evaluate(cdp, `new Promise(resolve=>{
+        const url=URL.createObjectURL(new Blob(['postMessage("ready")'],{type:'text/javascript'}));
+        const worker=new Worker(url);window.offlineControlWorker=worker;
+        worker.onmessage=()=>{URL.revokeObjectURL(url);resolve(true)};
+      })`);
+    } else {
+      const online = await analyzePosition(cdp, 0);
+      console.log(`Online control: ${online.result.visits} WASM visits`);
+      await click(cdp, 'document.querySelector("button.analyze-toggle")');
+    }
     network = await configureOffline(cdp, debugPort, `http://127.0.0.1:${controlServer.address().port}/network-control`);
     assert.equal(controlRequests, 1);
     // This private fixture owns the generated game and explicitly restores its
     // recovery after accepting the browser's unsaved-game warning.
     await navigate(cdp, url, 15_000, { acceptBeforeUnload: true });
-    await wait(cdp, '!!document.querySelector("#auto-save-recovery-title")');
-    await click(cdp, `[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Restore Game')`);
+    await wait(cdp, '!!document.querySelector("[data-board-snapshot=true]")');
+    if (!coldStart) {
+      await wait(cdp, '!!document.querySelector("#auto-save-recovery-title")');
+      await click(cdp, `[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Restore Game')`);
+    }
     await wait(cdp, '!document.querySelector("[role=dialog]")&&!history.state?.webKatrainOverlay');
     const before = await evaluate(cdp, 'document.querySelector("[data-board-snapshot]").dataset.boardStones');
     const point = await evaluate(cdp, `(()=>{
@@ -279,7 +302,7 @@ async function main() {
     assert.equal(controlRequests, 1, 'An offline fetch reached the control server');
     const failed = await evaluate(cdp, `performance.getEntriesByType('resource').filter(e=>e.responseStatus===0).map(e=>new URL(e.name).pathname)`);
     assert.deepEqual(failed, [], `Requests failed offline: ${JSON.stringify(failed)}`);
-    console.log(`Offline check passed: cached board, restored game and a fresh ${offline.result.visits}-visit WASM result for White`);
+    console.log(`Offline check passed: ${coldStart ? 'first-ever analysis' : 'restored game'}, cached board and a fresh ${offline.result.visits}-visit WASM result for White`);
   } catch (error) {
     if (cdp) console.error('Offline UI:', await evaluate(cdp, `(()=>({
       dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.getAttribute('aria-labelledby')),
@@ -297,4 +320,5 @@ async function main() {
   }
 }
 
-await main();
+await main({ coldStart: true });
+await main({ coldStart: false });

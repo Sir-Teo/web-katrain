@@ -31,6 +31,7 @@ const BUILT_INDEX_HTML = `<!doctype html><html><head>
   <link rel="stylesheet" crossorigin href="/assets/main-BBB.css">
   <link rel="icon" href="/pwa/icon.svg">
   <script type="module" crossorigin src="/assets/main-CCC.js"></script>
+  <meta name="web-katrain-offline-worker" content="/assets/katago-worker-DDD.js">
   <script src="https://cdn.example.com/other.js"></script>
 </head><body></body></html>`;
 
@@ -201,13 +202,14 @@ describe('service worker install', () => {
     // the install, so the worker never activated and the app had no offline
     // support at all, silently, and again on the next visit.
     const { added } = await runInstall({
-      failing: ['./models/katago-small.bin.gz', './tfjs/tfjs-backend-wasm-simd.wasm'],
+      failing: ['./models/katago-small.bin.gz', './tfjs/tfjs-backend-wasm-simd.wasm', 'https://example.test/assets/katago-worker-DDD.js'],
     });
 
     expect(added).toContain('./');
     expect(added).toContain('./index.html');
     expect(added).toContain('./pwa/icon-192.png');
     expect(added).not.toContain('./models/katago-small.bin.gz');
+    expect(added).not.toContain('https://example.test/assets/katago-worker-DDD.js');
   });
 
   it('leaves a replacement worker waiting for the page to accept the update', async () => {
@@ -324,6 +326,21 @@ describe('service worker fetch', () => {
  * the cache and then loaded nothing.
  */
 describe('the app\'s own bundles', () => {
+  it('caches the unstarted engine worker, including a deployment prefix', async () => {
+    const { added } = await runInstall({
+      indexHtml: '<meta name="web-katrain-offline-worker" content="/web-katrain/assets/katago-worker-DDD.js">',
+    });
+    expect(added).toContain('https://example.test/web-katrain/assets/katago-worker-DDD.js');
+  });
+
+  it('ignores an external offline worker or an asset outside build output', async () => {
+    const { added } = await runInstall({ indexHtml: `
+      <meta name="web-katrain-offline-worker" content="https://cdn.example.com/assets/worker.js">
+      <meta name="web-katrain-offline-worker" content="/other/worker.js">
+    ` });
+    expect(added.some((url) => url.includes('worker.js'))).toBe(false);
+  });
+
   it('precaches what index.html loads, by reading it', async () => {
     const { added } = await runInstall();
     expect(added).toContain('https://example.test/assets/main-CCC.js');
@@ -427,6 +444,8 @@ describe('bundles reported across deployments', () => {
     const store = new Map<string, FakeResponse>([
       ['./index.html', response(BUILT_INDEX_HTML)],
       ['https://example.test/assets/main-CCC.js', response('entry')],
+      ['https://example.test/assets/katago-worker-DDD.js', response('current engine')],
+      ['https://example.test/assets/katago-worker-OLD.js', response('old engine')],
       ['https://example.test/assets/Dashboard-OLD.js', response('old deploy')],
       ['https://example.test/assets/Dashboard-OLD.css', response('old deploy')],
       ['https://example.test/assets/board-texture-OLD.png', response('image')],
@@ -454,6 +473,8 @@ describe('bundles reported across deployments', () => {
 
     expect(store.has('https://example.test/assets/Dashboard-NEW.js')).toBe(true);
     expect(store.has('https://example.test/assets/main-CCC.js')).toBe(true);
+    expect(store.has('https://example.test/assets/katago-worker-DDD.js')).toBe(true);
+    expect(store.has('https://example.test/assets/katago-worker-OLD.js')).toBe(false);
     expect(store.has('https://example.test/assets/Dashboard-OLD.js')).toBe(false);
     expect(store.has('https://example.test/assets/Dashboard-OLD.css')).toBe(false);
     expect(store.has('https://example.test/assets/board-texture-OLD.png')).toBe(true);

@@ -175,18 +175,24 @@ const putRuntimeResponse = (cache, request, response) =>
 const ENTRY_ASSET_PATTERN =
   /(?:src|href)=["']([^"']+\.(?:js|css))["']|add\(\s*"(?:modulepreload|preload)"\s*,\s*"([^"]+\.(?:js|css))"\s*\)/g;
 
-const entryAssetUrls = async (cache) => {
+// The engine is lazy: a page that has never analyzed cannot report its worker
+// among used assets. The build names it here without downloading or starting it.
+const OFFLINE_ENGINE_PATTERN = /<meta\s+name="web-katrain-offline-worker"\s+content="([^"]+\.js)"\s*\/?\s*>/g;
+
+const indexAssetUrls = async (cache, pattern) => {
   const response = (await cache.match('./index.html')) || (await cache.match('./'));
   if (!response || !isStorableResponse(response)) return [];
   const html = await response.text();
   const urls = new Set();
-  for (const match of html.matchAll(ENTRY_ASSET_PATTERN)) {
+  for (const match of html.matchAll(pattern)) {
     const resolved = new URL(match[1] ?? match[2], self.location.href);
     // Only this deployment's own build output.
     if (isSameOrigin(resolved) && resolved.pathname.includes('/assets/')) urls.add(resolved.href);
   }
   return [...urls];
 };
+const entryAssetUrls = (cache) => indexAssetUrls(cache, ENTRY_ASSET_PATTERN);
+const offlineEngineAssetUrls = (cache) => indexAssetUrls(cache, OFFLINE_ENGINE_PATTERN);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -198,7 +204,8 @@ self.addEventListener('install', (event) => {
         const entryAssets = await entryAssetUrls(cache);
         if (entryAssets.length > 0) await cache.addAll(entryAssets);
         await Promise.allSettled(
-          PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)).map((url) => cache.add(url))
+          [...PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)), ...await offlineEngineAssetUrls(cache)]
+            .map((url) => cache.add(url))
         );
       })
   );
@@ -289,6 +296,7 @@ const pruneOldBundles = async (cache, reported) => {
   if (reported.size === 0) return;
   const keep = new Set(reported);
   for (const href of await entryAssetUrls(cache)) keep.add(href);
+  for (const href of await offlineEngineAssetUrls(cache)) keep.add(href);
   const requests = await cache.keys();
   await Promise.allSettled(
     requests

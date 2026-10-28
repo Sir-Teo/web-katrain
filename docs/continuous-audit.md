@@ -823,3 +823,25 @@ follow-up work beyond this audit’s wrap-up.
 - Full verification passes with 3,245 tests, 77 intentional CI skips,
   typechecks, lint and build. The production offline check also passes with
   `/web-katrain/` as the deployment base; the normal local build is restored.
+
+## 2026-10-28 continuation: First-ever offline analysis
+
+- A separate cold-install probe reproduced an engine error: no analysis had
+  run online, so the lazy hashed engine worker was absent from CacheStorage.
+  The model and WASM were available, but the browser could not start the worker.
+- The production build now records the actual worker URL in index metadata.
+  Install caches it alongside the optional model assets without starting the
+  engine. A failed download preserves the offline shell; cache cleanup retains
+  the current worker and removes older workers. Staged updates keep the new
+  worker separate until activation.
+- The production offline check now covers two fresh profiles. One never starts
+  KataGo online and uses a test-owned worker only for the positive network
+  control. The other analyzes online and restores its recovery offline. Both
+  disable HTTP caches, verify network isolation and require a real 16-visit WASM
+  result for a newly played position with White to play.
+- All 34 focused worker/asset tests pass, including deployment-prefix URLs,
+  optional worker-download failure, cache retention and update staging. Both
+  production scenarios pass at `/` and `/web-katrain/` with no failed page
+  resource requests.
+- Full verification passes with 3,247 tests, 77 intentional CI skips,
+  typechecks, lint and build; the default local build is restored.

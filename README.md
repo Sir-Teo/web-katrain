@@ -104,8 +104,8 @@ PWA. There is no analysis server to run.
   navigation, sound, and haptics.
 - Document language metadata for 13 languages, which tags the page and the SGF
   you export. The interface itself is English only.
-- The production service worker precaches the app shell, the default model, the
-  one TensorFlow.js WASM build this deployment can run, and the default board's
+- The production service worker precaches the app shell, the analysis worker,
+  the default model, the one TensorFlow.js WASM build this deployment can run, and the default board's
   images. Everything else — the other themes, the other WASM builds — is cached
   the first time it is used, so what you actually use stays available offline.
   See [Deployment](docs/deployment.md#service-worker-and-offline-cache).
@@ -133,7 +133,7 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. About 8 minutes locally. |
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
 | `npm run test:study` | Chrome benchmarks for marker edits and 12,000-node export, nested import, solution lookup, copy/paste, and setup replay. Measures dev-store operations separately from production INP; not in `verify` or CI. |
-| `npm run test:offline` | Production cache, recovery and fresh WASM analysis with the network blocked. Run `build` first; not in `verify` or CI. |
+| `npm run test:offline` | First-ever analysis and game recovery with the network blocked; real WASM results required. Run `build` first; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |
