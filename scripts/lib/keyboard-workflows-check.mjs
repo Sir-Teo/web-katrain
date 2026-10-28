@@ -110,7 +110,10 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         await key('Escape', 27);
         await wait('!document.querySelector("#keyboard-help-title")');
 
-        if (mobile) await click('document.querySelector("#mobile-tab-info")');
+        if (mobile) {
+          await click('document.querySelector("#mobile-tab-info")');
+          assert.equal(await evaluate(cdp, `!!document.querySelector('#mobile-panel-side').closest('section[aria-label="Game review"]')`), true);
+        }
         const info = "[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Game info')";
         if (!await evaluate(cdp, 'document.querySelector("[data-game-info-panel]")?.getBoundingClientRect().height>0')) await click(info);
         await click('document.querySelector("[data-game-info-edit-toggle]")');

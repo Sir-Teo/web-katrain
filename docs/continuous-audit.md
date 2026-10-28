@@ -368,3 +368,45 @@ follow-up work beyond this audit’s wrap-up.
   the phone's 44 px target floor, and continued typing after Clear. The full
   11-size viewport suite and `CI=1 npm run verify` pass (3,206 tests, 77 CI
   skips, typechecks, lint, and production build).
+
+## 2026-10-27 continuation: Practice board sizes and saved defaults
+
+- New Game, Settings, SGF, NGF, text diagrams, photo-board setup and OGS
+  library sync now support every odd square board from 5 through 19. Existing
+  9/13/19 star points and handicap patterns are preserved. New sizes use
+  distinct in-bounds setup points, including all nine handicap stones.
+- Startup used to construct an empty 19x19 game before loading preferences.
+  It now honors saved board size and handicap, including White to play and
+  SGF setup properties. Changing a default still leaves the live game intact.
+- Text-diagram parsing checks both dimensions before treating an all-dash
+  row as a border. A bordered 9x9 is eleven rows tall; supporting 11x11 must
+  not turn it into the wrong board or strip genuine empty grid rows.
+- Regression coverage includes corner play, undo/redo, SGF round trips,
+  startup preferences, OGS filtering, NGF coordinates and bordered diagrams.
+  Real engine evaluation passes for all sizes 2–19 (18 engine cases).
+- Native desktop and 390/320 px phone checks pass for all five added sizes:
+  create, corner play, real WASM analysis, SGF file download and re-import,
+  changing the saved default, and opening that default after reload. The
+  reload deliberately accepts the private fixture's unsaved-game guard.
+- `CI=1 npm run verify` passes: 3,226 tests, 77 intentional CI skips,
+  typechecks, lint and production build. Production responsiveness remains
+  within every budget: first move 14.29 ms, median move 1.00 ms, warm dialog
+  50.3 ms, input latency p98 48 ms, longest observed task 68 ms.
+
+## 2026-10-27 continuation: Mobile landmarks and immediate search actions
+
+- Full-screen Tree, Review and Library tabs now have named landmark regions,
+  including their tab-panel containers. The wrapper maintains bounded flex
+  height so the content retains its original scrolling behavior. An empty or
+  loading library no longer declares a tree without any tree items.
+- Settled axe-core 4.14.0 scans report no violations across the sampled board,
+  Review, notes search, Settings, pro-game browser, score quiz and Library
+  states on desktop and phone. These are scoped samples, not a claim about
+  every state of the application.
+- A broad browser run caught a notes-search timing failure: filtering 100
+  shown results down to one and immediately pressing Enter could consult the
+  previous selection index. Input changes now reset selection synchronously;
+  the palette also keeps selection by command ID through background updates.
+- The keyboard workflow regression passes on desktop and phone, including
+  paging and immediate filtered-result activation. Library navigation checks
+  also verify landmark ancestry and valid empty-search semantics.

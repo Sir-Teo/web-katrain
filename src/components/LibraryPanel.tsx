@@ -103,6 +103,7 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getLibraryFolderPath } from '../utils/libraryNavigation';
+import { MobilePanelRegion } from './layout/MobilePanelRegion';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
@@ -755,6 +756,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     return arr;
   }, [filteredItems, sortKey]);
+  const hasTreeItems = isSearching
+    ? sortedItems.length > 0
+    : libraryStatus !== 'loading' && libraryStatus !== 'error' && items.length > 0;
 
   /**
    * Rows mounted before "Show more". A library has no size cap and imports SGFs
@@ -2231,6 +2235,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         <OgsSyncModal items={items} onClose={() => setShowOgsSync(false)} onImport={handleOgsSyncImport} />
       )}
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
+      <MobilePanelRegion isMobile={isMobile} label="Game library">
       <div
         ref={panelRef}
         data-dropzone="library"
@@ -2243,7 +2248,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           'fixed inset-y-0 left-0 z-40 w-full max-w-none sm:max-w-sm',
           'lg:static lg:z-auto',
           docked ? 'lg:max-w-none' : 'lg:w-80',
-          isMobile ? 'mobile-safe-bottom mobile-safe-inset' : '',
+          isMobile ? 'flex-1 min-h-0 mobile-safe-bottom mobile-safe-inset' : '',
         ].join(' ')}
         style={docked && width ? { width } : undefined}
         onDragOver={handleDragOver}
@@ -2678,8 +2683,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
-                role="tree"
-                aria-label="Library games"
+                role={hasTreeItems ? 'tree' : undefined}
+                aria-label={hasTreeItems ? 'Library games' : undefined}
+                aria-busy={libraryStatus === 'loading' || libraryStatus === 'saving'}
+                aria-live={hasTreeItems ? undefined : 'polite'}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
@@ -2761,6 +2768,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
       </div>
       {renderContextMenu()}
+      </MobilePanelRegion>
     </>
   );
 };

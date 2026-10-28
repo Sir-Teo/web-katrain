@@ -25,6 +25,7 @@ import { AnalysisExperienceToggle } from '../AnalysisExperienceToggle';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
+import { MobilePanelRegion } from './MobilePanelRegion';
 import { Timer } from '../Timer';
 import type { AnalysisControlsState, UiMode, UiState } from './types';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './mobileTabs';
@@ -482,6 +483,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           onClick={onClose}
         />
       )}
+      <MobilePanelRegion isMobile={isMobile} visible={open} label={activeMobileTab === 'tree' ? 'Game tree' : 'Game review'}>
       <div
         data-layout-panel="side"
         // Tree and Review are two tabs over one container, so the panel names
@@ -499,7 +501,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           open ? 'flex' : 'hidden',
           'desktop-shell:static desktop-shell:max-w-none desktop-shell:z-auto',
           showOnDesktop ? 'desktop-shell:flex' : 'desktop-shell:hidden',
-          isMobile ? 'mobile-safe-bottom mobile-safe-inset' : '',
+          isMobile ? 'flex-1 min-h-0 mobile-safe-bottom mobile-safe-inset' : '',
         ].join(' ')}
         style={width ? { width } : undefined}
       >
@@ -999,6 +1001,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           </div>
         </div>
       </div>
+      </MobilePanelRegion>
     </>
   );
 };

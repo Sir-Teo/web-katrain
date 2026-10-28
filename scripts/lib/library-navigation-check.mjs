@@ -51,6 +51,7 @@ export async function assertLibraryNavigation(devtoolsPort, appUrl, screenshotDi
         await navigate(cdp, appUrl);
         if (mobile) await click('#mobile-tab-library');
         await wait('document.querySelectorAll(".library-breadcrumb-button").length===40');
+        if (mobile) assert.equal(await evaluate(cdp, `!!document.querySelector('#mobile-panel-library').closest('section[aria-label="Game library"]')`), true);
         await wait(`(()=>{
           const trail=document.querySelector('.library-breadcrumbs'),last=trail.lastElementChild;
           const r=last.getBoundingClientRect(),v=trail.getBoundingClientRect();
@@ -80,6 +81,12 @@ export async function assertLibraryNavigation(devtoolsPort, appUrl, screenshotDi
         await wait('document.activeElement===document.querySelector("[data-library-search]")&&document.activeElement.value===""');
         await cdp.send('Input.insertText', { text: 'folder 40' });
         await wait(`!!document.querySelector('[data-library-row-name="Study folder 40"]')`);
+        await key('a', 65, 2);
+        await cdp.send('Input.insertText', { text: 'no matching folder here' });
+        await wait('document.querySelector(".library-tree").textContent.includes("No matches")');
+        assert.equal(await evaluate(cdp, 'document.querySelector(".library-tree").getAttribute("role")'), null, 'An empty result must not expose a tree with no treeitems');
+        await click('[aria-label="Clear library search"]');
+        await wait('document.querySelector(".library-tree").getAttribute("role")==="tree"');
         reports.push({ width, height, ...bounds });
       } catch (error) {
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
