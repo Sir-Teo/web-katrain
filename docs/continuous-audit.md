@@ -646,3 +646,29 @@ follow-up work beyond this audit’s wrap-up.
   focus-related scroll moved the Comment header.
 - All 15 practice-board cases and all three note-retention viewport flows pass
   with these readiness checks, including the delayed-history case at 320 px.
+
+## 2026-10-28 continuation: Note recovery on page exit
+
+- Reproduced native reload silently losing an open note draft on desktop and
+  phone, without a before-unload warning or recovery copy. React unmount
+  cleanup does not run when the browser destroys its document.
+- Pending note text is now committed on before-unload, page-hide and hidden
+  visibility events, using its original node ID. The exit callback claims the
+  browser warning for a changed draft and requests an immediate recovery
+  flush after committing, independent of lifecycle-listener order.
+- Typing and append actions update the pending snapshot synchronously, so a
+  hide event can preserve text before passive effects run. Cancel clears it;
+  unchanged editors do not create a recovery copy or exit warning.
+- Recovery writes track the store's tree revision. A draft committed during
+  exit is written even when the prior revision's debounce already completed;
+  repeated lifecycle events do not rewrite the same revision.
+- Nine browser cases pass at 1280×800, 390×844 and 320×568. Native reloads
+  exercise warning cancellation, recovery of the latest Unicode draft,
+  clean Cancel and untouched-editor reloads, and recovery after deletion.
+  Synthetic hide events also verify immediate persistence and one write per
+  revision. These checks are included in the viewport suite; 23 focused tests,
+  typechecks and lint pass.
+- Full code verification passes with 3,244 tests and 77 intentional CI skips.
+  The complete 11-size viewport suite passes, including note retention and
+  exit recovery, delayed-history navigation, Pass controls, print output,
+  continuation gestures and game-info replacement checks.

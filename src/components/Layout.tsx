@@ -138,6 +138,7 @@ import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 import { resolveCandidatePreview } from '../utils/candidatePreview';
+import { NOTE_DRAFT_COMMITTED_EVENT } from '../utils/noteEditorState';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -1301,10 +1302,13 @@ export const Layout: React.FC = () => {
     if (currentGameDirtyRef.current) {
       setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     }
-    let written = false;
+    let writtenTreeVersion: number | null = null;
     const writeNow = () => {
-      if (written) return;
-      written = true;
+      // Page-exit capture listeners may commit a note after this version's
+      // debounce already ran. Always consider the store's latest revision.
+      const currentTreeVersion = useGameStore.getState().treeVersion;
+      if (writtenTreeVersion === currentTreeVersion) return;
+      writtenTreeVersion = currentTreeVersion;
       if (!hasUnsavedChanges()) {
         clearAutoSavedGame();
         setAutoSaveStatus(null);
@@ -1340,10 +1344,12 @@ export const Layout: React.FC = () => {
       if (document.visibilityState === 'hidden') writeNow();
     };
     window.addEventListener('pagehide', writeNow);
+    window.addEventListener(NOTE_DRAFT_COMMITTED_EVENT, writeNow);
     document.addEventListener('visibilitychange', writeOnHide);
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener('pagehide', writeNow);
+      window.removeEventListener(NOTE_DRAFT_COMMITTED_EVENT, writeNow);
       document.removeEventListener('visibilitychange', writeOnHide);
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);

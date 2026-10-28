@@ -21,6 +21,7 @@ import { assertPvGestures } from './lib/pv-gestures-check.mjs';
 import { assertGameInfoReplacement } from './lib/game-info-replacement-check.mjs';
 import { assertPassCandidates } from './lib/pass-candidate-check.mjs';
 import { assertNoteDraftRetention } from './lib/note-draft-retention-check.mjs';
+import { assertNotePageExit } from './lib/note-page-exit-check.mjs';
 import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4076,6 +4077,7 @@ async function main() {
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertKeyboardWorkflows(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNoteDraftRetention(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNotePageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);

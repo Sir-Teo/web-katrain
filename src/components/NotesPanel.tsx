@@ -10,7 +10,7 @@ import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewpo
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
 import { isComposingKeyEvent } from '../utils/keyboardComposition';
-import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
+import { getNoteDraftRescue, getNoteEditorSyncDecision, NOTE_DRAFT_COMMITTED_EVENT } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { formatBoardNoteBlock } from '../utils/boardTextDiagram';
@@ -366,10 +366,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   // The navigation effect reads the latest editor text without rerunning on
   // every keystroke.
   const noteDraftRef = React.useRef(currentNote);
-  const pendingUnmountNoteRef = React.useRef<{ nodeId: string; note: string } | null>(null);
+  const pendingNoteRef = React.useRef<{ nodeId: string; note: string } | null>(null);
   const previousNoteTextRef = React.useRef(currentNote);
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
+
+  const preservePendingNote = React.useCallback(() => {
+    const pending = pendingNoteRef.current;
+    pendingNoteRef.current = null;
+    if (!pending) return false;
+    const before = useGameStore.getState().treeVersion;
+    setNodeNote(pending.nodeId, pending.note);
+    if (useGameStore.getState().treeVersion === before) return false;
+    window.dispatchEvent(new Event(NOTE_DRAFT_COMMITTED_EVENT));
+    return true;
+  }, [setNodeNote]);
 
   const scrollNoteEditorIntoView = React.useCallback(() => {
     const editor = noteTextareaRef.current;
@@ -409,7 +420,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     // A new node initially renders with the previous editor's draft. Wait for
     // the sync below before assigning that text to the arriving node.
     if (previousNoteNodeIdRef.current !== currentNode.id) return;
-    pendingUnmountNoteRef.current = isEditingNote && noteDraft !== currentNote
+    pendingNoteRef.current = isEditingNote && noteDraft !== currentNote
       ? { nodeId: currentNode.id, note: noteDraft }
       : null;
   }, [currentNode.id, currentNote, isEditingNote, noteDraft]);
@@ -425,7 +436,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       previousNote: previousNoteTextRef.current,
     });
     if (rescue) {
-      pendingUnmountNoteRef.current = null;
+      pendingNoteRef.current = null;
       setNodeNote(rescue.nodeId, rescue.note);
     }
 
@@ -445,10 +456,34 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   React.useEffect(() => () => {
     // Mobile section collapse unmounts this panel. Preserve its unfinished
     // note on the node it belongs to, as navigation already does.
-    const pending = pendingUnmountNoteRef.current;
-    pendingUnmountNoteRef.current = null;
-    if (pending) setNodeNote(pending.nodeId, pending.note);
-  }, [setNodeNote]);
+    preservePendingNote();
+  }, [preservePendingNote]);
+
+  React.useEffect(() => {
+    const preserveBeforeLeaving = () => {
+      const saved = preservePendingNote();
+      if (saved) setIsEditingNote(false);
+      return saved;
+    };
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!preserveBeforeLeaving()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const preserveWhenHidden = () => {
+      if (document.visibilityState === 'hidden') preserveBeforeLeaving();
+    };
+    // Browser page exit does not unmount React panels. The commit event flushes
+    // recovery even if its ordinary lifecycle listener has already run.
+    window.addEventListener('beforeunload', warnBeforeUnload, true);
+    window.addEventListener('pagehide', preserveBeforeLeaving, true);
+    document.addEventListener('visibilitychange', preserveWhenHidden, true);
+    return () => {
+      window.removeEventListener('beforeunload', warnBeforeUnload, true);
+      window.removeEventListener('pagehide', preserveBeforeLeaving, true);
+      document.removeEventListener('visibilitychange', preserveWhenHidden, true);
+    };
+  }, [preservePendingNote]);
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
@@ -477,6 +512,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [isEditingNote, scrollNoteEditorIntoView]);
 
   const startNoteEdit = React.useCallback(() => {
+    noteDraftRef.current = currentNote;
+    pendingNoteRef.current = null;
     setNoteDraft(currentNote);
     requestNoteEditorFocus();
     setIsEditingNote(true);
@@ -488,9 +525,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     startNoteEdit();
   }, [focusRequest, showNotesBlock, startNoteEdit]);
 
+  const changeNoteDraft = (draft: string) => {
+    if (useGameStore.getState().currentNode.id !== currentNode.id) return;
+    // A page-hide event can arrive before a render's passive effects.
+    noteDraftRef.current = draft;
+    pendingNoteRef.current = draft !== currentNote ? { nodeId: currentNode.id, note: draft } : null;
+    setNoteDraft(draft);
+  };
+
   const saveNote = () => {
-    pendingUnmountNoteRef.current = null;
-    setCurrentNodeNote(noteDraft);
+    preservePendingNote();
     setIsEditingNote(false);
   };
 
@@ -500,7 +544,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const addShapeCoachToNote = () => {
     if (!shapeCoachNoteBlock || hasShapeCoachNoteBlock) return;
     if (isEditingNote) {
-      setNoteDraft((draft) => appendNoteBlock(draft, shapeCoachNoteBlock));
+      changeNoteDraft(appendNoteBlock(noteDraftRef.current, shapeCoachNoteBlock));
       requestNoteEditorFocus();
       return;
     }
@@ -528,12 +572,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
   const addBoardToNote = () => {
     if (hasBoardNoteBlock) return;
-    setNoteDraft((draft) => appendNoteBlock(draft, boardNoteBlock));
+    changeNoteDraft(appendNoteBlock(noteDraftRef.current, boardNoteBlock));
     requestNoteEditorFocus();
   };
 
   const cancelNoteEdit = () => {
-    pendingUnmountNoteRef.current = null;
+    pendingNoteRef.current = null;
+    noteDraftRef.current = currentNote;
     setNoteDraft(currentNote);
     setIsEditingNote(false);
   };
@@ -804,7 +849,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             <textarea
               ref={noteTextareaRef}
               value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
+              onChange={(e) => changeNoteDraft(e.target.value)}
               onKeyDown={handleNoteKeyDown}
               onFocus={scrollNoteEditorIntoView}
               aria-label="User note"
