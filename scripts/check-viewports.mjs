@@ -14,6 +14,7 @@ import { assertHeaderNotificationsFit } from './lib/header-notification-check.mj
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
 import {
+  chromeCandidates,
   chromePath,
   chromeTarget,
   connectDevtools,
@@ -23,6 +24,7 @@ import {
   navigate,
   setViewport,
   sleep,
+  waitForExpression,
 } from './lib/browser.mjs';
 
 /**
@@ -446,10 +448,14 @@ function assertViewport(result) {
     if (!result.postMoveMobileStatus.turnVisible) {
       failures.push('mobile turn indicator disappears after a move');
     }
-    if (result.innerWidth <= 380 && result.postMoveMobileStatus.saveVisible) {
-      failures.push('secondary mobile save badge remains visible on the narrowest phone layout');
+    // Short landscape screens share the row with the tab bar, so the save
+    // badge is also hidden there to keep the turn indicator and navigation clear.
+    const compactMobileStatus = result.innerWidth <= 380
+      || (result.innerHeight <= 499 && result.innerWidth <= 699);
+    if (compactMobileStatus && result.postMoveMobileStatus.saveVisible) {
+      failures.push('secondary mobile save badge remains visible in the compact control layout');
     }
-    if (result.innerWidth > 380 && !result.postMoveMobileStatus.saveVisible) {
+    if (!compactMobileStatus && !result.postMoveMobileStatus.saveVisible) {
       failures.push('mobile save feedback is missing where it fits beside the turn indicator');
     }
     if (result.postMoveMobileStatus.overlaps.length > 0) {
@@ -670,13 +676,21 @@ async function assertAutoSaveRecoveryFits(cdp, appUrl) {
 
   for (const [width, height] of [[568, 320], [320, 480], [740, 360], [390, 844], [1440, 900]]) {
     await setViewport(cdp, { width, height, mobile: width < 768 });
-    await evaluate(cdp, `(() => {
-      localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});
-      return 1;
-    })()`);
-    await navigate(cdp, appUrl);
+    // Seed after the outgoing page's pagehide auto-save has run. Seeding the
+    // current document races with that cleanup, especially just after Discard.
+    const seedScript = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `localStorage.setItem('web-katrain:auto_saved_game:v1', ${JSON.stringify(seeded)});`,
+    });
+    try {
+      await navigate(cdp, appUrl);
+    } finally {
+      await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: seedScript.result.identifier });
+    }
     await waitForBoard(cdp);
-    await sleep(900);
+    await waitForExpression(cdp, `!!document.querySelector('[aria-labelledby="auto-save-recovery-title"]')`, {
+      label: `Auto-save recovery prompt at ${width}x${height}`,
+      timeoutMs: 15000,
+    });
 
     const stranded = await evaluate(cdp, STRANDED_BUTTONS_PROBE);
     if (stranded === 'NO_MODAL') {

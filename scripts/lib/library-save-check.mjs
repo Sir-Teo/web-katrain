@@ -135,7 +135,9 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         else await click('button[aria-label="Update loaded library game"]');
       };
       const saveFailure = async expectedRecovery => {
-        await wait('librarySaveAudit.failed>=2');
+        // A rejected read can stop the save before a fallback write is tried.
+        // Require an injected failure, then verify the error and recovery data.
+        await wait('librarySaveAudit.failed>0');
         await wait(`document.querySelector('[data-library-storage-badge=true]')?.textContent==='Error'`);
         assert.deepEqual(await recovery(), expectedRecovery, 'A rejected save must retain the recovery copy');
         assert.ok(await evaluate(cdp, `document.body.innerText.includes('Could not save the game to Library')`));

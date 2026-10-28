@@ -209,7 +209,9 @@ export async function assertManualScoring(cdp, appUrl, runDir, screenshotDir) {
               return b.contains(document.elementFromPoint(x,y))?{x,y}:false;
             })()`);
             await press(point);
-            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+84.0'`);
+            // Removing Black joins White's chains through its territory: 81
+            // points plus 7 komi, with one 2-point group tax.
+            await wait(`document.querySelector('.manual-score-result>span')?.textContent==='W+86.0'`);
             await click('.manual-score-actions button[title="Clear dead stones"]');
             await wait(`document.querySelector('.manual-score-result>span')?.textContent==='B+16.0'`);
           }
