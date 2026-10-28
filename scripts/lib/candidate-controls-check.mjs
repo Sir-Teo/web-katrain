@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { connectDevtools, evaluate, loadedModuleUrl, navigate, setViewport, waitForExpression } from './browser.mjs';
+import { auditTextContrast } from './text-contrast.mjs';
 
 // Deliberate, deterministic analysis data: this checks UI interactions without
 // relying on which candidate the engine happens to produce for an empty board.
@@ -146,7 +147,28 @@ export async function assertCandidateControls(devtoolsPort, appUrl, screenshotDi
         }
         await wait('candidateAuditStore.getState().moveHistory.length===1');
         assert.equal(await evaluate(cdp, 'candidateAuditStore.getState().board[3][3]'), 'black');
-        reports.push({ width, height, separateControls: true, variationKeyboard: true, columns, stickyHeader: true, coachPlay: true, playConfirmation: mobile ? 'First tap preview, second tap play' : 'Tab/Enter and mouse play' });
+        let contrastCombinations = 0;
+        if (!mobile) {
+          await evaluate(cdp, `(()=>{
+            candidateAuditStore.getState().navigateStart();const s=candidateAuditStore.getState();
+            const first=s.currentNode.analysis.moves[0];
+            const a={...s.currentNode.analysis,moves:[0,1,2,4,8,15].map((pointsLost,i)=>({...first,x:i*2,y:3,pointsLost,order:i,visits:i?1:70}))};
+            s.currentNode.analysis=a;candidateAuditStore.setState({analysisData:a,treeVersion:s.treeVersion+1});return true;
+          })()`);
+          for (const uiTheme of ['light', 'noir', 'kaya', 'studio']) {
+            for (const analysisExperience of ['coach', 'pro']) {
+              for (const trainerTheme of ['theme:normal', 'theme:red-green-colourblind']) {
+                await evaluate(cdp, `(()=>{candidateAuditStore.getState().updateSettings(${JSON.stringify({ uiTheme, analysisExperience, trainerTheme, trainerLowVisits: 25 })});return true})()`);
+                await wait(`document.documentElement.dataset.uiTheme===${JSON.stringify(uiTheme)}&&document.querySelector('.candidate-list').dataset.analysisExperience===${JSON.stringify(analysisExperience)}`);
+                await evaluate(cdp, `(()=>{const l=document.querySelector('.candidate-list');l.scrollIntoView({block:'nearest'});l.querySelectorAll('.candidate-row')[1].focus();return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,250))))})()`);
+                const contrastFailures = await evaluate(cdp, `(${auditTextContrast.toString()})()`);
+                assert.deepEqual(contrastFailures, [], `Unreadable analysis text in ${uiTheme}/${analysisExperience}/${trainerTheme}`);
+                contrastCombinations++;
+              }
+            }
+          }
+        }
+        reports.push({ width, height, separateControls: true, variationKeyboard: true, columns, stickyHeader: true, coachPlay: true, contrastCombinations, playConfirmation: mobile ? 'First tap preview, second tap play' : 'Tab/Enter and mouse play' });
       } catch (error) {
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-candidate-controls-failed.png`), Buffer.from(screenshot.result.data, 'base64'));

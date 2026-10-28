@@ -7026,13 +7026,18 @@
   }
 }
 
-/* The engine has barely looked at these, so their figures are rough; the board
-   fades the same candidates and Settings says both surfaces do. The move label
-   and its quality dot keep full contrast -- what is uncertain is the numbers,
-   not which point the row is about. */
+/* Low-visit estimates stay readable. Italic figures and a faded quality dot
+   distinguish their uncertainty without fading small text below contrast. */
 .candidate-row.is-uncertain .cl-num,
 .candidate-row.is-uncertain .cl-quality {
+  font-style: italic;
+}
+.candidate-row.is-uncertain .cl-dot {
   opacity: 0.55;
+}
+.candidate-row.is-active .cl-num,
+.candidate-row:focus-visible .cl-num {
+  color: inherit;
 }
 
 .candidate-list .cl-quality {

@@ -110,7 +110,7 @@ describe('candidate list controls', () => {
     expect(source).toContain("+ 1.5rem");
   });
 
-  it('fades a candidate the search has barely read, as the board does', () => {
+  it('distinguishes candidates the search has barely read', () => {
     expect(source).toContain('state.settings.trainerLowVisits');
     expect(source).toContain("move.order !== 0 && move.visits < lowVisitsThreshold");
     expect(css).toContain('.candidate-row.is-uncertain .cl-num');

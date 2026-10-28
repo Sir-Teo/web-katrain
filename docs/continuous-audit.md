@@ -464,3 +464,30 @@ follow-up work beyond this audit’s wrap-up.
   typechecks, lint and production build. The complete 11-size viewport suite
   passes with the generated-PDF checks included. A final print-only shadow
   removal is covered by rerunning the native PDF regression.
+
+## 2026-10-28 continuation: Readable analysis text
+
+- Reproduced candidate contrast failures in all four UI themes, Coach and Pro,
+  and both move-quality palettes. Coach words inherited board-marker colors
+  (Best measured 3.87:1 on Light); low-visit text was additionally faded to 55%
+  opacity (a selected quality word measured 1.17:1).
+- Quality words now inherit the row's readable theme color. Low-visit numbers
+  use italics and a faded quality dot while the text stays opaque. Selected
+  and keyboard-focused numeric columns inherit the selected row's text color.
+  The existing visit-count explanation remains available to assistive tech.
+- Small score and win-rate axis labels also fell below 4.5:1. Their shades now
+  retain contrast against the graph surface; the plotted line colors remain
+  the same.
+- The browser contrast guard now composes both text and background through
+  ancestor opacity. Its former calculation ignored opacity. Disabled controls
+  and their associated labels are exempt, while other faded text remains
+  audited. Seven regressions
+  include 50%-opacity black on white (3.98:1), group opacity, transparent text,
+  the large-text threshold, inactive controls, and their associated labels.
+- Native browser coverage checks complete analyzed views in 16 combinations of
+  UI theme, experience and move-quality palette, including selected low-visit
+  candidates. The shared computed-color audit and independent settled axe
+  samples pass all 16 cases.
+- The code checks pass, including the full CI test suite and production build.
+  Focused contrast regressions and the complete 11-size viewport suite pass
+  with the inactive-label exemption included.

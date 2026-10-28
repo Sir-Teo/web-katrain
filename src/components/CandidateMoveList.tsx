@@ -210,7 +210,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
           const rank = Number.isFinite(move.order) && move.order >= 0 ? move.order + 1 : index + 1;
           const uncertain = move.order !== 0 && move.visits < lowVisitsThreshold;
           const uncertainNote = uncertain
-            ? ` Read only ${formatCandidateVisits(move.visits)} times, so these numbers are rough.`
+            ? ` Read only ${formatCandidateVisits(move.visits)} ${move.visits === 1 ? 'time' : 'times'}, so these numbers are rough.`
             : '';
           const hasPv = isPro && (move.pv?.length ?? 0) > 1;
           const pvId = `${pvListId}-pv-${move.x}-${move.y}`;
@@ -270,7 +270,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                       {showDetail && <span className="cl-num ui-text-faint">{formatStdev(move.scoreStdev)}</span>}
                     </>
                   ) : (
-                    <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>
+                    <span className="cl-quality">{qualityLabels[cls] ?? 'Good'}</span>
                   )}
                 </button>
                 {hasPv && (
