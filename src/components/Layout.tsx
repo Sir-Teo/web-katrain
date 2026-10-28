@@ -44,7 +44,7 @@ import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
-import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
+import { BOARD_SIZES, normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary, LazyModalFallback } from './LazyModalBoundary';
 import {
   createIdleScheduler,
@@ -2090,8 +2090,8 @@ export const Layout: React.FC = () => {
     toast,
   ]);
 
-  // Only 9, 13 and 19 are supported, so any other declared size quietly became
-  // a 19x19 board with the stones scattered across it. Call after loadGame:
+  // Unsupported sizes fall back to 19x19 with the stones scattered across
+  // it. Call after loadGame:
   // it reports what the file asked for and what it actually opened at.
   const boardSizeCoercionNotice = (sgfText: string): string => {
     const declared = unsupportedSgfBoardSize(sgfText);
@@ -2717,7 +2717,7 @@ export const Layout: React.FC = () => {
         category: 'Game',
         shortcutId: 'new-game',
         run: () => { void openNewGameWithGuard(); },
-        keywords: ['board size', 'handicap', 'komi', 'rules', 'players'],
+        keywords: ['board size', 'handicap', 'komi', 'rules', 'players', ...BOARD_SIZES.flatMap(size => [`${size}x${size}`, `${size}×${size}`])],
       },
       {
         id: 'save-sgf',

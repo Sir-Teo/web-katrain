@@ -51,8 +51,8 @@ PWA. There is no analysis server to run.
 - Or play `human`, which samples KataGo's human SL network at the rank you pick
   rather than the engine's own move, so the mistakes look like a person's. See
   [Human-like moves](docs/engine.md#human-like-moves).
-- Teach mode, byo-yomi clocks, resign/pass handling, manual scoring, and 9x9,
-  13x13, or 19x19 boards.
+- Teach mode, byo-yomi clocks, resign/pass handling, manual scoring, and every
+  odd board size from 5x5 through 19x19.
 - Japanese, Korean, Chinese, AGA, New Zealand, Tromp-Taylor, and Ancient
   Chinese (stone scoring) rules, honored by the engine inputs, move legality
   (including superko and suicide), and area or territory scoring with the

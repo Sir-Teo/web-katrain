@@ -1,6 +1,7 @@
 import { applySearchDialect } from './searchTerms';
 import { type SettingsTabId } from './settingsTabs';
 import type { GameSettings } from '../types';
+import { BOARD_SIZES } from './boardSize';
 
 export interface SettingsSearchEntry {
   /** DOM id of the control's label target, used to scroll and focus it. */
@@ -37,7 +38,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   { id: 'settings-show-move-numbers', tab: 'general', label: "Show Move Numbers" },
   { id: 'settings-show-board-controls', tab: 'general', label: "Show Board Controls" },
   { id: 'settings-fuzzy-stone-placement', tab: 'general', label: "Fuzzy Stone Placement" },
-  { id: 'settings-default-board-size', tab: 'general', label: "Default Board Size" },
+  { id: 'settings-default-board-size', tab: 'general', label: "Default Board Size", keywords: BOARD_SIZES.flatMap(size => [`${size}x${size}`, `${size}×${size}`]) },
   { id: 'settings-default-handicap', tab: 'general', label: "Default Handicap" },
   { id: 'settings-app-locale', tab: 'general', label: "Document language metadata", keywords: ['locale', 'translation'] },
   { id: 'settings-ui-theme', tab: 'general', label: "UI Theme", keywords: ['dark', 'light', 'system', 'kaya', 'studio', 'appearance'] },

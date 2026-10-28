@@ -1,16 +1,16 @@
 import type { BoardSize, BoardState } from '../types';
 
-export const BOARD_SIZES: BoardSize[] = [9, 13, 19];
+export const BOARD_SIZES: BoardSize[] = [5, 7, 9, 11, 13, 15, 17, 19];
 
 export const isBoardSize = (value: number): value is BoardSize =>
-  value === 9 || value === 13 || value === 19;
+  BOARD_SIZES.includes(value as BoardSize);
 
 export const normalizeBoardSize = (value: number | null | undefined, fallback: BoardSize): BoardSize =>
   typeof value === 'number' && isBoardSize(value) ? value : fallback;
 
 /**
- * The board size a file asked for, when the app cannot honour it. Only 9, 13
- * and 19 are supported, so a 5x5 tsumego or a 21x21 game is loaded as 19x19 —
+ * The board size a file asked for, when the app cannot honour it. Odd square
+ * boards from 5 through 19 are supported; a 21x21 game is loaded as 19x19 —
  * the stones keep their coordinates but the shape is unrecognisable, and
  * reporting a plain "Loaded SGF" leaves the reader thinking it is broken.
  * Returns null for junk like SZ[abc]: there is no real board to name there.
@@ -33,68 +33,16 @@ export const unsupportedSgfBoardSize = (sgfText: string): string | null => {
 export const createEmptyBoard = (size: BoardSize): BoardState =>
   Array.from({ length: size }, () => Array(size).fill(null));
 
-const HOSHI_POINTS: Record<BoardSize, Array<[number, number]>> = {
-  9: [
-    [2, 2],
-    [2, 6],
-    [6, 2],
-    [6, 6],
-    [4, 4],
-  ],
-  13: [
-    [3, 3],
-    [3, 9],
-    [9, 3],
-    [9, 9],
-    [6, 6],
-  ],
-  19: [
-    [3, 3],
-    [3, 9],
-    [3, 15],
-    [9, 3],
-    [9, 9],
-    [9, 15],
-    [15, 3],
-    [15, 9],
-    [15, 15],
-  ],
-};
+const hoshiOffset = (size: BoardSize): number => size === 5 ? 1 : size < 13 ? 2 : 3;
 
-const HANDICAP_POINTS: Record<BoardSize, Array<[number, number]>> = {
-  9: [
-    [6, 2],
-    [2, 6],
-    [6, 6],
-    [2, 2],
-    [4, 4],
-    [2, 4],
-    [6, 4],
-    [4, 2],
-    [4, 6],
-  ],
-  13: [
-    [9, 3],
-    [3, 9],
-    [9, 9],
-    [3, 3],
-    [6, 6],
-    [3, 6],
-    [9, 6],
-    [6, 3],
-    [6, 9],
-  ],
-  19: [
-    [15, 3],
-    [3, 15],
-    [15, 15],
-    [3, 3],
-    [9, 9],
-    [3, 9],
-    [15, 9],
-    [9, 3],
-    [9, 15],
-  ],
+const handicapPoints = (size: BoardSize): Array<[number, number]> => {
+  const low = hoshiOffset(size);
+  const high = size - low - 1;
+  const center = Math.floor(size / 2);
+  return [
+    [high, low], [low, high], [high, high], [low, low], [center, center],
+    [low, center], [high, center], [center, low], [center, high],
+  ];
 };
 
 const HANDICAP_PATTERNS: Record<number, number[]> = {
@@ -108,13 +56,20 @@ const HANDICAP_PATTERNS: Record<number, number[]> = {
   9: [0, 1, 2, 3, 5, 6, 7, 8, 4],
 };
 
-export const getHoshiPoints = (size: BoardSize): Array<[number, number]> => HOSHI_POINTS[size];
+export const getHoshiPoints = (size: BoardSize): Array<[number, number]> => {
+  const center = Math.floor(size / 2);
+  if (size === 5) return [[center, center]];
+  const low = hoshiOffset(size);
+  const high = size - low - 1;
+  if (size < 15) return [[low, low], [low, high], [high, low], [high, high], [center, center]];
+  return [low, center, high].flatMap(x => [low, center, high].map(y => [x, y] as [number, number]));
+};
 
-export const getMaxHandicap = (size: BoardSize): number => HANDICAP_POINTS[size].length;
+export const getMaxHandicap = (size: BoardSize): number => handicapPoints(size).length;
 
 export const getHandicapPoints = (size: BoardSize, handicap: number): Array<[number, number]> => {
   if (handicap <= 0) return [];
-  const points = HANDICAP_POINTS[size];
+  const points = handicapPoints(size);
   if (handicap === 1) return points.slice(0, 1);
   const pattern = HANDICAP_PATTERNS[Math.min(getMaxHandicap(size), handicap)];
   return pattern ? pattern.map((index) => points[index]!) : [];

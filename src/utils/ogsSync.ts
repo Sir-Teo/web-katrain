@@ -1,4 +1,5 @@
 import type { LibraryItem } from './library';
+import { isBoardSize } from './boardSize';
 import { downloadOgsSgf } from './ogs';
 import { fetchOgsResource, isOgsCancelledError, readBoundedResponseText } from './ogsQueue';
 
@@ -33,7 +34,6 @@ export type OgsSyncedGame = {
 };
 
 const OGS_API_BASE = 'https://online-go.com/api/v1';
-const SUPPORTED_BOARD_SIZES = new Set([9, 13, 19]);
 export const OGS_SYNC_USERNAME_STORAGE_KEY = 'web-katrain:ogs_sync_username:v1';
 export const OGS_SYNC_GAME_ID_MARKER = /\(ogs-(\d+)\)/;
 
@@ -138,7 +138,7 @@ export const parseOgsGameList = (payload: unknown): OgsGameSummary[] => {
     if (typeof id !== 'number') continue;
     if (typeof ended !== 'string' || !ended) continue;
     if (annulled === true) continue;
-    if (typeof width !== 'number' || width !== height || !SUPPORTED_BOARD_SIZES.has(width)) continue;
+    if (typeof width !== 'number' || width !== height || !isBoardSize(width)) continue;
     const players = asRecord(record.players);
     games.push({
       id,

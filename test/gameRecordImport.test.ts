@@ -100,10 +100,17 @@ describe('wBaduk NGF records', () => {
     expect(() => convertNgfToSgf(ngf({}, [move]))).toThrow(/Invalid NGF move/);
   });
   it('rejects unsupported board sizes and bad headers before producing a partial game', () => {
-    expect(() => convertNgfToSgf(ngf({ 1: '15' }))).toThrow(/board size/);
+    expect(() => convertNgfToSgf(ngf({ 1: '21' }))).toThrow(/board size/);
     expect(() => convertNgfToSgf(ngf({ 5: '10' }))).toThrow(/handicap/);
     expect(() => convertNgfToSgf(ngf({ 7: 'unknown' }))).toThrow(/komi/);
     expect(() => convertNgfToSgf(ngf({}, []))).toThrow(/no moves/);
+  });
+
+  it.each([5, 7, 11, 15, 17].map(size => [size, size] as const))('preserves a %ix%i NGF board and its edge coordinate', (size) => {
+    const edge = String.fromCharCode(65 + size);
+    const parsed = parseSgf(convertNgfToSgf(ngf({ 1: String(size), 5: '0' }, [`PMABB${edge}${edge}`])));
+    expect(parsed.initialBoard).toHaveLength(size);
+    expect(parsed.moves).toEqual([{ player: 'black', x: size - 1, y: size - 1 }]);
   });
 });
 

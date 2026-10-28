@@ -158,15 +158,23 @@ export function parseBoardTextDiagram(text: string): BoardState | null {
     else if (rows.length > 0) break;
   }
 
-  // Only if the height is wrong do we reconsider an outer all-dash row as the
+  // Only if the height or width is wrong do we reconsider an all-dash row as the
   // border it probably is. Trying it the other way round would turn a diagram
   // that really does draw empty points with `-` into one two rows short.
   let grid = rows;
-  if (!isBoardSize(grid.length)) {
-    const start = grid.findIndex((row) => !isAllDashes(row));
-    let end = grid.length;
-    while (end > start && isAllDashes(grid[end - 1]!)) end -= 1;
-    if (start >= 0 && end > start) grid = grid.slice(start, end);
+  if (!isBoardSize(grid.length) || grid.some(row => row.length !== grid.length)) {
+    const inner = grid.slice(1, -1);
+    if (isAllDashes(grid[0] ?? '') && isAllDashes(grid.at(-1) ?? '')
+      && isBoardSize(inner.length) && inner.every(row => row.length === inner.length)) {
+      // Keep genuine empty first/last rows inside a single drawn border. With
+      // more supported sizes, a 9x9 plus two rules is eleven rows, not an 11x11.
+      grid = inner;
+    } else {
+      const start = grid.findIndex((row) => !isAllDashes(row));
+      let end = grid.length;
+      while (end > start && isAllDashes(grid[end - 1]!)) end -= 1;
+      if (start >= 0 && end > start) grid = grid.slice(start, end);
+    }
   }
 
   const size = grid.length;
