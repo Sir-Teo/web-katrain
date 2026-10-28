@@ -101,8 +101,8 @@ describe('candidate list controls', () => {
     expect(block('.candidate-list-head .cl-sort {')).toContain('min-height: 1.5rem');
     expect(block('.candidate-list-head .cl-detail-toggle {')).toContain('width: 1.5rem');
     expect(block('.candidate-list-head .cl-detail-toggle {')).toContain('height: 1.5rem');
-    expect(block('.candidate-row .cl-pv-toggle {')).toContain('width: 1.5rem');
-    expect(block('.candidate-row .cl-pv-toggle {')).toContain('height: 1.5rem');
+    expect(block('.candidate-row-group .cl-pv-toggle {')).toContain('width: 1.5rem');
+    expect(block('.candidate-row-group .cl-pv-toggle {')).toContain('height: 1.5rem');
     expect(block('.candidate-list .cl-pv-action {')).toContain('min-height: 1.5rem');
     // The head budgets exactly 1.5rem in the list's max-height, so the taller
     // controls have to replace its padding rather than stack on top of it.

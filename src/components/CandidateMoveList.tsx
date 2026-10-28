@@ -86,9 +86,10 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, toPlay, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
+  const { moves, nodeId, toPlay, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
+      nodeId: state.currentNode.id,
       toPlay: state.currentNode.gameState.currentPlayer,
       topK: state.settings.katagoTopK,
       lowVisits: state.settings.trainerLowVisits,
@@ -125,7 +126,9 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const [detail, setDetail] = useState(false);
   const showDetail = isPro && detail;
   // One row at a time may open its principal variation as text.
-  const [pvOpenKey, setPvOpenKey] = useState<string | null>(null);
+  const [openPv, setOpenPv] = useState<{ nodeId: string; key: string } | null>(null);
+  const pvOpenKey = openPv?.nodeId === nodeId ? openPv.key : null;
+  const pvListId = React.useId();
 
   // The list used to stop at 24 rows whatever Settings said; the engine
   // itself is asked for up to 50.
@@ -189,7 +192,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
           <>
             {sortButton('win', 'B win', "Black's win rate after this move, whoever is to play")}
             {sortButton('score', 'Score', 'Score lead for Black after this move')}
-            {sortButton('lost', 'Lost', 'Points behind the top candidate')}
+            {sortButton('lost', 'Lost', "Points lost against the position's evaluation")}
             {sortButton('visits', 'Visits', 'How many times the search read this move')}
             {showDetail && sortButton('prior', 'Prior', "The policy net's first instinct for this move, before any search")}
             {showDetail && sortButton('stdev', 'Std', 'Spread of the score estimates behind this move: wider means less settled')}
@@ -209,105 +212,115 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
           const uncertainNote = uncertain
             ? ` Read only ${formatCandidateVisits(move.visits)} times, so these numbers are rough.`
             : '';
+          const hasPv = isPro && (move.pv?.length ?? 0) > 1;
+          const pvId = `${pvListId}-pv-${move.x}-${move.y}`;
           return (
             <li key={key}>
-              <button
-                type="button"
-                data-candidate-uncertain={uncertain ? 'true' : undefined}
-                className={`candidate-row${hoveredKey === key ? ' is-active' : ''}${uncertain ? ' is-uncertain' : ''}`}
-                onMouseEnter={() => onHover(move)}
-                onMouseLeave={() => onHover(null)}
-                onFocus={() => onHover(move)}
-                onBlur={() => onHover(null)}
-                onClick={() => {
-                  // A row plays its move, but only once it is the row on the
-                  // board: with a mouse that is already true by the time the
-                  // click lands, and on a touchscreen -- where there is no
-                  // hover to arrive first -- it makes the first tap show the
-                  // variation and the second commit to it. Same shape as the
-                  // board's own tap-to-confirm, without needing to ask what
-                  // kind of pointer this is.
-                  if (hoveredKey !== key) {
-                    onHover(move);
-                    return;
-                  }
-                  onHover(null);
-                  playMove(move.x, move.y);
-                }}
-                title={
-                  isPro
-                    ? `${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.${uncertainNote}`
-                    : `${hoveredKey === key ? 'Play' : 'Preview'} ${label}: ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote}`
-                }
-                aria-label={
-                  isPro
-                    ? `Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
-                    : `Candidate ${rank}: ${label}, ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
-                }
+              <div
+                className={`candidate-row-group${hasPv ? ' has-pv' : ''}`}
+                onPointerEnter={event => { if (event.pointerType !== 'touch') onHover(move); }}
+                onPointerLeave={event => { if (event.pointerType !== 'touch') onHover(null); }}
               >
-                <span className="cl-rank">{rank}</span>
-                <span className="cl-move">
-                  <span className="cl-dot" style={{ backgroundColor: dot }} aria-hidden="true" />
-                  {label}
-                  {isPro && (move.pv?.length ?? 0) > 1 && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={`cl-pv-toggle${pvOpenKey === key ? ' is-open' : ''}`}
-                      aria-expanded={pvOpenKey === key}
-                      aria-label={pvOpenKey === key ? `Hide the variation after ${label}` : `Show the variation after ${label} as text`}
-                      title={pvOpenKey === key ? 'Hide variation' : 'Show variation as text'}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPvOpenKey((open) => (open === key ? null : key));
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setPvOpenKey((open) => (open === key ? null : key));
-                      }}
-                    >
-                      ›
-                    </span>
+                <button
+                  type="button"
+                  data-candidate-uncertain={uncertain ? 'true' : undefined}
+                  className={`candidate-row${hoveredKey === key ? ' is-active' : ''}${uncertain ? ' is-uncertain' : ''}`}
+                  // Touch focus and compatibility mouse events arrive before
+                  // click. Previewing there made the very first tap play it.
+                  onFocus={event => { if (event.currentTarget.matches(':focus-visible')) onHover(move); }}
+                  onBlur={() => onHover(null)}
+                  onClick={() => {
+                    // A row plays its move, but only once it is the row on the
+                    // board: with a mouse that is already true by the time the
+                    // click lands, and on a touchscreen -- where there is no
+                    // hover to arrive first -- it makes the first tap show the
+                    // variation and the second commit to it. Same shape as the
+                    // board's own tap-to-confirm, without needing to ask what
+                    // kind of pointer this is.
+                    if (hoveredKey !== key) {
+                      onHover(move);
+                      return;
+                    }
+                    onHover(null);
+                    playMove(move.x, move.y);
+                  }}
+                  title={
+                    isPro
+                      ? `${hoveredKey === key ? 'Play' : 'Preview'} ${label}. ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidateVisits(move.visits)} visits.${uncertainNote}`
+                      : `${hoveredKey === key ? 'Play' : 'Preview'} ${label}: ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote}`
+                  }
+                  aria-label={
+                    isPro
+                      ? `Candidate ${rank}: ${label}, ${formatCandidateWinRate(move.winRate)} Black win rate, score ${formatCandidateScore(move.scoreLead)}, ${formatCandidatePointsLost(move.pointsLost)} points.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                      : `Candidate ${rank}: ${label}, ${coachQualityText(qualityLabels[cls] ?? 'Good', move.pointsLost)}.${uncertainNote} ${hoveredKey === key ? 'Play it' : 'Show its variation'}.`
+                  }
+                >
+                  <span className="cl-rank">{rank}</span>
+                  <span className="cl-move">
+                    <span className="cl-dot" style={{ backgroundColor: dot }} aria-hidden="true" />
+                    {label}
+                  </span>
+                  {isPro ? (
+                    <>
+                      <span className="cl-num">{formatCandidateWinRate(move.winRate)}</span>
+                      <span className="cl-num">{formatCandidateScore(move.scoreLead)}</span>
+                      <span className="cl-num cl-lost">{formatCandidatePointsLost(move.pointsLost)}</span>
+                      <span className="cl-num ui-text-faint">{formatCandidateVisits(move.visits)}</span>
+                      {showDetail && <span className="cl-num ui-text-faint">{formatPrior(move.prior)}</span>}
+                      {showDetail && <span className="cl-num ui-text-faint">{formatStdev(move.scoreStdev)}</span>}
+                    </>
+                  ) : (
+                    <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>
                   )}
-                </span>
-                {isPro ? (
-                  <>
-                    <span className="cl-num">{formatCandidateWinRate(move.winRate)}</span>
-                    <span className="cl-num">{formatCandidateScore(move.scoreLead)}</span>
-                    <span className="cl-num cl-lost">{formatCandidatePointsLost(move.pointsLost)}</span>
-                    <span className="cl-num ui-text-faint">{formatCandidateVisits(move.visits)}</span>
-                    {showDetail && <span className="cl-num ui-text-faint">{formatPrior(move.prior)}</span>}
-                    {showDetail && <span className="cl-num ui-text-faint">{formatStdev(move.scoreStdev)}</span>}
-                  </>
-                ) : (
-                  <span className="cl-quality" style={{ color: dot }}>{qualityLabels[cls] ?? 'Good'}</span>
+                </button>
+                {hasPv && (
+                  <button
+                    type="button"
+                    className={`cl-pv-toggle${pvOpenKey === key ? ' is-open' : ''}`}
+                    aria-expanded={pvOpenKey === key}
+                    aria-controls={pvId}
+                    aria-label={pvOpenKey === key ? `Hide the variation after ${label}` : `Show the variation after ${label} as text`}
+                    title={pvOpenKey === key ? 'Hide variation' : 'Show variation as text'}
+                    onFocus={event => { if (event.currentTarget.matches(':focus-visible')) onHover(move); }}
+                    onBlur={() => onHover(null)}
+                    onClick={() => setOpenPv(pvOpenKey === key ? null : { nodeId, key })}
+                  >
+                    ›
+                  </button>
                 )}
-              </button>
-              {isPro && pvOpenKey === key && move.pv && move.pv.length > 1 && (
-                <div className="cl-pv" data-candidate-pv={key}>
-                  <span className="cl-pv-line">
-                    {move.pv.map((step, stepIndex) => (
-                      <span key={`${step}-${stepIndex}`} className="cl-pv-step">{step}</span>
-                    ))}
-                  </span>
-                  <span className="cl-pv-actions">
-                    <button
-                      type="button"
-                      className="cl-pv-action"
-                      onClick={() => {
-                        void copyTextToClipboard(move.pv!.join(' ')).then((ok) =>
-                          useGameStore.setState({ notification: { message: ok ? 'Variation copied.' : 'Could not copy the variation.', type: ok ? 'success' : 'error' } })
-                        );
-                      }}
-                    >
-                      Copy
-                    </button>
-                    <button type="button" className="cl-pv-action" onClick={() => addPvVariation(move.pv ?? [])}>
-                      Keep in tree
-                    </button>
-                  </span>
+              </div>
+              {hasPv && (
+                <div
+                  id={pvId}
+                  hidden={pvOpenKey !== key}
+                  className={pvOpenKey === key ? 'cl-pv' : undefined}
+                  data-candidate-pv={pvOpenKey === key ? key : undefined}
+                >
+                  {pvOpenKey === key && move.pv && (
+                    <>
+                      <span className="cl-pv-line">
+                        {move.pv.map((step, stepIndex) => (
+                          <span key={`${step}-${stepIndex}`} className="cl-pv-step">{step}</span>
+                        ))}
+                      </span>
+                      <span className="cl-pv-actions">
+                        <button
+                          type="button"
+                          className="cl-pv-action"
+                          onClick={() => {
+                            void copyTextToClipboard(move.pv!.join(' ')).then((ok) =>
+                              useGameStore.setState({ notification: { message: ok ? 'Variation copied.' : 'Could not copy the variation.', type: ok ? 'success' : 'error' } })
+                            );
+                          }}
+                        >
+                          Copy
+                        </button>
+                        <button type="button" className="cl-pv-action" onClick={() => addPvVariation(move.pv ?? [])}>
+                          Keep in tree
+                        </button>
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             </li>

@@ -1,7 +1,8 @@
 # Repository audit findings
 
 Started 2026-09-12 at `d868c00` on `codex/repo-audit-improvements`; merged into `main`.
-This audit is being wrapped up at the user’s request. It does not claim that
+The original audit was wrapped up at the user’s request; dated continuation
+entries below record subsequent work. This document does not claim that
 every line or every workflow has been validated. The starting `src/` tree contained about 84,500 lines. Keep
 reproduced failures separate from candidates that still need investigation.
 
@@ -410,3 +411,29 @@ follow-up work beyond this audit’s wrap-up.
 - The keyboard workflow regression passes on desktop and phone, including
   paging and immediate filtered-result activation. Library navigation checks
   also verify landmark ancestry and valid empty-search semantics.
+
+## 2026-10-27 continuation: Candidate controls
+
+- Reproduced two Pro candidate rows failing axe's `nested-interactive` rule:
+  each variation disclosure was a focusable span inside its play button. The
+  disclosure is now a separate native button with expanded state and a linked
+  content region. Shared grid columns keep it aligned beside the move.
+- Native phone input reproduced an unintended first-tap move. Touch-generated
+  mouse and focus events selected the preview before the click handler ran,
+  so the handler treated the same tap as confirmation. Hover previews now use
+  non-touch pointer events; keyboard focus previews only when focus is visible.
+  Coach and Pro both preview on the first tap and play on the second.
+- Opening all Pro columns at 320 px squeezed the detail button to 8.4 px and
+  clipped the score-spread column. Candidate content now has one bounded
+  scroller for both axes, with a sticky header, consistent column widths, and
+  a non-shrinking detail control. Expanded text belongs to its current node
+  and does not automatically reopen on another position with the same move.
+- Native Chrome regressions pass at 1280×800, 390×844 and 320×568: independent
+  disclosure, Space/Enter, keyboard and mouse play, touch confirmation in both
+  experiences, complete horizontal access, aligned columns and sticky headers
+  over a long list. The regression is included in the viewport suite.
+- Settled axe scans are clear for the sampled Pro lists at 1280, 390 and 320 px,
+  including expanded detail columns on the narrowest phone. The wider code
+  checks pass with 3,226 tests and 77 intentional CI skips.
+- The complete 11-size viewport suite passes, including the new practice-board
+  and candidate checks, keyboard workflows, library save recovery and scoring.
