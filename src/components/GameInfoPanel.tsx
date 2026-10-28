@@ -55,8 +55,9 @@ const inputClass =
 const GameInfoTextField: React.FC<{
   field: GameInfoField;
   value: string;
+  gameRootId: string;
   onCommit: (key: string, value: string) => void;
-}> = ({ field, value, onCommit }) => {
+}> = ({ field, value, gameRootId, onCommit }) => {
   const [draft, setDraft] = React.useState(value);
   const [editing, setEditing] = React.useState(false);
   const pending = React.useRef<string | null>(null);
@@ -66,13 +67,14 @@ const GameInfoTextField: React.FC<{
   }, [editing, value]);
 
   // A panel closed mid-edit unmounts without a blur, so save on the way out.
-  // onCommit is a store action, so this cleanup runs only on unmount.
+  // The store may already hold a replacement game when React unmounts the old
+  // field. Its pending value must only be saved into its original game.
   React.useEffect(() => () => {
-    if (pending.current !== null) onCommit(field.key, pending.current);
-  }, [field.key, onCommit]);
+    if (pending.current !== null && useGameStore.getState().rootNode.id === gameRootId) onCommit(field.key, pending.current);
+  }, [field.key, gameRootId, onCommit]);
 
   const commit = () => {
-    if (pending.current !== null) onCommit(field.key, pending.current);
+    if (pending.current !== null && useGameStore.getState().rootNode.id === gameRootId) onCommit(field.key, pending.current);
     pending.current = null;
     setEditing(false);
   };
@@ -109,7 +111,7 @@ const GameInfoTextField: React.FC<{
   );
 };
 
-export const GameInfoPanel: React.FC = () => {
+const GameInfoPanelContent: React.FC = () => {
   const rulesHelpId = React.useId();
   const { rootNode, komi, gameRules, setKomi, setHandicap, setRootProperty, updateSettings, treeVersion } = useGameStore(
     (state) => ({
@@ -247,7 +249,7 @@ export const GameInfoPanel: React.FC = () => {
   );
 
   const renderField = (field: GameInfoField) => (
-    <GameInfoTextField key={field.key} field={field} value={valueFor(field.key)} onCommit={setRootProperty} />
+    <GameInfoTextField key={field.key} field={field} value={valueFor(field.key)} gameRootId={rootNode.id} onCommit={setRootProperty} />
   );
 
   // The Edit button above is the single affordance for opening the editor; this
@@ -398,4 +400,11 @@ export const GameInfoPanel: React.FC = () => {
       {isEditingInfo ? renderEditMode() : renderDisplayMode()}
     </div>
   );
+};
+
+export const GameInfoPanel: React.FC = () => {
+  const gameRootId = useGameStore(state => state.rootNode.id);
+  // Drafts and editor state belong to one game. A file opened while an input
+  // is focused must not carry those drafts into the replacement game's fields.
+  return <GameInfoPanelContent key={gameRootId} />;
 };

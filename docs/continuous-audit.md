@@ -573,3 +573,21 @@ follow-up work beyond this audit’s wrap-up.
   suite passes, including all four gesture cases. An earlier run encountered
   an intermittent Chrome practice-board reload abort; its 15 isolated cases
   and the final full suite passed without a navigation behavior change.
+
+## 2026-10-28 continuation: Game-specific metadata drafts
+
+- Reproduced a pending player-name draft surviving native SGF file import on
+  desktop and phone. The imported name initially read correctly in the store;
+  pressing Tab then overwrote it with the old game's draft and added an undo
+  entry. A komi draft of 42.5 similarly replaced the imported game's 7.5.
+- Game-info editor state is now keyed to the game root, resetting text, komi,
+  handicap and editing state together on replacement. Text-field blur and
+  unmount cleanup also check ownership before writing, while closing a panel
+  within the same game retains its pending-text save behavior.
+- The native regression uses actual SGF file input with an unfinished name,
+  komi or handicap edit. It checks the imported metadata, root setup stones,
+  board size, move sequence and empty undo history, then verifies fresh input
+  values, spaced player names, Enter, Undo and Done on desktop and phones.
+- All nine native cases pass at 1280×800, 390×844 and 320×568, as do the
+  existing desktop/phone keyboard workflows. `CI=1 npm run verify` passes
+  with 3,244 tests, 77 intentional CI skips, typechecks, lint and build.
