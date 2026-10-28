@@ -2646,6 +2646,13 @@
     flex-direction: column;
   }
 
+  .library-tree.panel-scroll-region {
+    /* Reserve the native scrollbar consistently. WebKit's stable gutter made
+       child rows eight pixels wider than the visible mobile scroll area. */
+    scrollbar-gutter: auto;
+    overflow-y: scroll;
+  }
+
   /* A mainline game lays the move tree out as a single row across the top of
      its pane, which is exactly where this bar sits. At height: 0 it took no
      flow, so its buttons landed on that row and swallowed a stretch of moves —
@@ -3264,6 +3271,14 @@
     font-weight: 500;
   }
 
+  .library-tree-node[data-library-depth]:not([data-library-depth='0']) .library-tree-node-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .library-tree-node-meta {
     flex-shrink: 0;
     margin-left: auto;
@@ -3504,6 +3519,7 @@
 
   .library-show-more {
     display: block;
+    min-height: 44px;
     width: calc(100% - 12px);
     margin: 6px;
     padding: 7px 10px;

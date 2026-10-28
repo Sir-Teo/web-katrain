@@ -963,3 +963,22 @@ follow-up work beyond this audit’s wrap-up.
   visible scroll region. Prior stale-result, retry and close/reopen checks also
   pass, along with all ten focused quiz/numeric tests and lint.
 - The production build also passes.
+
+## 2026-10-28 continuation: Readable nested libraries
+
+- Thirty expanded folders reproduced almost blank library views: indentation
+  pushed the last game outside the pane, leaving four pixels for its name.
+  At the default desktop width, names were already too narrow after six levels.
+- Tree indentation is now bounded by panel width, nested names can use two
+  lines, and rows announce their actual hierarchy level. Nested pagination
+  includes its indentation in its width and keeps a 44 px touch target.
+- WebKit's stable scrollbar gutter also made mobile child rows eight pixels
+  wider than their scroll area. Reserving the native scrollbar consistently
+  fixes that overflow without changing the outer panel width.
+- Expanded 40-level paths with 105 nested games pass in Chromium, Firefox 153
+  and WebKit 26.5 at 1280×800, 390×844 and 320×568. Names remain readable,
+  horizontal overflow is absent, pagination fits, collapse/expand retains
+  revealed rows, hierarchy levels remain accurate and the final game opens.
+- All 38 focused library tests, both typechecks, lint and the existing 27
+  keyboard/focus check groups pass. The expanded navigation check joins the
+  viewport gate. The dependency audit reports zero vulnerabilities.

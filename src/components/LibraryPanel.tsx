@@ -134,6 +134,9 @@ const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 
 const LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY = 'web-katrain:library_folders_expanded:v1';
+// Preserve the true depth in ARIA while keeping names and controls inside a
+// narrow panel. Unlimited indentation pushed deeply nested rows off-screen.
+const libraryTreeIndent = (depth: number): string => `min(${12 + depth * 16}px, 12%)`;
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 const safeDownloadName = (name: string, fallback: string): string =>
   stripUnsafeFilenameControls(name)
@@ -1668,11 +1671,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const renderShowMore = (key: string, total: number, depth = 0) => {
     const hidden = total - limitFor(key);
     if (hidden <= 0) return null;
+    const indent = libraryTreeIndent(depth);
     return (
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        style={depth > 0 ? { marginLeft: indent, width: `calc(100% - ${indent} - 6px)` } : undefined}
+        data-library-show-more={key}
         onClick={() =>
           setVisibleLimits((limits) => ({
             ...limits,
@@ -1716,13 +1721,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
+        aria-level={depth + 1}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
         aria-label={`${item.name}, game file, ${moveSummary}${isLoadedDirty ? ', unsaved changes' : ''}`}
         data-library-row="file"
+        data-library-depth={depth}
         data-library-row-name={item.name}
         data-library-loaded-dirty={isLoadedDirty ? 'true' : undefined}
         onClick={() => void handleLoad(item)}
@@ -1907,13 +1914,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             hasDirtyLoaded ? 'has-loaded-dirty' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
+          style={{ paddingLeft: libraryTreeIndent(depth) }}
           role="treeitem"
+          aria-level={depth + 1}
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
           aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
           data-library-row="folder"
+          data-library-depth={depth}
           data-library-row-name={item.name}
           data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
           onClick={() => activateFolderRow(item)}
