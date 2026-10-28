@@ -1002,3 +1002,16 @@ follow-up work beyond this audit’s wrap-up.
   popover before touching it. The same assertions pass in Chrome 154 and 156,
   with sixfold CPU slowdown and on the CI `/web-katrain/` base path. Failure
   diagnostics report the active control without dumping the entire page DOM.
+
+## 2026-10-28 delivery: Practice-board pointer readiness
+
+- Another CI run reached the practice-size interaction but placed the test
+  stone one intersection away from the expected corner. The check aimed as
+  soon as the board-size attribute changed and reused that pixel coordinate
+  for touch confirmation while the container could still resize.
+- The helper now waits for three frames of stable board bounds and grid
+  geometry, then calculates each tap from the current layout. The exact-corner,
+  real-analysis, download and re-import assertions remain unchanged. Failures
+  report board geometry and the actual move.
+- All 15 size/viewport combinations pass in Chrome 156 on the CI base path,
+  both normally and with sixfold CPU slowdown. Script lint and syntax pass.

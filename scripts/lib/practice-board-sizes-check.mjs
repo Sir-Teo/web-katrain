@@ -30,8 +30,10 @@ export async function assertPracticeBoardSizes(devtoolsPort, appUrl, runDir, scr
         }
       };
       const click = async expression => {
-        const point = await wait(`(()=>{
+        const point = await wait(`(async()=>{
           const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});
+          await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+          if(!e.isConnected)return false;
           const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
           return !e.disabled&&r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false;
         })()`);
@@ -64,15 +66,20 @@ export async function assertPracticeBoardSizes(devtoolsPort, appUrl, runDir, scr
           await evaluate(cdp, `(()=>{const s=document.querySelector('#new-game-board-size');s.value='${size}';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
           await click(`[...document.querySelectorAll('.new-game-modal-footer button')].find(b=>b.textContent.trim()==='Start')`);
           await wait(`!document.querySelector('#new-game-title')&&Number(document.querySelector('[data-board-snapshot=true]')?.dataset.boardSize)===${size}`);
-          const point = await wait(`(()=>{
-            const b=document.querySelector('[data-board-snapshot=true]');if(!b)return false;const r=b.getBoundingClientRect(),c=Number(b.dataset.boardCellSize);
-            const x=r.x+Number(b.dataset.boardOriginX)+${size - 1}*c,y=r.y+Number(b.dataset.boardOriginY)+${size - 1}*c;
+          // Size changes and modal dismissal also resize the board container.
+          // Wait for layout and its ResizeObserver-driven grid to agree before
+          // aiming, and measure again for confirmation instead of reusing pixels.
+          const corner = () => wait(`(async()=>{
+            const sample=()=>{const b=document.querySelector('[data-board-snapshot=true]');if(!b||Number(b.dataset.boardSize)!==${size})return null;const r=b.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,c:Number(b.dataset.boardCellSize),ox:Number(b.dataset.boardOriginX),oy:Number(b.dataset.boardOriginY)}};
+            let r=sample();if(!r)return false;
+            for(let i=0;i<3;i++){await new Promise(requestAnimationFrame);const next=sample();if(JSON.stringify(next)!==JSON.stringify(r))return false;r=next;}
+            const b=document.querySelector('[data-board-snapshot=true]'),x=r.x+r.ox+${size - 1}*r.c,y=r.y+r.oy+${size - 1}*r.c;
             return b.contains(document.elementFromPoint(x,y))?{x,y}:false;
           })()`);
-          await press(point);
+          await press(await corner());
           if (mobile) {
             await wait('!!document.querySelector("[data-tap-confirm]")');
-            await press(point);
+            await press(await corner());
           }
           await wait(`practiceSizeStore.getState().board[${size - 1}][${size - 1}]==='black'`);
           await palette('toggle-analysis');
@@ -132,6 +139,7 @@ export async function assertPracticeBoardSizes(devtoolsPort, appUrl, runDir, scr
         if (width === 320) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
         await wait('Number(document.querySelector("[data-board-snapshot=true]")?.dataset.boardSize)===5');
       } catch (error) {
+        console.error('Practice board failure state:', JSON.stringify(await evaluate(cdp, `(()=>{const b=document.querySelector('[data-board-snapshot=true]'),r=b?.getBoundingClientRect();return {size:${size ?? 'null'},grid:b?{...b.dataset}:null,bounds:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null,move:window.practiceSizeStore?.getState().currentNode.move}})()`)));
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-board-${size}-failed.png`), Buffer.from(screenshot.result.data, 'base64'));
         throw error;
