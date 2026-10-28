@@ -982,3 +982,15 @@ follow-up work beyond this audit’s wrap-up.
 - All 38 focused library tests, both typechecks, lint and the existing 27
   keyboard/focus check groups pass. The expanded navigation check joins the
   viewport gate. The dependency audit reports zero vulnerabilities.
+
+## 2026-10-28 delivery: Depth-check readiness
+
+- The PR browser gate reached the 320×568 enlarged-text depth check but did
+  not observe its expected saved value. That path sent text and dismissed the
+  editor without confirming native focus or the new input value.
+- The check now waits for opening focus, verifies input focus after the touch,
+  and confirms the enlarged-text draft before dismissing. All saved-depth,
+  persistence, cancellation and stopped-engine assertions remain in place.
+  Failures also report input, focus and store state for diagnosis.
+- The focused native check passes on both phone widths and tablet at normal
+  speed and with sixfold CPU slowdown. Script lint and syntax checks pass.

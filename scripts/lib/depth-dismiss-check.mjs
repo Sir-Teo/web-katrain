@@ -28,7 +28,9 @@ export async function assertDepthDismissal(devtoolsPort, appUrl, screenshotDir) 
       const close = `document.querySelector('button[aria-label="Close live depth selector"]')`;
       const edit = async text => {
         await click(trigger);
+        await wait(`${close}===document.activeElement`);
         await click(input);
+        await wait(`${input}===document.activeElement`);
         await key('a', 65, 2);
         if (text) await cdp.send('Input.insertText', { text });
         else await key('Backspace', 8);
@@ -102,11 +104,14 @@ export async function assertDepthDismissal(devtoolsPort, appUrl, screenshotDir) 
         await check('empty retains current depth', 250);
 
         await click(trigger);
+        await wait(`${close}===document.activeElement`);
         await evaluate(cdp, 'document.documentElement.style.fontSize="200%";new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
         await checkLayout();
         await click(input);
+        await wait(`${input}===document.activeElement`);
         await key('a', 65, 2);
         await cdp.send('Input.insertText', { text: '251' });
+        await wait(`${input}.value==='251'`);
         await outside();
         await closed();
         await check('large text outside', 251);
@@ -120,6 +125,8 @@ export async function assertDepthDismissal(devtoolsPort, appUrl, screenshotDir) 
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-depth-dismiss.png`), Buffer.from(screenshot.result.data, 'base64'));
       } catch (error) {
+        const state = await evaluate(cdp, `({width:innerWidth,height:innerHeight,active:document.activeElement?.outerHTML,inputValue:${input}?.value,popoverOpen:!!document.querySelector('[data-analysis-live-depth-popover]'),visits:window.depthDismissStore?.getState().settings.katagoVisits})`);
+        console.error('Depth dismissal failure state:', JSON.stringify(state));
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-depth-dismiss-failed.png`), Buffer.from(screenshot.result.data, 'base64'));
         throw error;
