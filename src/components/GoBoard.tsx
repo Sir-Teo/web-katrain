@@ -2236,7 +2236,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           const dy = localY - cy;
           const inHint = dx * dx + dy * dy <= radius * radius;
           if (inHint) {
-            if (!hoveredMove || hoveredMove.x !== move.x || hoveredMove.y !== move.y) onHoverMove(move);
+            // The displayed preview may still belong to the candidate list.
+            // Record this board hover even at the same coordinate so clearing
+            // the list's preview cannot erase the handoff. An unchanged
+            // coordinate is a no-op for the parent's selection setter.
+            onHoverMove(move);
           } else if (hoveredMove) {
             onHoverMove(null);
           }

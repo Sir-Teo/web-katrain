@@ -137,6 +137,7 @@ import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } f
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
+import { resolveCandidatePreview } from '../utils/candidatePreview';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -483,16 +484,32 @@ export const Layout: React.FC = () => {
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
-  const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
-  const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
-  // A previewed candidate belongs to the position it came from. Kept across a
-  // move, its variation stayed drawn on the new board and the row with the
-  // same coordinates read as already previewed, so one Enter played it.
-  const [reportHoverNodeId, setReportHoverNodeId] = useState(currentNode.id);
-  if (reportHoverNodeId !== currentNode.id) {
-    setReportHoverNodeId(currentNode.id);
-    if (reportHoverMove) setReportHoverMove(null);
-  }
+  // Each visit is distinct: returning to a node must not revive an old hover.
+  const [previewContext, setPreviewContext] = useState({ nodeId: currentNode.id });
+  if (previewContext.nodeId !== currentNode.id) setPreviewContext({ nodeId: currentNode.id });
+  const previewContextRef = useRef(previewContext);
+  React.useLayoutEffect(() => { previewContextRef.current = previewContext; }, [previewContext]);
+  const [hoveredSelection, setHoveredSelection] = useState<(Pick<CandidateMove, 'x' | 'y'> & { context: typeof previewContext }) | null>(null);
+  const setHoveredMove = useCallback((move: CandidateMove | null) => {
+    setHoveredSelection(previous => {
+      if (!move) return previous?.context === previewContext ? null : previous;
+      return previous?.context === previewContext && previous.x === move.x && previous.y === move.y ? previous : { context: previewContext, x: move.x, y: move.y };
+    });
+  }, [previewContext]);
+  const [reportHoverSelection, setReportHoverSelection] = useState<{ context: typeof previewContext; move: CandidateMove } | null>(null);
+  const reportHoverMove = reportHoverSelection?.context === previewContext ? reportHoverSelection.move : null;
+  // Historical-report callbacks stay stable while its review queue navigates.
+  const setReportHoverMove = useCallback((move: CandidateMove | null) => {
+    setReportHoverSelection(move ? { context: previewContextRef.current, move } : null);
+  }, []);
+  // Candidate events belong to the position that rendered their control. An
+  // event queued before navigation cannot revive a preview in the next one.
+  const setCandidateHoverMove = useCallback((move: CandidateMove | null) => {
+    setReportHoverSelection(previous => {
+      if (!move) return previous?.context === previewContext ? null : previous;
+      return previous?.context === previewContext && previous.move === move ? previous : { context: previewContext, move };
+    });
+  }, [previewContext]);
   const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsFocusModel, setSettingsFocusModel] = useState(false);
@@ -652,7 +669,11 @@ export const Layout: React.FC = () => {
   });
 
   const mode = uiState.mode;
-  const boardUiMode = reportHoverMove ? 'analyze' : mode;
+  const candidates = analysisData?.moves ?? currentNode.analysis?.moves;
+  // The report can preview an earlier position. Board and candidate-panel
+  // hovers instead select a coordinate in the current position's live search.
+  const activeReportHoverMove = isGameReportOpen ? reportHoverMove : resolveCandidatePreview(reportHoverMove, candidates);
+  const boardUiMode = activeReportHoverMove ? 'analyze' : mode;
   const shapeCoachEnabled = uiState.shapeCoachEnabled;
   const modeControls = uiState.analysisControls[mode];
   const modePanels = uiState.panels[mode];
@@ -1568,25 +1589,27 @@ export const Layout: React.FC = () => {
   }, [currentNode.id, isAnalysisMode, runAnalysis]);
 
   // PV animation
-  const activeHoverMove = reportHoverMove ?? hoveredMove;
+  const activeHoverMove = activeReportHoverMove ?? resolveCandidatePreview(hoveredSelection?.context === previewContext ? hoveredSelection : null, candidates);
   // Candidate tiles follow the same ownership rule as the board canvases: a
   // temporary board tool gets a quiet targeting surface without switching the
   // user's analysis preference off.
   const boardAnalysisOverlaysActive =
     isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
-  const pvOverlayEnabled = boardAnalysisOverlaysActive || !!reportHoverMove;
+  const allowExplicitPvPreview = !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
+  const pvOverlayEnabled = boardAnalysisOverlaysActive || (!!activeReportHoverMove && allowExplicitPvPreview);
   const pvKey = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
-    return `${currentNode.id}|${pv.join(' ')}`;
+    // Refining a line must not restart the reveal on every engine update.
+    return `${currentNode.id}|${activeHoverMove.x},${activeHoverMove.y}`;
   }, [currentNode.id, activeHoverMove, pvOverlayEnabled]);
 
   const evalColors = useMemo(() => getKaTrainEvalColors(settings.trainerTheme), [settings.trainerTheme]);
   const pvAnimTimeS = useMemo(() => {
-    if (reportHoverMove) return 0;
+    if (activeReportHoverMove) return 0;
     const t = settings.animPvTimeSeconds;
     return typeof t === 'number' && Number.isFinite(t) ? t : 0.5;
-  }, [reportHoverMove, settings.animPvTimeSeconds]);
+  }, [activeReportHoverMove, settings.animPvTimeSeconds]);
 
   useEffect(() => {
     if (!pvKey || pvAnimTimeS <= 0) {
@@ -4216,7 +4239,7 @@ export const Layout: React.FC = () => {
                   onHoverMove={setHoveredMove}
                   pvUpToMove={pvUpToMove}
                   uiMode={boardUiMode}
-                  forcePvOverlay={!!reportHoverMove}
+                  forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                   scoringMode={scoringMode}
                   scoreTerritory={manualScoreEstimate.territory}
                   deadStones={manualDeadStones}
@@ -4270,8 +4293,8 @@ export const Layout: React.FC = () => {
             currentNode={currentNode}
             treeVersion={treeVersion}
             drillHidesAnswer={drillHidesAnswer}
-            hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-            onHoverCandidate={setReportHoverMove}
+            hoveredCandidateKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+            onHoverCandidate={setCandidateHoverMove}
             branchInfo={branchInfo}
             showAnalysis={isAnalysisMode || mode === 'analyze'}
             winRate={winRate ?? null}
@@ -4607,8 +4630,8 @@ export const Layout: React.FC = () => {
             </div>
             {isMobile && showBoardAnalysisCommandBar && isAnalysisMode && !isEditMode && !scoringMode && (
               <CandidatePvTiles
-                pinnedKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-                onPin={setReportHoverMove}
+                pinnedKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+                onPin={setCandidateHoverMove}
               />
             )}
             {showMobileMatchStrip && (
@@ -4660,7 +4683,7 @@ export const Layout: React.FC = () => {
                 onHoverMove={setHoveredMove}
                 pvUpToMove={pvUpToMove}
                 uiMode={boardUiMode}
-                forcePvOverlay={!!reportHoverMove}
+                forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                 scoringMode={scoringMode}
                 scoreTerritory={manualScoreEstimate.territory}
                 deadStones={manualDeadStones}
@@ -4673,8 +4696,8 @@ export const Layout: React.FC = () => {
         </main>
 
         <RightPanel
-          hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-          onHoverCandidate={setReportHoverMove}
+          hoveredCandidateKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+          onHoverCandidate={setCandidateHoverMove}
           open={rightPanelOpen}
           onClose={handleCloseRightPanel}
           width={isDesktop ? rightPanelWidth : undefined}

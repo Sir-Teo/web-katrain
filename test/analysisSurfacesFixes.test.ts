@@ -48,6 +48,7 @@ describe('Candidate list', () => {
   it('drops a previewed candidate when the position changes', () => {
     const source = read('src/components/Layout.tsx');
 
-    expect(source).toMatch(/if \(reportHoverNodeId !== currentNode\.id\) \{\s*setReportHoverNodeId\(currentNode\.id\);\s*if \(reportHoverMove\) setReportHoverMove\(null\);/);
+    expect(source).toContain('reportHoverSelection?.context === previewContext ? reportHoverSelection.move : null');
+    expect(source).toContain('hoveredSelection?.context === previewContext ? hoveredSelection : null');
   });
 });

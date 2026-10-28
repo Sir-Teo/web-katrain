@@ -523,3 +523,26 @@ follow-up work beyond this audit’s wrap-up.
   production build. Production responsiveness passes: 4.93 ms first move,
   1.09 ms median move, 63.9 ms warm dialog, 40 ms input latency p98, 51 ms
   longest observed task.
+
+## 2026-10-28 continuation: Live candidate previews
+
+- Reproduced a stationary board hover retaining 70 visits, 55% win rate and
+  its original continuation after the candidate list had updated to 12,345
+  visits, 60% and a different line. Board and candidate-panel previews now
+  resolve their selected coordinate against the current analysis. Removing
+  a candidate or clearing analysis removes its old preview immediately.
+- Search refinements preserve the continuation's animation progress instead
+  of restarting it. Moving from the candidate list onto the same board point
+  records the board's hover before the list releases its selection.
+- Hover ownership belongs to each visit to a position. Navigation clears both
+  board and panel previews, including cached-analysis positions and returning
+  to an earlier node; queued input from a previous position cannot revive it.
+- Explicit previews respect scoring, setup editing and analysis-region tools.
+  Historical report rows still preview their own continuation, and the report's
+  review queue retains its place when Next navigates to another position.
+- A native Chrome regression exercises these cases on desktop and phone and
+  is included in the complete viewport suite. Its deterministic analysis
+  fixtures verify display and interaction behavior rather than engine strength.
+- `CI=1 npm run verify` passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The complete 11-size viewport suite
+  passes with the stationary-pointer and historical-report checks included.
