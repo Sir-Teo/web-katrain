@@ -115,11 +115,21 @@ export async function assertPracticeBoardSizes(devtoolsPort, appUrl, runDir, scr
         await evaluate(cdp, `(()=>{const s=document.querySelector('#settings-default-board-size');s.value='5';s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
         await wait('practiceSizeStore.getState().settings.defaultBoardSize===5');
         assert.equal(await evaluate(cdp, 'practiceSizeStore.getState().board.length'), 17, 'Changing a default replaced the live game');
+        if (width === 320) {
+          // Keep the last overlay's asynchronous history cleanup in flight
+          // long enough to exercise the reload barrier, even on a fast host.
+          await cdp.send('Network.enable');
+          await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 120, downloadThroughput: -1, uploadThroughput: -1 });
+          await evaluate(cdp, '(()=>{const back=history.back.bind(history);history.back=()=>{setTimeout(back,20)};return true})()');
+        }
         await key('Escape', 27);
-        await wait('!document.querySelector("#settings-title")');
+        // Escape removes the dialog before the mobile Back marker is popped.
+        // Reloading in that window races history.back() and gets ERR_ABORTED.
+        await wait('!document.querySelector("#settings-title")&&!history.state?.webKatrainOverlay');
         // This private fixture intentionally discards its imported game. A
         // native touch activates the unsaved-game beforeunload confirmation.
         await navigate(cdp, appUrl, 15_000, { acceptBeforeUnload: true });
+        if (width === 320) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
         await wait('Number(document.querySelector("[data-board-snapshot=true]")?.dataset.boardSize)===5');
       } catch (error) {
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });

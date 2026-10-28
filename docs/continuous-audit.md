@@ -630,3 +630,19 @@ follow-up work beyond this audit’s wrap-up.
   typechecks, lint and build. The browser run passed keyboard and note-draft
   coverage, then stopped at the previously observed Chrome practice-board
   reload abort (`ERR_ABORTED`); that navigation is being isolated separately.
+
+## 2026-10-28 continuation: Browser navigation readiness
+
+- Isolated the intermittent mobile practice-board reload abort. Closing
+  Settings removes its dialog before the Back-gesture history marker is
+  popped. The trace shows a same-document history traversal starting after
+  the requested reload and aborting it.
+- The practice check now waits for both dialog dismissal and history cleanup.
+  A controlled delayed Back call and network latency reproduce the failure
+  without the barrier; the same case completes with the barrier. The 320 px
+  practice case keeps that coverage in the browser suite.
+- Note retention input also waits two animation frames after scrolling before
+  measuring its target. An earlier fast click had reached Add board when a
+  focus-related scroll moved the Comment header.
+- All 15 practice-board cases and all three note-retention viewport flows pass
+  with these readiness checks, including the delayed-history case at 320 px.

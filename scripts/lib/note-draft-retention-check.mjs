@@ -21,7 +21,7 @@ export async function assertNoteDraftRetention(devtoolsPort, appUrl, screenshotD
         for (const type of ['keyDown', 'keyUp']) await cdp.send('Input.dispatchKeyEvent', { type, key, windowsVirtualKeyCode: code, modifiers });
       };
       const click = async expression => {
-        const point = await wait(`(()=>{const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return !e.disabled&&r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
+        const point = await wait(`(async()=>{const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(!e.isConnected)return false;const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return !e.disabled&&r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
         if (mobile) {
           await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
           await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
