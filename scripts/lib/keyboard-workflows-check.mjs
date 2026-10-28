@@ -70,6 +70,9 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         })()`);
         await evaluate(cdp, '(async()=>{keyboardAuditStore.setState(state=>({treeVersion:state.treeVersion+1}));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()');
         assert.equal(await evaluate(cdp, `document.querySelector('[data-command-palette-item][aria-selected=true]')?.dataset.commandPaletteItem`), navigation.command, 'Background analysis reset the palette selection');
+        await key('Tab', 9);
+        assert.notEqual(await evaluate(cdp, 'document.activeElement.getAttribute("role")'), 'option', 'Tab entered the combobox options instead of the dialog controls');
+        await click(search);
         // Selecting candidates in an IME must not move the palette selection,
         // execute it, or dismiss the surrounding dialog.
         for (const composition of [{ isComposing: true }, { keyCode: 229 }]) {
@@ -97,6 +100,15 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         }
         await key('Escape', 27);
         await wait(`!${saveName}`);
+
+        await key('?', 191);
+        const helpSearch = `document.querySelector('[aria-label="Search shortcuts"]')`;
+        await click(helpSearch);
+        await cdp.send('Input.insertText', { text: 'undo' });
+        await click(`document.querySelector('[aria-label="Clear shortcut search"]')`);
+        await wait(`${helpSearch}===document.activeElement&&${helpSearch}.value===''`);
+        await key('Escape', 27);
+        await wait('!document.querySelector("#keyboard-help-title")');
 
         if (mobile) await click('document.querySelector("#mobile-tab-info")');
         const info = "[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Game info')";
@@ -164,6 +176,9 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         })()`);
         await openFindNotes();
         await wait('document.querySelectorAll("[data-game-note-result]").length===50');
+        await key('Tab', 9);
+        assert.notEqual(await evaluate(cdp, 'document.activeElement.getAttribute("role")'), 'option');
+        await click(noteSearch);
         await key('ArrowUp', 38);
         await wait('document.querySelectorAll("[data-game-note-result]")[49].getAttribute("aria-selected")==="true"');
         assert.equal(await evaluate(cdp, 'document.querySelectorAll("[data-game-note-result]").length'), 50, 'Wrapping navigation rendered the whole study');

@@ -129,7 +129,7 @@ describe('LibraryPanel accessibility', () => {
 
     expect(source).toContain('data-library-toolbar="true"');
     expect(source).toContain('className="library-select-all h-6 w-6');
-    expect(source).toContain('className="library-breadcrumb-button');
+    expect(source).toContain('library-breadcrumb-button shrink-0');
     expect(source.match(/library-header-collapsible-action/g) ?? []).toHaveLength(2);
     expect(source).toContain('<FaPlus size={12} /> Create new folder');
     expect(source).toContain('<FaFolderOpen size={12} /> Import files');

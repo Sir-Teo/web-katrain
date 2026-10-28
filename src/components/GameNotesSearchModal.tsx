@@ -117,6 +117,7 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
                 ref={index === activeIndex ? activeRef : undefined}
                 type="button"
                 role="option"
+                tabIndex={-1}
                 aria-selected={index === activeIndex}
                 aria-current={entry.node.id === currentNodeId ? 'true' : undefined}
                 disabled={isInsertMode}

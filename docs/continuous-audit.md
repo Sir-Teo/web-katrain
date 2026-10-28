@@ -345,3 +345,26 @@ follow-up work beyond this audit’s wrap-up.
   real engine tests; this UI change did not alter engine code. Production
   responsiveness passed: 6.58 ms first-move synchronous work, 1.01 ms median
   move work, 48.3 ms warm-dialog open, 40 ms input-latency p98, no long tasks.
+
+## 2026-10-27 continuation: Library navigation
+
+- Reproduced a 40-folder path consuming a 783 px-high phone toolbar, with the
+  game tree beginning at y=839 in an 844 px viewport. The path now stays on one
+  horizontally scrollable row and starts at the current folder. Its complete
+  ancestry remains available to pointer and keyboard navigation. The same
+  fixture now has a 207 px toolbar and a visible tree starting at y=263.
+- Breadcrumb and loaded-game ancestry walks now use the panel's existing ID
+  index rather than searching the complete library for every parent. A
+  12,000-folder path test retains every level with exactly 12,000 lookups and
+  covers cycles and missing parents without mutating the records. Five local
+  calculation samples measured a median 346.94 ms before and 2.54 ms after;
+  these isolate the path walk and do not measure library loading or rendering.
+- Clearing Library and shortcut-reference searches now returns focus to the
+  input, so subsequent typing continues the search. Command and note-search
+  options stay out of the Tab sequence: arrow keys choose options, while Tab
+  reaches the dialog controls.
+- Native Chrome checks pass at 1280×800, 390×844, and 320×568 for path bounds,
+  current-folder visibility, all 40 keyboard-reachable ancestors, navigation,
+  the phone's 44 px target floor, and continued typing after Clear. The full
+  11-size viewport suite and `CI=1 npm run verify` pass (3,206 tests, 77 CI
+  skips, typechecks, lint, and production build).

@@ -102,6 +102,7 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { isComposingKeyEvent } from '../utils/keyboardComposition';
+import { getLibraryFolderPath } from '../utils/libraryNavigation';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
@@ -449,6 +450,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const breadcrumbTrailRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
   /**
@@ -818,27 +821,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [items]);
 
   const breadcrumbs = useMemo(() => {
-    if (!activeFolderId) return [];
-    const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
-      trail.push(current);
-      const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
-    }
-    return trail.reverse();
-  }, [activeFolderId, items]);
+    return getLibraryFolderPath(itemById, activeFolderId);
+  }, [activeFolderId, itemById]);
 
   const activeAncestorIds = useMemo(() => {
-    if (!loadedFileId) return new Set<string>();
-    const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
-      ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
-    }
-    return ancestors;
-  }, [loadedFileId, items]);
+    return new Set(getLibraryFolderPath(itemById, loadedFileId).map(folder => folder.id));
+  }, [loadedFileId, itemById]);
+
+  useLayoutEffect(() => {
+    const trail = breadcrumbTrailRef.current;
+    if (trail) trail.scrollLeft = trail.scrollWidth;
+  }, [activeFolderId, breadcrumbs.length, isSearching]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -2463,6 +2456,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    ref={searchInputRef}
                     type="search"
                     value={query}
                     autoCapitalize="none"
@@ -2491,7 +2485,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <button
                       type="button"
                       className="library-search-clear absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                      onClick={() => setQuery('')}
+                      onClick={() => {
+                        setQuery('');
+                        searchInputRef.current?.focus();
+                      }}
                       aria-label="Clear library search"
                     >
                       <FaTimes aria-hidden="true" size={11} />
@@ -2558,10 +2555,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 {/* The trail sat in a band of its own under a toolbar row that
                     was empty between the root button and the item count. It
                     reads as the same thing, so it shares the row. */}
-                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[0.6875rem] ui-text-faint">
+                <div
+                  ref={breadcrumbTrailRef}
+                  role="navigation"
+                  aria-label="Current folder path"
+                  className="library-breadcrumbs flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap text-[0.6875rem] ui-text-faint"
+                >
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
-                  <span>Folder:</span>
+                  <span className="shrink-0">Folder:</span>
                   {isSearching || breadcrumbs.length === 0 ? (
                     <span>{currentFolderName}</span>
                   ) : (
@@ -2569,20 +2571,25 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       <button
                         key={crumb.id}
                         type="button"
-                        className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                        className={[
+                          'library-breadcrumb-button shrink-0 px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)]',
+                          index === breadcrumbs.length - 1 ? 'font-semibold text-[var(--ui-text)]' : 'ui-text-faint',
+                        ].join(' ')}
                         onClick={() => setCurrentFolderId(crumb.id)}
                         aria-label={`Open folder ${crumb.name}`}
+                        aria-current={index === breadcrumbs.length - 1 ? 'location' : undefined}
+                        title={crumb.name}
                       >
                         {index === 0 ? crumb.name : `/${crumb.name}`}
                       </button>
                     ))
                   )}
-                  {isDragging && (
-                    <span className="ui-accent-soft border rounded px-2 py-0.5">
-                      Drop SGF, GIB, NGF, OGS URL, ZIP, or board images to import
-                    </span>
-                  )}
                 </div>
+                {isDragging && (
+                  <span className="ui-accent-soft border rounded px-2 py-0.5">
+                    Drop SGF, GIB, NGF, OGS URL, ZIP, or board images to import
+                  </span>
+                )}
                 <div className="ml-auto flex items-center gap-2 text-[0.6875rem] ui-text-faint">
                   <div>
                     {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}

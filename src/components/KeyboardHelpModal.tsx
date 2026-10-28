@@ -40,6 +40,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
   const dialogRef = useInitialDialogFocus<HTMLDivElement>(true, { returnFocus });
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const [query, setQuery] = React.useState('');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const refresh = () => setOverrides(loadShortcutOverrides());
@@ -123,6 +124,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               size={12}
             />
             <input
+              ref={searchInputRef}
               type="search"
               value={query}
               autoCapitalize="none"
@@ -139,7 +141,10 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               <button
                 type="button"
                 className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  searchInputRef.current?.focus();
+                }}
                 aria-label="Clear shortcut search"
               >
                 <FaTimes aria-hidden="true" size={11} />
