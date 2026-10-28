@@ -142,6 +142,9 @@ export async function assertLibrarySaveRecovery(devtoolsPort, appUrl, runDir, sc
         assert.deepEqual(await recovery(), expectedRecovery, 'A rejected save must retain the recovery copy');
         assert.ok(await evaluate(cdp, `document.body.innerText.includes('Could not save the game to Library')`));
         assert.ok(!await evaluate(cdp, `document.body.innerText.includes('Success: Saved "Unsaved study"')||document.body.innerText.includes('Success: Updated "Saved study"')`));
+        // On small phones a long error toast can cover Retry. Use its visible
+        // dismiss control before testing the recovery action underneath it.
+        if (mobile) await click('button[aria-label="Dismiss notification"]');
         await point(`[...document.querySelectorAll('button')].find(e=>e.textContent==='Retry saving library')`);
       };
       try {
