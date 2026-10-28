@@ -363,9 +363,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const shouldFocusNoteRef = React.useRef(false);
   const previousNoteNodeIdRef = React.useRef(currentNode.id);
-  // Written during render so the sync effect can read what was in the editor
-  // at the moment the board moved, without re-running on every keystroke.
+  // The navigation effect reads the latest editor text without rerunning on
+  // every keystroke.
   const noteDraftRef = React.useRef(currentNote);
+  const pendingUnmountNoteRef = React.useRef<{ nodeId: string; note: string } | null>(null);
   const previousNoteTextRef = React.useRef(currentNote);
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
@@ -405,6 +406,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [noteDraft]);
 
   React.useEffect(() => {
+    // A new node initially renders with the previous editor's draft. Wait for
+    // the sync below before assigning that text to the arriving node.
+    if (previousNoteNodeIdRef.current !== currentNode.id) return;
+    pendingUnmountNoteRef.current = isEditingNote && noteDraft !== currentNote
+      ? { nodeId: currentNode.id, note: noteDraft }
+      : null;
+  }, [currentNode.id, currentNote, isEditingNote, noteDraft]);
+
+  React.useEffect(() => {
     // Keep what was typed before the sync below replaces it with the arriving
     // node's note. It belongs to the node being left.
     const rescue = getNoteDraftRescue({
@@ -414,7 +424,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       draft: noteDraftRef.current,
       previousNote: previousNoteTextRef.current,
     });
-    if (rescue) setNodeNote(rescue.nodeId, rescue.note);
+    if (rescue) {
+      pendingUnmountNoteRef.current = null;
+      setNodeNote(rescue.nodeId, rescue.note);
+    }
 
     const sync = getNoteEditorSyncDecision({
       previousNodeId: previousNoteNodeIdRef.current,
@@ -428,6 +441,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     setNoteDraft(sync.draft);
     setIsEditingNote(sync.editing);
   }, [currentNode.id, currentNote, isEditingNote, setNodeNote]);
+
+  React.useEffect(() => () => {
+    // Mobile section collapse unmounts this panel. Preserve its unfinished
+    // note on the node it belongs to, as navigation already does.
+    const pending = pendingUnmountNoteRef.current;
+    pendingUnmountNoteRef.current = null;
+    if (pending) setNodeNote(pending.nodeId, pending.note);
+  }, [setNodeNote]);
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
@@ -468,6 +489,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [focusRequest, showNotesBlock, startNoteEdit]);
 
   const saveNote = () => {
+    pendingUnmountNoteRef.current = null;
     setCurrentNodeNote(noteDraft);
     setIsEditingNote(false);
   };
@@ -511,6 +533,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   };
 
   const cancelNoteEdit = () => {
+    pendingUnmountNoteRef.current = null;
     setNoteDraft(currentNote);
     setIsEditingNote(false);
   };

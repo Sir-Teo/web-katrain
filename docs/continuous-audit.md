@@ -609,3 +609,24 @@ follow-up work beyond this audit’s wrap-up.
 - The existing native candidate-control and live-preview checks also pass.
   `CI=1 npm run verify` completed with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build before the execution disconnect.
+
+## 2026-10-28 continuation: Unfinished notes across panel changes
+
+- Reproduced mobile Comment collapse discarding an unfinished note. Desktop
+  collapse kept its mounted editor, but switching to the mobile shell also
+  discarded that draft when the desktop panel unmounted.
+- Unmount now preserves a changed draft on its original position, following
+  the existing navigation-rescue behavior. Cancel and explicit Save clear the
+  pending draft; untouched editors do not write. Empty drafts preserve a
+  deliberate deletion. Saved changes use the existing undoable note action.
+- Ownership is tracked before navigation synchronization, so simultaneous
+  navigation and collapse cannot assign the outgoing note to the arriving
+  position. Replacing the game cannot write into the replacement's note.
+- Native checks pass at 1280×800, 390×844 and 320×568, covering responsive
+  shell handoff, collapse, Undo/Redo, Cancel, deletion, untouched editors,
+  replacement games, concurrent navigation and explicit Save. The regression
+  is included in the viewport suite; 21 focused note tests also pass.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and build. The browser run passed keyboard and note-draft
+  coverage, then stopped at the previously observed Chrome practice-board
+  reload abort (`ERR_ABORTED`); that navigation is being isolated separately.
