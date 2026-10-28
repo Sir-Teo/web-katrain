@@ -491,3 +491,35 @@ follow-up work beyond this audit’s wrap-up.
 - The code checks pass, including the full CI test suite and production build.
   Focused contrast regressions and the complete 11-size viewport suite pass
   with the inactive-label exemption included.
+
+## 2026-10-28 continuation: Candidate preview placement
+
+- Reproduced a center-board 80-move preview with a 346 px card but only 282 px
+  visible; the board clipped its final lines. The board's own container has
+  little side space, while the surrounding desktop stage has usable margins.
+- Candidate cards now use that stage and prefer an available side margin,
+  reserving room for panel handles. Width and measured height determine the
+  final position; resize and rotation update it without resizing the board.
+  A small board's larger stones do not consume the outside margin gap.
+- Short views retain all metrics and show the PV count instead of squeezing
+  an entire sequence into the card. Full continuation text, Copy and Keep in
+  tree are now available in both Coach and Pro. B win and B score identify
+  the Black perspective. Touch gestures do not display a hover card under the
+  finger, and the card never captures pointer input.
+- Moving mouse focus from a variation disclosure to its play button now keeps
+  the existing preview, so the mouse still plays with one click. An unpreviewed
+  touch candidate still needs a preview tap and a confirmation tap.
+- Native Chrome checks pass at 1280×800, 1024×500, 390×844, 320×568 and
+  568×320, including center/corner candidates, an 80-move sequence, all ten
+  metrics, pointer ownership, unchanged game state and clockwise rotation.
+  Card text passes contrast checks in all four UI themes. Nine placement
+  regressions also cover fallback geometry, edge handles and small boards.
+- Relative text sizing follows the browser font preference. With a 20 px root
+  font in a short landscape view, the card reflows its metrics into two
+  columns and remains inside the usable stage. Reserved padding for bars and
+  notices is excluded from the card's vertical space.
+- The full code checks and complete 11-size viewport suite pass. Final targeted
+  checks cover all 11 sizes plus the enlarged-text case, followed by a fresh
+  production build. Production responsiveness passes: 4.93 ms first move,
+  1.09 ms median move, 63.9 ms warm dialog, 40 ms input latency p98, 51 ms
+  longest observed task.

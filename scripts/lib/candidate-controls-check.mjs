@@ -138,7 +138,12 @@ export async function assertCandidateControls(devtoolsPort, appUrl, screenshotDi
           candidateAuditStore.getState().navigateStart();
           candidateAuditStore.getState().updateSettings({analysisExperience:'coach'});return true;
         })()`);
-        await wait('!!document.querySelector(".candidate-row")&&!document.querySelector(".cl-pv-toggle")');
+        await wait('!!document.querySelector(".candidate-row")&&document.querySelector(".candidate-list").dataset.analysisExperience==="coach"');
+        await click('document.querySelector(".cl-pv-toggle")');
+        await wait('!!document.querySelector("[data-candidate-pv]")');
+        assert.equal(await ply(), 0, 'Reading a Coach continuation played a move');
+        await click('document.querySelector(".cl-pv-toggle")');
+        await wait('!document.querySelector("[data-candidate-pv]")');
         await click('document.querySelector(".candidate-row")');
         if (mobile) {
           await wait('!!document.querySelector(".candidate-row.is-active")');

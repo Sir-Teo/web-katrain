@@ -15,6 +15,7 @@ import { assertLibraryNavigation } from './lib/library-navigation-check.mjs';
 import { assertPracticeBoardSizes } from './lib/practice-board-sizes-check.mjs';
 import { assertCandidateControls } from './lib/candidate-controls-check.mjs';
 import { assertReportPrinting } from './lib/report-print-check.mjs';
+import { assertCandidateTooltips } from './lib/candidate-tooltip-check.mjs';
 import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4073,6 +4074,7 @@ async function main() {
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertReportPrinting(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertCandidateTooltips(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir, VIEWPORTS);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

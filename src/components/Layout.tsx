@@ -4629,8 +4629,9 @@ export const Layout: React.FC = () => {
               // Only a tab panel on mobile: on desktop there is no tab bar, so the role
               // and the aria-labelledby would point at tabs that are not rendered.
               {...(isMobile ? { role: 'tabpanel', id: MOBILE_TAB_PANEL_IDS.board, 'aria-labelledby': mobileTabId('board') } : {})}
+              data-board-tooltip-boundary="true"
               className={[
-                'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0',
+                'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0 relative',
                 // On mobile the Score (top-left) and Edit (bottom-left) launchers float
                 // over the board shell. Reserve vertical clearance so the board never
                 // grows under them and covers the corner coordinates / play area.

@@ -783,7 +783,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           </div>
           )}
 
-          <div className="board-stage">
+          <div className="board-stage" data-board-tooltip-boundary="true">
             {/* Panel toggles: named for the panel, as their label reads, with
                 aria-expanded for open or closed. A "Hide …"/"Show …" name that
                 was also aria-pressed said the state twice, and contradicted

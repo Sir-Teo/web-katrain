@@ -129,6 +129,9 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const [openPv, setOpenPv] = useState<{ nodeId: string; key: string } | null>(null);
   const pvOpenKey = openPv?.nodeId === nodeId ? openPv.key : null;
   const pvListId = React.useId();
+  const clearPreviewOnBlur = (event: React.FocusEvent<HTMLButtonElement>) => {
+    if (!(event.relatedTarget instanceof Node) || !event.currentTarget.parentElement?.contains(event.relatedTarget)) onHover(null);
+  };
 
   // The list used to stop at 24 rows whatever Settings said; the engine
   // itself is asked for up to 50.
@@ -212,7 +215,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
           const uncertainNote = uncertain
             ? ` Read only ${formatCandidateVisits(move.visits)} ${move.visits === 1 ? 'time' : 'times'}, so these numbers are rough.`
             : '';
-          const hasPv = isPro && (move.pv?.length ?? 0) > 1;
+          const hasPv = (move.pv?.length ?? 0) > 1;
           const pvId = `${pvListId}-pv-${move.x}-${move.y}`;
           return (
             <li key={key}>
@@ -228,7 +231,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                   // Touch focus and compatibility mouse events arrive before
                   // click. Previewing there made the very first tap play it.
                   onFocus={event => { if (event.currentTarget.matches(':focus-visible')) onHover(move); }}
-                  onBlur={() => onHover(null)}
+                  onBlur={clearPreviewOnBlur}
                   onClick={() => {
                     // A row plays its move, but only once it is the row on the
                     // board: with a mouse that is already true by the time the
@@ -282,7 +285,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                     aria-label={pvOpenKey === key ? `Hide the variation after ${label}` : `Show the variation after ${label} as text`}
                     title={pvOpenKey === key ? 'Hide variation' : 'Show variation as text'}
                     onFocus={event => { if (event.currentTarget.matches(':focus-visible')) onHover(move); }}
-                    onBlur={() => onHover(null)}
+                    onBlur={clearPreviewOnBlur}
                     onClick={() => setOpenPv(pvOpenKey === key ? null : { nodeId, key })}
                   >
                     ›
