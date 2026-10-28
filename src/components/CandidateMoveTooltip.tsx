@@ -10,13 +10,14 @@ type Placement = { target: HTMLElement; left: number; top: number; width: number
 type Metric = { label: string; value: string; description?: string };
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
-export function CandidateMoveTooltip({ boardRef, anchorX, anchorY, cellSize, boardSize, move }: {
+export function CandidateMoveTooltip({ boardRef, anchorX, anchorY, cellSize, boardSize, move, pvScrollHint = null }: {
   boardRef: React.RefObject<HTMLDivElement | null>;
   anchorX: number;
   anchorY: number;
   cellSize: number;
   boardSize: BoardSize;
   move: CandidateMove;
+  pvScrollHint?: { shown: number; total: number } | null;
 }) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const fullHeight = React.useRef<{ signature: string; height: number } | null>(null);
@@ -52,7 +53,7 @@ export function CandidateMoveTooltip({ boardRef, anchorX, anchorY, cellSize, boa
     const availableHeight = bounds.height - topInset - bottomInset;
     const args = { boundaryWidth: bounds.width, boardLeft: rect.left - bounds.left, boardWidth: rect.width, boardHeight: rect.height, anchorX, anchorY, cellSize };
     const normal = getAnalysisTooltipHorizontal(args);
-    const signature = `${normal.width}|${metrics.length}|${pv}|${style.fontSize}`;
+    const signature = `${normal.width}|${metrics.length}|${pv}|${style.fontSize}|${!!pvScrollHint}`;
     const update = (next: Placement) => setPlacement(previous => previous && Object.keys(next).every(key => previous[key as keyof Placement] === next[key as keyof Placement]) ? previous : next);
     const base: Placement = { target, ...normal, top: 8, compact: false, columns: 1, ready: false };
     if (!placement || placement.target !== target || (placement.compact && fullHeight.current?.signature !== signature)) {
@@ -105,14 +106,15 @@ export function CandidateMoveTooltip({ boardRef, anchorX, anchorY, cellSize, boa
       className={`pointer-events-none absolute z-20 rounded-lg border border-[var(--ui-border-strong)] bg-[var(--ui-panel)] text-[var(--ui-text)] shadow-xl ${placement.compact ? 'p-1.5 text-[0.6875rem] leading-[0.875rem]' : 'p-2 text-xs leading-4'}`}
       style={{ left: placement.left, top: placement.top, width: placement.width, visibility: placement.ready ? 'visible' : 'hidden' }}
     >
-      <div className="mb-1 flex items-center justify-between gap-1 whitespace-nowrap font-bold">
+      <div className="mb-1 flex items-center justify-between gap-1 whitespace-nowrap font-bold" role={pvScrollHint ? 'status' : undefined} data-pv-scroll-hint={pvScrollHint ? 'true' : undefined}>
         <span>{formatBoardMoveLabel(move, boardSize)}</span>
-        {!!move.pv?.length && <span className="ui-text-muted font-normal" aria-label={`${move.pv.length}-move continuation`}>PV {move.pv.length}</span>}
+        {!!move.pv?.length && <span className="ui-text-muted font-normal" aria-label={pvScrollHint ? `${pvScrollHint.shown} of ${pvScrollHint.total} continuation moves shown` : `${move.pv.length}-move continuation`}>PV {pvScrollHint ? `${pvScrollHint.shown} / ${pvScrollHint.total}` : move.pv.length}</span>}
       </div>
       <dl className={placement.columns === 2 ? 'grid grid-cols-2 gap-x-3' : undefined}>
         {metrics.map(metric => <div key={metric.label} className="flex justify-between gap-1 whitespace-nowrap"><dt title={metric.description} className="ui-text-muted">{metric.label}</dt><dd className="font-mono tabular-nums">{metric.value}</dd></div>)}
       </dl>
       {!placement.compact && pv && <p className="mt-1 whitespace-normal break-words">PV: {pv}</p>}
+      {pvScrollHint && <p className="mt-1 whitespace-normal ui-text-muted">Middle-click to keep shown moves</p>}
     </div>,
     placement.target,
   );

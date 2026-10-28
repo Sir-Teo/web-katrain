@@ -18,6 +18,9 @@ PWA. There is no analysis server to run.
   points lost and visits for every candidate at once. Hover a row to lay its
   variation on the board; click it to play the move. Open its continuation as
   text in Coach or Pro, copy it, or keep it in the move tree.
+- Scroll over a candidate on the board to step through its continuation.
+  Middle-click to keep the moves currently shown as a variation, without
+  leaving the current position. Keeping a line supports Undo edit and Redo.
 - Quick, fast, and full-game analysis passes with per-position caching.
 - KaTrain-style move quality, phase summaries, and game reports with printable
   position diagrams and suggested continuations.

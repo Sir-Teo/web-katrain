@@ -510,7 +510,7 @@ export const Layout: React.FC = () => {
       return previous?.context === previewContext && previous.move === move ? previous : { context: previewContext, move };
     });
   }, [previewContext]);
-  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
+  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number; manual?: boolean } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsFocusModel, setSettingsFocusModel] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -1622,7 +1622,7 @@ export const Layout: React.FC = () => {
 
   const pvLen = activeHoverMove?.pv?.length ?? 0;
   useEffect(() => {
-    if (!pvAnim) return;
+    if (!pvAnim || pvAnim.manual) return;
     if (!pvKey || pvKey !== pvAnim.key) return;
     if (pvLen <= 0) return;
 
@@ -1632,7 +1632,7 @@ export const Layout: React.FC = () => {
       const now = getAnimationNow();
       const progress = getPvAnimationProgress(now - pvAnim.startMs, delayMs, pvLen);
       setPvAnim((current) => {
-        if (!current || current.key !== pvAnim.key || current.upToMove === progress.upToMove) return current;
+        if (!current || current.manual || current.key !== pvAnim.key || current.upToMove === progress.upToMove) return current;
         return { ...current, upToMove: progress.upToMove };
       });
       if (progress.nextDelayMs !== null) timer = window.setTimeout(tick, progress.nextDelayMs);
@@ -1646,10 +1646,31 @@ export const Layout: React.FC = () => {
   const pvUpToMove = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
+    if (pvAnim?.key === pvKey && pvAnim.manual) return Math.min(pv.length - 1, pvAnim.upToMove);
     if (pvAnimTimeS <= 0) return pv.length;
     if (!pvAnim || pvAnim.key !== pvKey) return 0;
     return pvAnim.upToMove;
   }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimTimeS, pvKey]);
+
+  const handlePvScroll = useCallback((direction: 1 | -1) => {
+    if (!pvKey || pvLen === 0 || previewContextRef.current !== previewContext) return;
+    setPvAnim(previous => {
+      const lastIndex = pvLen - 1;
+      const shownIndex = previous?.key === pvKey ? Math.min(lastIndex, previous.upToMove) : lastIndex;
+      return { key: pvKey, startMs: getAnimationNow(), upToMove: Math.max(0, Math.min(lastIndex, shownIndex + direction)), manual: true };
+    });
+  }, [pvKey, pvLen, previewContext]);
+
+  const handlePvCommit = useCallback(() => {
+    const pv = activeHoverMove?.pv;
+    if (!pvOverlayEnabled || !pv?.length || previewContextRef.current !== previewContext) return;
+    // The board uses a zero-based last index; the tree action takes a count.
+    useGameStore.getState().addPvVariation(pv, Math.min(pv.length, (pvUpToMove ?? pv.length - 1) + 1));
+  }, [activeHoverMove, pvOverlayEnabled, pvUpToMove, previewContext]);
+
+  const pvScrollHint = pvKey && pvAnim?.key === pvKey && pvAnim.manual && pvUpToMove !== null
+    ? { shown: pvUpToMove + 1, total: pvLen }
+    : null;
 
   const passPv = useMemo(() => {
     const pv = activeHoverMove?.pv;
@@ -4238,6 +4259,9 @@ export const Layout: React.FC = () => {
                   hoveredMove={activeHoverMove}
                   onHoverMove={setHoveredMove}
                   pvUpToMove={pvUpToMove}
+                  onPvScroll={pvOverlayEnabled ? handlePvScroll : undefined}
+                  onPvCommit={pvOverlayEnabled ? handlePvCommit : undefined}
+                  pvScrollHint={pvScrollHint}
                   uiMode={boardUiMode}
                   forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                   scoringMode={scoringMode}
@@ -4682,6 +4706,9 @@ export const Layout: React.FC = () => {
                 hoveredMove={activeHoverMove}
                 onHoverMove={setHoveredMove}
                 pvUpToMove={pvUpToMove}
+                onPvScroll={pvOverlayEnabled ? handlePvScroll : undefined}
+                onPvCommit={pvOverlayEnabled ? handlePvCommit : undefined}
+                pvScrollHint={pvScrollHint}
                 uiMode={boardUiMode}
                 forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                 scoringMode={scoringMode}

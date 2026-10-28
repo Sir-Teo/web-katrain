@@ -546,3 +546,30 @@ follow-up work beyond this audit’s wrap-up.
 - `CI=1 npm run verify` passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build. The complete 11-size viewport suite
   passes with the stationary-pointer and historical-report checks included.
+
+## 2026-10-28 continuation: Continuation mouse gestures
+
+- Reproduced the help's advertised wheel gesture advancing the game from
+  move 0 to move 1 instead of reading a candidate's continuation. Middle-click
+  left the tree unchanged. Both board callbacks existed but were not connected.
+- Wheel input over a candidate now steps between the first and final move,
+  pausing the automatic reveal. Search updates refresh the displayed line and
+  clamp the visible prefix when the engine returns a shorter continuation.
+  Moving away restores ordinary wheel navigation; Shift-wheel still uses the
+  existing mistake-navigation path and browser zoom gestures remain available.
+- Middle-click keeps the visible prefix, preserves the current position and
+  existing game branches, and uses the existing undoable tree action. Repeating
+  it reuses the branch. The browser's middle-button autoscroll is suppressed.
+- The candidate card shows the step count and gesture hint, using its existing
+  bounded placement and compact layout. It does not add another panel over
+  continuation stones. Candidate text and mobile tiles retain their explicit
+  Keep in tree controls for keyboard and touch access.
+- Native Chrome coverage exercises bounded stepping, paused animation, live
+  refinements, prefix length, duplicate prevention, Undo/Redo and normal game
+  navigation on desktop, phone and short landscape layouts, including enlarged
+  text and all ten candidate metrics. It is included in the viewport suite.
+- Code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The final complete 11-size viewport
+  suite passes, including all four gesture cases. An earlier run encountered
+  an intermittent Chrome practice-board reload abort; its 15 isolated cases
+  and the final full suite passed without a navigation behavior change.
