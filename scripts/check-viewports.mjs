@@ -14,6 +14,7 @@ import { assertKeyboardWorkflows } from './lib/keyboard-workflows-check.mjs';
 import { assertLibraryNavigation } from './lib/library-navigation-check.mjs';
 import { assertPracticeBoardSizes } from './lib/practice-board-sizes-check.mjs';
 import { assertCandidateControls } from './lib/candidate-controls-check.mjs';
+import { assertReportPrinting } from './lib/report-print-check.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
@@ -4149,6 +4150,7 @@ async function main() {
     await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertReportPrinting(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

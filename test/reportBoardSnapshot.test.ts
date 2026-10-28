@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { captureReportBoardSnapshot } from '../src/utils/reportBoardSnapshot';
 import type { BoardState } from '../src/types';
+import { createEmptyBoard } from '../src/utils/boardSize';
 
-const makeBoard = (): BoardState => [
-  ['black', null, null],
-  [null, 'white', null],
-  [null, null, null],
-];
+const makeBoard = (): BoardState => {
+  const board = createEmptyBoard(5);
+  board[0][0] = 'black';
+  board[1][1] = 'white';
+  return board;
+};
 
 function makeCanvasContext() {
   const gradient = { addColorStop: vi.fn() };
@@ -16,6 +18,7 @@ function makeCanvasContext() {
     createRadialGradient: vi.fn(() => gradient),
     fill: vi.fn(),
     fillRect: vi.fn(),
+    fillText: vi.fn(),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
     restore: vi.fn(),
@@ -52,6 +55,17 @@ describe('report board snapshots', () => {
     expect(captureReportBoardSnapshot({ board: makeBoard(), playedMove: { x: 0, y: 0, player: 'black' }, bestMove: 'C1' }))
       .toBe('data:image/png;base64,ok');
     expect(canvas.getContext).toHaveBeenCalledWith('2d');
+  });
+
+  it.each([5, 19] as const)('labels all four sides of a size-%i diagram with matching Go coordinates', (size) => {
+    const { context } = stubCanvas();
+    captureReportBoardSnapshot({ board: createEmptyBoard(size) });
+    const labels = vi.mocked(context.fillText).mock.calls.map(call => call[0]);
+    expect(labels).toHaveLength(size * 4);
+    expect(labels.slice(0, 4)).toEqual(['A', 'A', String(size), String(size)]);
+    expect(labels.slice(-4)).toEqual([size === 5 ? 'E' : 'T', size === 5 ? 'E' : 'T', '1', '1']);
+    expect(labels).not.toContain('I');
+    if (size === 19) expect(labels).toContain('J');
   });
 
   it('returns null when canvas creation or export is blocked', () => {

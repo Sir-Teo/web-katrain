@@ -437,3 +437,30 @@ follow-up work beyond this audit’s wrap-up.
   checks pass with 3,226 tests and 77 intentional CI skips.
 - The complete 11-size viewport suite passes, including the new practice-board
   and candidate checks, keyboard workflows, library save recovery and scoring.
+
+## 2026-10-28 continuation: Report PDF pagination
+
+- Reproduced a 30-move synthetic report producing 23 PDF pages for ten
+  positions. Each board's continuation split onto another page and a blank
+  page remained at the end. Hiding the app with visibility left its layout
+  in the print flow, and viewport-relative figure sizes exceeded the paper.
+- The report now uses a body portal, as kifu printing already does. Print CSS
+  removes the app from flow, uses the full paper width and places a bounded
+  diagram beside its continuation. Header duplication, page spacing and the
+  empty trailing page are removed. The nested on-screen guide stays off paper.
+- Diagrams include standard coordinates on all four sides, including Go's
+  skipped I. A legend identifies the played-move circle and suggested-move
+  square. Printed wording now identifies Web KaTrain and calls the engine line
+  a suggested continuation rather than a correct move tree.
+- The browser's own Print command prepares diagrams through `beforeprint`,
+  as well as the app's Print / Save PDF button. Existing game state and filters
+  are retained, and the report remains usable on screen after printing.
+- Native Chrome checks generate and inspect actual PDF page/image objects on
+  desktop and phone. The fixture now produces 12 pages including all ten
+  diagrams; a single position with 24 continuation moves produces one page.
+  The app-button and direct-browser paths pass, including guide dismissal and
+  unchanged game state. These checks are included in the viewport suite.
+- `CI=1 npm run verify` passes with 3,228 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The complete 11-size viewport suite
+  passes with the generated-PDF checks included. A final print-only shadow
+  removal is covered by rerunning the native PDF regression.
