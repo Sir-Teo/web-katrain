@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { GAME_DRAFT_COMMIT_REQUEST_EVENT } from '../utils/gameDrafts';
 
 /** Preserve owned edits when their editor or document goes away.
  * Keep preserve stable so a rerender cannot commit an edit mid-keystroke.
@@ -23,10 +24,12 @@ export function useGameDraftLifecycle(preserve: () => boolean, onPreserved?: () 
     };
     window.addEventListener('beforeunload', warnBeforeUnload, true);
     window.addEventListener('pagehide', preserveBeforeLeaving, true);
+    window.addEventListener(GAME_DRAFT_COMMIT_REQUEST_EVENT, preserveBeforeLeaving);
     document.addEventListener('visibilitychange', preserveWhenHidden, true);
     return () => {
       window.removeEventListener('beforeunload', warnBeforeUnload, true);
       window.removeEventListener('pagehide', preserveBeforeLeaving, true);
+      window.removeEventListener(GAME_DRAFT_COMMIT_REQUEST_EVENT, preserveBeforeLeaving);
       document.removeEventListener('visibilitychange', preserveWhenHidden, true);
       // Do not update the departing editor's UI during unmount.
       preserve();

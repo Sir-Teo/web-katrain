@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
+import { commitPendingGameDrafts } from '../utils/gameDrafts';
 import {
   FaTimes,
   FaFolderOpen,
@@ -1031,6 +1032,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       );
       return;
     }
+    commitPendingGameDrafts();
     const sgf = getCurrentSgf();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');

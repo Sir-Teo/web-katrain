@@ -11,6 +11,7 @@ import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { copyTextToClipboard } from '../utils/clipboard';
 import type { MoveTreeCommand } from '../utils/moveTreeCommands';
 import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
+import { commitPendingGameDrafts } from '../utils/gameDrafts';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -154,7 +155,8 @@ export function useKeyboardShortcuts({
       };
 
       const copySgfToClipboard = async () => {
-        const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+        commitPendingGameDrafts();
+        const sgf = generateSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
         if (await copyTextToClipboard(sgf)) {
           toast('Copied SGF to clipboard.', 'success');
           return;

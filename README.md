@@ -70,6 +70,7 @@ PWA. There is no analysis server to run.
 - Unfinished notes and game-info edits are preserved when panels close or the
   page exits. Notes also follow their positions during review. Cancel discards
   the draft; saved changes support Undo and Redo.
+- Saving, copying SGF and sharing a game include the latest open editor text.
 - Find notes across every variation by comment text, position name, or move
   coordinate, then jump straight to the matching position. Open it from the
   Comment panel's search button or the command palette.

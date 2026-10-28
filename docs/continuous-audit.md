@@ -693,3 +693,21 @@ follow-up work beyond this audit’s wrap-up.
 - Full verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and build. The complete 11-size browser suite also passes,
   including the existing replacement, note recovery and library save checks.
+
+## 2026-10-28 continuation: Open drafts in saved and shared games
+
+- Reproduced Save SGF, Copy SGF, share links and Save Copy to Library taking
+  their snapshot before an open note editor committed. The downloaded, copied
+  and stored games contained the older note while the newer text stayed visible.
+- User-requested save and export actions now synchronously finish owned drafts
+  through the shared lifecycle hook before serializing. Clipboard and share
+  actions read the current store after the commit, avoiding an older render's
+  tree. Background serialization and asynchronous save comparisons stay pure.
+- Seventeen native cases pass across 1280×800, 390×844 and 320×568. They inspect
+  actual downloads, clipboard SGF, decoded share URLs and stored Library games,
+  covering Unicode text, deliberate deletion, Cancel, loaded-game updates,
+  the desktop Library panel, keyboard copy and mobile panel handoff. The new
+  checks are included in the viewport suite.
+- The existing nine note-exit and eighteen metadata-exit cases also pass.
+  Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.

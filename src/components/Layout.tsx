@@ -138,7 +138,7 @@ import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 import { resolveCandidatePreview } from '../utils/candidatePreview';
-import { GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
+import { commitPendingGameDrafts, GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -1378,6 +1378,7 @@ export const Layout: React.FC = () => {
 
   /** Whether the game is now saved. `false` means the game is still only here. */
   const handleSaveCurrentSgf = useCallback(async (): Promise<boolean> => {
+    commitPendingGameDrafts();
     const sgf = generateCurrentSgf();
     if (await saveLoadedLibraryFile(sgf)) return true;
     try {
@@ -1393,6 +1394,7 @@ export const Layout: React.FC = () => {
 
   const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
     modalReturnFocusRef.current = returnFocus ?? null;
+    commitPendingGameDrafts();
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
@@ -2238,7 +2240,8 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopySgf = async () => {
-    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+    commitPendingGameDrafts();
+    const sgf = generateCurrentSgf();
     if (await copyTextToClipboard(sgf)) {
       toast('Copied SGF to clipboard.', 'success');
       return;
@@ -2283,7 +2286,8 @@ export const Layout: React.FC = () => {
   const handleCopyShareLink = async () => {
     // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
     // game a 385,000-character link, past what an opening app will read.
-    const sgf = generateSgfFromTree(rootNode, {
+    commitPendingGameDrafts();
+    const sgf = generateSgfFromTree(useGameStore.getState().rootNode, {
       ...sgfExportOptions,
       trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
     });
