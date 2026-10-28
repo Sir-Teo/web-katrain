@@ -911,3 +911,24 @@ follow-up work beyond this audit’s wrap-up.
   traffic. These cases are included in the viewport suite.
 - Full verification passes with 3,253 tests, 77 intentional CI skips,
   both typechecks, lint and production build.
+
+## 2026-10-28 continuation: Score-quiz answer validation
+
+- Native Enter in a cleared answer field started evaluation, displayed a
+  zero-point Black guess and counted a round. No answer had been entered.
+- The quiz now requires a nonnegative decimal in the half-point steps already
+  specified by its input. Invalid drafts keep Reveal disabled, explain the
+  constraint through an accessible description and cannot start evaluation
+  through Enter. IME confirmation leaves the draft alone. An explicit zero
+  remains valid and is displayed as Even.
+- Fifteen native check groups pass at 1280×800, 390×844 and 320×568. Blank,
+  negative, unfinished and off-step input produces no evaluation or round;
+  zero submits with native Enter, White +4.5 submits by pointer/touch, and
+  repeat practice retains one scored round. The current game stays unchanged.
+  Fixed model responses isolate input behavior from engine quality.
+- The prior request-ordering checks also pass at desktop and narrow-phone
+  sizes, covering late results, errors, retries and close/reopen. All ten
+  focused quiz/numeric tests, both typechecks and lint pass. The native answer
+  checks are included in the viewport suite.
+- Full verification passes with 3,253 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.

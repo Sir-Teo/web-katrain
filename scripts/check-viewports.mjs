@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
-import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
+import { assertScoreQuizGuesses, assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
@@ -4075,6 +4075,7 @@ async function main() {
     await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
     await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
     await assertScoreQuizRequests(cdp);
+    await assertScoreQuizGuesses(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertStaticBoardScroll(cdp);
     await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryTags(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
