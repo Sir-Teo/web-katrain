@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { NewGameModal, type AiConfigValues, type GameInfoValues, type SetupPositionValues, type TimerConfigValues } from '../src/components/NewGameModal';
 import { useGameStore } from '../src/store/gameStore';
-import type { GameSettings, Player } from '../src/types';
+import type { BoardSize, GameSettings, Player } from '../src/types';
+import { BOARD_SIZES } from '../src/utils/boardSize';
 
 const settings = useGameStore.getState().settings;
 
@@ -71,7 +72,7 @@ function renderModal(args: {
   ai?: AiConfigValues;
   timer?: TimerConfigValues;
   handicap?: number;
-  boardSize?: 9 | 13 | 19;
+  boardSize?: BoardSize;
   setupPosition?: SetupPositionValues;
   teachModeOn?: boolean;
 } = {}): string {
@@ -313,10 +314,10 @@ describe('the board size the dialog opens on', () => {
   // `settings.defaultBoardSize`, which `loadGame` kept in step by writing the
   // file's size into settings -- and the file's handicap along with it.
   it('pre-selects whatever board size it was given', () => {
-    for (const size of [9, 13, 19] as const) {
+    for (const size of BOARD_SIZES) {
       const html = renderModal({ boardSize: size });
       expect(html, String(size)).toContain(`<option value="${size}" selected="">`);
-      for (const other of [9, 13, 19].filter((n) => n !== size)) {
+      for (const other of BOARD_SIZES.filter((n) => n !== size)) {
         expect(html, `${size} vs ${other}`).toContain(`<option value="${other}">`);
       }
     }

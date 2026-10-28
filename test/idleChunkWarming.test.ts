@@ -21,6 +21,12 @@ describe('shouldWarmChunks', () => {
     expect(shouldWarmChunks({ connection: { saveData: true, effectiveType: '4g' } })).toBe(false);
   });
 
+  it('skips offline browsers even when their last connection was fast', () => {
+    expect(shouldWarmChunks({ onLine: false })).toBe(false);
+    expect(shouldWarmChunks({ onLine: false, connection: { effectiveType: '4g' } })).toBe(false);
+    expect(shouldWarmChunks({ onLine: true })).toBe(true);
+  });
+
   it('skips the connections where a wasted chunk costs most', () => {
     expect(shouldWarmChunks({ connection: { effectiveType: 'slow-2g' } })).toBe(false);
     expect(shouldWarmChunks({ connection: { effectiveType: '2g' } })).toBe(false);

@@ -126,7 +126,7 @@ export function convertNgfToSgf(text: string): string {
   // up one ("board size must be 9, 13, or 19").
   const lines = text.replace(/^\uFEFF/, '').trimEnd().split(/\r\n|\n|\r/);
   const size = parseInteger(lines[1]?.trim());
-  if (!isBoardSize(size)) throw new Error('NGF board size must be 9, 13, or 19.');
+  if (!isBoardSize(size)) throw new Error('NGF board size must be an odd size from 5 to 19.');
   if (lines.length < 11) throw new Error('The NGF header is incomplete.');
   const root = properties(size);
   const handicap = parseInteger(lines[5]?.trim());

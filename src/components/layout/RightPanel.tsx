@@ -15,6 +15,7 @@ import {
   FaAlignLeft,
   FaStickyNote,
   FaChevronLeft,
+  FaSearch,
 } from 'react-icons/fa';
 import type { Player, GameNode, CandidateMove } from '../../types';
 import { useGameStore } from '../../store/gameStore';
@@ -24,6 +25,7 @@ import { AnalysisExperienceToggle } from '../AnalysisExperienceToggle';
 import { GameInfoPanel } from '../GameInfoPanel';
 import { MoveTree } from '../MoveTree';
 import { NotesPanel } from '../NotesPanel';
+import { MobilePanelRegion } from './MobilePanelRegion';
 import { Timer } from '../Timer';
 import type { AnalysisControlsState, UiMode, UiState } from './types';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId, type MobileTab } from './mobileTabs';
@@ -141,6 +143,7 @@ interface RightPanelProps {
   shapeCoachEnabled?: boolean;
   onToggleShapeCoach?: () => void;
   noteFocusRequest?: number;
+  onFindNotes?: (returnFocus?: HTMLElement | null) => void;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -202,6 +205,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   shapeCoachEnabled = true,
   onToggleShapeCoach,
   noteFocusRequest = 0,
+  onFindNotes,
 }) => {
   const showTree = !isMobile || activeMobileTab === 'tree';
   const showAnalysis = !isMobile || activeMobileTab === 'info';
@@ -479,6 +483,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           onClick={onClose}
         />
       )}
+      <MobilePanelRegion isMobile={isMobile} visible={open} label={activeMobileTab === 'tree' ? 'Game tree' : 'Game review'}>
       <div
         data-layout-panel="side"
         // Tree and Review are two tabs over one container, so the panel names
@@ -496,7 +501,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           open ? 'flex' : 'hidden',
           'desktop-shell:static desktop-shell:max-w-none desktop-shell:z-auto',
           showOnDesktop ? 'desktop-shell:flex' : 'desktop-shell:hidden',
-          isMobile ? 'mobile-safe-bottom mobile-safe-inset' : '',
+          isMobile ? 'flex-1 min-h-0 mobile-safe-bottom mobile-safe-inset' : '',
         ].join(' ')}
         style={width ? { width } : undefined}
       >
@@ -857,6 +862,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {renderSection({
               show: showNotes,
               title: 'Comment',
+              actions: onFindNotes && (
+                <button type="button" className="panel-icon-button" aria-label="Find notes" title="Find notes in this game" onClick={(event) => onFindNotes(event.currentTarget)}>
+                  <FaSearch size={12} aria-hidden="true" />
+                </button>
+              ),
               icon: <FaCommentDots size={12} />,
               open: modePanels.notesOpen,
               onToggle: () => updatePanels((current) => ({ notesOpen: !current.notesOpen })),
@@ -991,6 +1001,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           </div>
         </div>
       </div>
+      </MobilePanelRegion>
     </>
   );
 };

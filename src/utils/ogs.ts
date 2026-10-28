@@ -1,4 +1,4 @@
-import { fetchOgsResource, readBoundedResponseText } from './ogsQueue';
+import { fetchOgsResource, readBoundedResponseText, type OgsRequestCancellation } from './ogsQueue';
 import { MAX_SGF_IMPORT_BYTES } from './sgfImportLimits';
 import { sgfFromBoardTextDiagram } from './boardTextDiagram';
 import { decodeSgfFromShareUrl } from './shareLink';
@@ -69,10 +69,10 @@ export const isOgsUrl = (text: string): boolean => extractOgsGameId(text) !== nu
 
 export const downloadOgsSgf = async (
   gameId: string,
-  options: { isCancelled?: () => boolean } = {}
+  options: OgsRequestCancellation = {}
 ): Promise<string> => {
   const apiUrl = `https://online-go.com/api/v1/games/${gameId}/sgf`;
-  const response = await fetchOgsResource(apiUrl, { method: 'GET' }, options);
+  const response = await fetchOgsResource(apiUrl, { method: 'GET', signal: options.signal }, options);
   if (!response.ok) {
     throw new Error(`Failed to download OGS game ${gameId}: ${response.statusText}`);
   }

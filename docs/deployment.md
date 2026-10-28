@@ -102,6 +102,9 @@ The service worker precaches:
 - The manifest and the PWA icons. Not the manifest screenshots: they are 504 kB
   shown by the browser, the OS or a crawler, never by the running app.
 - The small default model.
+- The analysis worker, even before the first analysis. The build records its
+  hashed filename in `index.html`; caching it does not start the engine. Like
+  the model, a failed worker download leaves the offline board available.
 - One TensorFlow.js WASM build, `tfjs-backend-wasm-simd.wasm`. TFJS chooses one
   of the three at runtime, and the other two cannot be chosen here: the threaded
   build needs cross-origin isolation, which GitHub Pages cannot provide, and the

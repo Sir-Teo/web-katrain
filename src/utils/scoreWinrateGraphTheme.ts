@@ -7,11 +7,11 @@ const KATRAN_SCORE_COLOR = 'rgb(77, 179, 230)';
 const KATRAN_WINRATE_COLOR = 'rgb(26, 204, 26)';
 const KATRAN_GRAPH_DOT_COLOR = 'rgb(217, 77, 77)';
 const KATRAN_GRAPH_BG_URL = publicUrl('katrain/graph_bg.png');
-const KATRAN_SCORE_MARKER_COLOR = 'rgb(51, 153, 204)';
+const KATRAN_SCORE_MARKER_COLOR = 'rgb(125, 211, 252)';
 // The time band is drawn behind both lines, so it needs to read as texture
 // rather than as a third line competing with them.
 const KATRAN_TIME_COLOR = 'rgba(214, 170, 92, 0.55)';
-const KATRAN_WINRATE_MARKER_COLOR = 'rgb(13, 179, 13)';
+const KATRAN_WINRATE_MARKER_COLOR = 'rgb(74, 222, 128)';
 
 export type ScoreWinrateGraphTheme = {
   boxStyle: CSSProperties;
@@ -45,8 +45,8 @@ export function getScoreWinrateGraphTheme(uiTheme: ResolvedUiThemeId): ScoreWinr
       winrateColor: 'rgb(22, 163, 74)',
       timeColor: 'rgba(180, 130, 40, 0.5)',
       dotColor: 'rgb(225, 29, 72)',
-      scoreMarkerColor: 'rgb(2, 132, 199)',
-      winrateMarkerColor: 'rgb(22, 163, 74)',
+      scoreMarkerColor: 'rgb(3, 105, 161)',
+      winrateMarkerColor: 'rgb(21, 128, 61)',
       hoverLineColor: 'rgb(100, 116, 139)',
       qualityMarkerStroke: 'rgba(15, 23, 42, 0.35)',
       emptyOverlayClass: 'pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[rgb(248,250,252)] px-3 text-center',

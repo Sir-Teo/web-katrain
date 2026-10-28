@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { FaBookOpen, FaBullseye, FaChartLine, FaInfoCircle, FaTimes } from 'react-icons/fa';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -279,20 +280,25 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           height: auto !important;
           overflow: visible !important;
         }
-        body > * {
-          visibility: hidden !important;
+        body {
+          background: #ffffff !important;
         }
-        .report-print,
-        .report-print * {
-          visibility: visible !important;
+        body > :not(.report-overlay) {
+          display: none !important;
         }
         .report-overlay {
           position: static !important;
+          display: block !important;
           inset: auto !important;
+          width: 100% !important;
           height: auto !important;
           min-height: auto !important;
+          padding: 0 !important;
           overflow: visible !important;
           background: transparent !important;
+        }
+        .report-overlay > :not(.report-print) {
+          display: none !important;
         }
         .app-root {
           height: auto !important;
@@ -301,22 +307,31 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
         }
         .report-print {
           position: static !important;
+          display: block !important;
           left: auto !important;
           top: auto !important;
-          width: auto !important;
+          width: 100% !important;
+          max-width: none !important;
           max-height: none !important;
           height: auto !important;
           overflow: visible !important;
           background: #ffffff !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
           /* No 'Source Serif 4' ahead of these: this app ships no web font and
              loads none -- there is a test holding it to that -- so naming one
              only described a fallback as a choice. Times is what prints. */
           font-family: 'Times New Roman', Times, serif !important;
         }
         .report-print .report-scroll {
+          padding: 0 !important;
           overflow: visible !important;
           max-height: none !important;
           height: auto !important;
+        }
+        .report-print .game-report-modal-header {
+          display: none !important;
         }
         .report-print * {
           color: #0f172a !important;
@@ -355,13 +370,14 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           break-after: page !important;
           page-break-after: always !important;
           padding: 8mm !important;
+          margin: 0 !important;
           border: 1px solid #e2e8f0 !important;
           border-radius: 6px !important;
           background: #ffffff !important;
           width: 100% !important;
           max-width: none !important;
           box-sizing: border-box !important;
-          min-height: calc(100vh - 24mm) !important;
+          min-height: 0 !important;
           display: flex !important;
           flex-direction: column !important;
         }
@@ -370,13 +386,13 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           page-break-after: auto !important;
         }
         .report-print .pdf-board {
+          display: block !important;
           width: 100% !important;
-          max-height: 70vh !important;
+          max-height: 128mm !important;
           height: auto !important;
           object-fit: contain !important;
         }
         .report-print .pdf-board-wrap {
-          flex: 1 !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
@@ -384,6 +400,12 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
           border-radius: 8px !important;
           padding: 8px !important;
           background: #f8fafc !important;
+        }
+        .report-print .pdf-position-grid {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 0.65fr) !important;
+          gap: 6mm !important;
+          align-items: start !important;
         }
         .report-print .pdf-cover-title {
           font-size: 26px !important;
@@ -714,20 +736,29 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     return getPhaseMoveRange(boardSize, phaseFilter);
   }, [boardSize, phaseFilter]);
 
+  const buildPdfSnapshots = React.useCallback(() => pdfMistakes.map((entry) => ({
+    id: entry.node.id,
+    dataUrl: captureReportBoardSnapshot({
+      board: entry.node.gameState.board,
+      playedMove: entry.node.move,
+      bestMove: entry.topMove,
+    }),
+    entry,
+  })), [pdfMistakes]);
+
+  useEffect(() => {
+    // The browser's own Print command also needs diagrams. React must commit
+    // them before the synchronous print snapshot, as it does for our button.
+    const beforePrint = () => { flushSync(() => setPdfSnapshots(buildPdfSnapshots())); };
+    window.addEventListener('beforeprint', beforePrint);
+    return () => window.removeEventListener('beforeprint', beforePrint);
+  }, [buildPdfSnapshots]);
+
   const preparePrint = async () => {
     if (isPreparingPdf) return;
     setIsPreparingPdf(true);
     try {
-      const snapshots = pdfMistakes.map((entry) => ({
-        id: entry.node.id,
-        dataUrl: captureReportBoardSnapshot({
-          board: entry.node.gameState.board,
-          playedMove: entry.node.move,
-          bestMove: entry.topMove,
-        }),
-        entry,
-      }));
-      setPdfSnapshots(snapshots);
+      setPdfSnapshots(buildPdfSnapshots());
       await afterAnimationFrames(2);
       if (!printWindow()) {
         setTimedNotification('Print dialog unavailable in this browser.', 'error');
@@ -990,7 +1021,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
     window.setTimeout(() => reportGuideButtonRef.current?.focus({ preventScroll: true }), 0);
   };
 
-  return (
+  const dialog = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 report-overlay p-3 sm:p-6 mobile-safe-inset mobile-safe-area-bottom">
       <div
         className="game-report-modal ui-panel rounded-2xl shadow-2xl w-[92vw] max-w-[56rem] max-h-[90dvh] overflow-hidden flex flex-col report-print border"
@@ -1984,7 +2015,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
             <div className="pdf-page">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <div className="pdf-cover-subtitle">KaTrain Official Report</div>
+                  <div className="pdf-cover-subtitle">Web KaTrain · Game report</div>
                   <div className="pdf-cover-title pdf-title">Game Analysis Summary</div>
                   <div className="mt-2 text-sm font-semibold text-slate-700">
                     {playerNames.black} vs {playerNames.white}
@@ -2155,7 +2186,7 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                 ? pdfSnapshots
                 : pdfMistakes.map((entry) => ({ id: entry.node.id, dataUrl: null, entry }))
               ).map(({ id, dataUrl, entry }, idx) => (
-                <div key={id} className="pdf-page">
+                <div key={id} className="pdf-page pdf-position-page">
                   <div className="flex items-start justify-between gap-6">
                     <div>
                       <div className="pdf-section-title">
@@ -2172,16 +2203,21 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
                       Phase: {phaseLabel}
                     </div>
                   </div>
-                  <div className="mt-4 pdf-board-wrap">
-                    {dataUrl ? (
-                      <img src={dataUrl} alt={`Move ${entry.moveNumber} snapshot`} className="pdf-board" />
-                    ) : (
-                      <div className="text-[0.625rem] text-slate-500">Snapshot missing</div>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <div className="pdf-section-title">Correct Move Tree</div>
-                    <div className="mt-2">{renderPvTree(entry)}</div>
+                  <div className="mt-4 pdf-position-grid">
+                    <div>
+                      <div className="pdf-board-wrap">
+                        {dataUrl ? (
+                          <img src={dataUrl} alt={`Position after move ${entry.moveNumber}. Played ${entry.move}; engine suggestion ${entry.topMove ?? 'unavailable'}.`} className="pdf-board" />
+                        ) : (
+                          <div className="text-[0.625rem] text-slate-500">Snapshot unavailable</div>
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-600">Circle: played move · Square: engine suggestion</p>
+                    </div>
+                    <div>
+                      <div className="pdf-section-title">Suggested continuation</div>
+                      <div className="mt-2">{renderPvTree(entry)}</div>
+                    </div>
                   </div>
                 </div>
               ))
@@ -2312,4 +2348,5 @@ export const GameReportModal: React.FC<GameReportModalProps> = ({ onClose, setRe
       )}
     </div>
   );
+  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body);
 };

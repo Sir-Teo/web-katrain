@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { parseIntegerDraft } from '../src/utils/numberDraft';
+import { parseDecimalDraft, parseIntegerDraft } from '../src/utils/numberDraft';
 
 describe('number draft parsing', () => {
+  it('accepts signed fractional komi without treating an empty field as zero', () => {
+    expect(parseDecimalDraft(' 6.5 ')).toBe(6.5);
+    expect(parseDecimalDraft('0')).toBe(0);
+    expect(parseDecimalDraft('-0.5')).toBe(-0.5);
+    expect(parseDecimalDraft('.5')).toBe(0.5);
+    expect(parseDecimalDraft('+6.')).toBe(6);
+    for (const draft of ['', ' ', '-', '.', '2abc', '0x10', '1e2', 'Infinity']) {
+      expect(parseDecimalDraft(draft), draft).toBeNull();
+    }
+  });
   it('accepts whole non-negative integer drafts', () => {
     expect(parseIntegerDraft('0')).toBe(0);
     expect(parseIntegerDraft('12')).toBe(12);

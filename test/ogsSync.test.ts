@@ -62,11 +62,17 @@ describe('parseOgsGameList', () => {
         game({ id: 1, ended: null }), // still in progress
         game({ id: 2, annulled: true }),
         game({ id: 3, width: 19, height: 13 }),
-        game({ id: 4, width: 7, height: 7 }),
+        game({ id: 4, width: 8, height: 8 }),
         game({ id: 5 }),
       ],
     };
     expect(parseOgsGameList(payload).map((entry) => entry.id)).toEqual([5]);
+  });
+
+  it('includes supported practice sizes in OGS sync', () => {
+    const sizes = [5, 7, 11, 15, 17];
+    const games = parseOgsGameList({ results: sizes.map(size => game({ id: size, width: size, height: size })) });
+    expect(games.map(entry => entry.boardSize)).toEqual(sizes);
   });
 
   it('tolerates malformed payloads', () => {

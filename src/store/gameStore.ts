@@ -1327,18 +1327,6 @@ const rebuildDescendants = (node: GameNode, suicideLegal = false): number => {
   return pruned;
 };
 
-// Initial state helpers
-const initialBoard = createEmptyBoard(DEFAULT_BOARD_SIZE);
-const initialGameState: GameState = {
-    board: initialBoard,
-    currentPlayer: 'black',
-    moveHistory: [],
-    capturedBlack: 0,
-    capturedWhite: 0,
-    komi: 6.5
-};
-const initialRoot = createNode(null, null, initialGameState, createRootNodeId());
-
 const defaultSettings: GameSettings = {
   appLocale: 'en',
   soundEnabled: true,
@@ -1477,8 +1465,27 @@ const initialSettings: GameSettings = {
   appLocale: 'en',
   ...(loadStoredSettings() ?? {}),
 };
-// The startup game must export and recover with the same rules it plays by.
-initialRoot.properties = { RU: [rulesToSgfRu(initialSettings.gameRules)] };
+// Construct the startup position after loading preferences, as New Game does.
+// Building it before settings were read always opened an empty 19x19 board.
+const initialBoardSize = initialSettings.defaultBoardSize;
+const initialHandicap = initialSettings.defaultHandicap;
+const initialBoard = createEmptyBoard(initialBoardSize);
+if (initialHandicap > 0) applyHandicapStones(initialBoard, initialBoardSize, initialHandicap);
+const initialGameState: GameState = {
+  board: initialBoard,
+  currentPlayer: initialHandicap > 0 ? 'white' : 'black',
+  moveHistory: [],
+  capturedBlack: 0,
+  capturedWhite: 0,
+  komi: 6.5,
+};
+const initialRoot = createNode(null, null, initialGameState, createRootNodeId());
+initialRoot.properties = { RU: [rulesToSgfRu(initialSettings.gameRules)], SZ: [String(initialBoardSize)] };
+if (initialHandicap > 0) {
+  initialRoot.properties.HA = [String(initialHandicap)];
+  initialRoot.properties.PL = ['W'];
+  syncRootSetupPropertiesFromBoard(initialRoot.properties, initialBoard, initialBoardSize, initialHandicap);
+}
 
 let continuousToken = 0;
 const scheduledAnalysisTimers = new Set<ReturnType<typeof setTimeout>>();

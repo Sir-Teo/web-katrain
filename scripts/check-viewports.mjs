@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
-import { assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
+import { assertScoreQuizGuesses, assertScoreQuizRequests } from './lib/score-quiz-check.mjs';
 import { assertStaticBoardScroll } from './lib/static-board-scroll-check.mjs';
 import { assertLibraryImportFailures } from './lib/library-import-check.mjs';
 import { assertLibraryTags } from './lib/library-tags-check.mjs';
@@ -10,6 +10,26 @@ import { assertEmptyLibraryPersists } from './lib/library-empty-check.mjs';
 import { assertLibrarySaveRecovery } from './lib/library-save-check.mjs';
 import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
+import { assertKeyboardWorkflows } from './lib/keyboard-workflows-check.mjs';
+import { assertLibraryNavigation } from './lib/library-navigation-check.mjs';
+import { assertLibraryActionKeys } from './lib/library-action-keys-check.mjs';
+import { assertOgsSyncCancellation } from './lib/ogs-sync-cancellation-check.mjs';
+import { assertPracticeBoardSizes } from './lib/practice-board-sizes-check.mjs';
+import { assertCandidateControls } from './lib/candidate-controls-check.mjs';
+import { assertReportPrinting } from './lib/report-print-check.mjs';
+import { assertCandidateTooltips } from './lib/candidate-tooltip-check.mjs';
+import { assertLiveCandidatePreviews } from './lib/live-candidate-preview-check.mjs';
+import { assertPvGestures } from './lib/pv-gestures-check.mjs';
+import { assertGameInfoReplacement } from './lib/game-info-replacement-check.mjs';
+import { assertPassCandidates } from './lib/pass-candidate-check.mjs';
+import { assertNoteDraftRetention } from './lib/note-draft-retention-check.mjs';
+import { assertNotePageExit } from './lib/note-page-exit-check.mjs';
+import { assertGameInfoPageExit } from './lib/game-info-page-exit-check.mjs';
+import { assertDraftSaveSnapshots } from './lib/draft-save-check.mjs';
+import { assertDraftReplacement } from './lib/draft-replacement-check.mjs';
+import { assertDepthDismissal } from './lib/depth-dismiss-check.mjs';
+import { assertSearchPasteLimits } from './lib/search-paste-check.mjs';
+import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
 // second copy of all of it.
@@ -1454,86 +1474,7 @@ async function main() {
         // failing here is a hard-coded colour or a token used off its intended
         // surface. Colours are read computed, never sampled from a screenshot:
         // capture in this setup is not colour-accurate.
-        const auditContrast = (skipSelector, scope) => {
-          const parseColor = (value) => {
-            if (!value) return null;
-            // Every backslash here is doubled on purpose: this whole probe is
-            // a template literal, so a single one is swallowed before the page
-            // ever sees the regex.
-            let m = value.match(/rgba?\\(([^)]+)\\)/);
-            if (m) {
-              const parts = m[1].split(/[,\\s\\/]+/).filter(Boolean).map(Number);
-              return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
-            }
-            m = value.match(/color\\(srgb\\s+([^)]+)\\)/);
-            if (m) {
-              const parts = m[1].split(/[\\s\\/]+/).filter(Boolean).map(Number);
-              return { r: parts[0] * 255, g: parts[1] * 255, b: parts[2] * 255, a: parts.length > 3 ? parts[3] : 1 };
-            }
-            return null;
-          };
-          const composite = (fg, bg) => ({
-            r: fg.r * fg.a + bg.r * (1 - fg.a),
-            g: fg.g * fg.a + bg.g * (1 - fg.a),
-            b: fg.b * fg.a + bg.b * (1 - fg.a),
-            a: 1,
-          });
-          const luminance = (c) => {
-            const channel = (v) => {
-              const n = v / 255;
-              return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
-            };
-            return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
-          };
-          const contrast = (a, b) => {
-            const first = luminance(a);
-            const second = luminance(b);
-            const hi = Math.max(first, second);
-            const lo = Math.min(first, second);
-            return (hi + 0.05) / (lo + 0.05);
-          };
-          const backgroundOf = (el) => {
-            let node = el;
-            let acc = null;
-            while (node) {
-              const c = parseColor(getComputedStyle(node).backgroundColor);
-              if (c && c.a > 0) {
-                acc = acc ? composite(acc, c) : c;
-                if (acc.a >= 0.999) return acc;
-              }
-              node = node.parentElement;
-            }
-            return acc && acc.a >= 0.999 ? acc : { r: 255, g: 255, b: 255, a: 1 };
-          };
-          const failures = [];
-          const seen = new Set();
-          for (const el of (scope || document).querySelectorAll('*')) {
-            if (el.children.length > 0) continue;
-            const text = (el.textContent || '').trim();
-            if (text.length < 2) continue;
-            const style = getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden') continue;
-            if (Number(style.opacity) < 0.15) continue;
-            const bounds = el.getBoundingClientRect();
-            if (bounds.width < 4 || bounds.height < 4) continue;
-            if (el.closest('[data-board-snapshot="true"], canvas, svg')) continue;
-            if (skipSelector && el.closest(skipSelector)) continue;
-            const fg = parseColor(style.color);
-            if (!fg) continue;
-            const bg = backgroundOf(el);
-            const effective = fg.a < 1 ? composite(fg, bg) : fg;
-            const ratio = contrast(effective, bg);
-            const size = parseFloat(style.fontSize);
-            const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
-            const required = large ? 3 : 4.5;
-            if (ratio + 0.05 >= required) continue;
-            const key = String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className || '') + '|' + style.color;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            failures.push(text.slice(0, 24) + ' ' + (Math.round(ratio * 100) / 100) + ':1 (needs ' + required + ':1)');
-          }
-          return failures;
-        };
+        const auditContrast = ${auditTextContrast.toString()};
         // auditContrast reads whatever theme is mounted, which is the default
         // one. The palette it guards is defined per theme in index.css, so a
         // token that only fails under kaya or light would never be seen. Each
@@ -3504,6 +3445,12 @@ async function main() {
           document.querySelector('[data-command-palette-item="' + commandId + '"]')?.click();
           await waitForFrames(2);
         };
+        await smokeModal({
+          name: 'find notes',
+          selector: '[aria-labelledby="game-notes-search-title"]',
+          closeLabel: 'Close find notes',
+          open: openViaPalette('find-notes'),
+        });
         // Three read-only dialogs: they render, they do not touch the game, and
         // a smoke pass leaves the board exactly as it found it.
         await smokeModal({
@@ -4128,6 +4075,7 @@ async function main() {
     await assertPwaCardsClearTheBoard(cdp, `http://127.0.0.1:${appPort}/`);
     await assertAutoSaveRecoveryFits(cdp, `http://127.0.0.1:${appPort}/`);
     await assertScoreQuizRequests(cdp);
+    await assertScoreQuizGuesses(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertStaticBoardScroll(cdp);
     await assertLibraryImportFailures(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryTags(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
@@ -4135,6 +4083,25 @@ async function main() {
     await assertLibrarySaveRecovery(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertManualScoring(cdp, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertHeaderNotificationsFit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertKeyboardWorkflows(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNoteDraftRetention(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertNotePageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryActionKeys(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertOgsSyncCancellation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPassCandidates(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertReportPrinting(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertCandidateTooltips(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir, VIEWPORTS);
+    await assertLiveCandidatePreviews(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPvGestures(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertGameInfoReplacement(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertGameInfoPageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertDraftSaveSnapshots(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertDraftReplacement(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertDepthDismissal(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertSearchPasteLimits(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

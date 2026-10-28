@@ -38,12 +38,13 @@ const makeWorld = () => {
     delete: async (name: string) => stores.delete(name),
   };
   const serveDeployment = (tag: string) => {
-    const html = `<script type="module" src="/assets/main-${tag}.js"></script><script>add("modulepreload","/assets/Dashboard-${tag}.js")</script>`;
+    const html = `<script type="module" src="/assets/main-${tag}.js"></script><script>add("modulepreload","/assets/Dashboard-${tag}.js")</script><meta name="web-katrain-offline-worker" content="/assets/katago-worker-${tag}.js">`;
     server.clear();
     server.set(abs('./'), html);
     server.set(abs('./index.html'), html);
     server.set(abs(`/assets/main-${tag}.js`), `main ${tag}`);
     server.set(abs(`/assets/Dashboard-${tag}.js`), `dashboard ${tag}`);
+    server.set(abs(`/assets/katago-worker-${tag}.js`), `engine ${tag}`);
   };
   const shellIndex = () => stores.get('web-katrain-v3:shell')?.get(abs('./index.html')) ?? '';
   return { stores, server, caches, serveDeployment, shellIndex };
@@ -77,16 +78,19 @@ describe('a service worker update', () => {
     expect(world.shellIndex()).toContain('main-old.js');
     // The inline preload script names a first-paint chunk too.
     expect(world.stores.get('web-katrain-v3:shell')!.has(abs('/assets/Dashboard-old.js'))).toBe(true);
+    expect(world.stores.get('web-katrain-v3:shell')!.has(abs('/assets/katago-worker-old.js'))).toBe(true);
 
     world.serveDeployment('new');
     const next = loadWorker(world);
     await next.install();
     // Waiting: the live shell still describes, and holds, the old version.
     expect(world.shellIndex()).toContain('main-old.js');
+    expect(world.stores.get('web-katrain-v3:shell')!.has(abs('/assets/katago-worker-new.js'))).toBe(false);
 
     await next.activate();
     expect(world.shellIndex()).toContain('main-new.js');
     expect(world.stores.get('web-katrain-v3:shell')!.has(abs('/assets/Dashboard-new.js'))).toBe(true);
+    expect(world.stores.get('web-katrain-v3:shell')!.has(abs('/assets/katago-worker-new.js'))).toBe(true);
     expect([...world.stores.keys()]).not.toContain('web-katrain-v3:shell-next');
   });
 });

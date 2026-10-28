@@ -43,19 +43,14 @@ const PRECACHE_URLS = [
   // the others stay cache-first at runtime, so a self-hosted deployment that
   // does send the headers still keeps its threaded build after using it once.
   './tfjs/tfjs-backend-wasm-simd.wasm',
-  // Only the images the *default* board draws are here. `dot`, `inner` and
-  // `topmove` are drawn by GoBoard under every theme, and `graph_bg` is 694
-  // bytes.
-  //
-  // The other three are 484KB -- 73% of this list -- for surfaces the default
-  // experience never renders: `board.png` is the bamboo texture alone, and the
-  // two stones belong to bamboo, flat and dark. Anyone who picks one of those
-  // themes fetches them once and cache-first keeps them, so a theme that has
-  // ever been used still works offline. What this trades away is narrow and
-  // cosmetic: choosing one of those three themes for the first time while
-  // offline falls back to the flat board colour, and the pass-preview chip
-  // (which borrows a stone image under every theme) loses its stone until the
-  // first time online.
+  // The default Hikaru board loads before this worker controls a first visit.
+  // Runtime caching cannot recover those requests after the network goes away.
+  './themes/hikaru/board.svg',
+  './themes/hikaru/stone-black.svg',
+  './themes/hikaru/stone-white.svg',
+  // Shared markers and graph paper are used under every theme. Other board
+  // textures and stones stay cache-first on use, including the 484KB of images
+  // belonging only to bamboo, flat and dark.
   './katrain/dot.png',
   './katrain/graph_bg.png',
   './katrain/inner.png',
@@ -180,18 +175,24 @@ const putRuntimeResponse = (cache, request, response) =>
 const ENTRY_ASSET_PATTERN =
   /(?:src|href)=["']([^"']+\.(?:js|css))["']|add\(\s*"(?:modulepreload|preload)"\s*,\s*"([^"]+\.(?:js|css))"\s*\)/g;
 
-const entryAssetUrls = async (cache) => {
+// The engine is lazy: a page that has never analyzed cannot report its worker
+// among used assets. The build names it here without downloading or starting it.
+const OFFLINE_ENGINE_PATTERN = /<meta\s+name="web-katrain-offline-worker"\s+content="([^"]+\.js)"\s*\/?\s*>/g;
+
+const indexAssetUrls = async (cache, pattern) => {
   const response = (await cache.match('./index.html')) || (await cache.match('./'));
   if (!response || !isStorableResponse(response)) return [];
   const html = await response.text();
   const urls = new Set();
-  for (const match of html.matchAll(ENTRY_ASSET_PATTERN)) {
+  for (const match of html.matchAll(pattern)) {
     const resolved = new URL(match[1] ?? match[2], self.location.href);
     // Only this deployment's own build output.
     if (isSameOrigin(resolved) && resolved.pathname.includes('/assets/')) urls.add(resolved.href);
   }
   return [...urls];
 };
+const entryAssetUrls = (cache) => indexAssetUrls(cache, ENTRY_ASSET_PATTERN);
+const offlineEngineAssetUrls = (cache) => indexAssetUrls(cache, OFFLINE_ENGINE_PATTERN);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -203,7 +204,8 @@ self.addEventListener('install', (event) => {
         const entryAssets = await entryAssetUrls(cache);
         if (entryAssets.length > 0) await cache.addAll(entryAssets);
         await Promise.allSettled(
-          PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)).map((url) => cache.add(url))
+          [...PRECACHE_URLS.filter((url) => !PRECACHE_REQUIRED.includes(url)), ...await offlineEngineAssetUrls(cache)]
+            .map((url) => cache.add(url))
         );
       })
   );
@@ -294,6 +296,7 @@ const pruneOldBundles = async (cache, reported) => {
   if (reported.size === 0) return;
   const keep = new Set(reported);
   for (const href of await entryAssetUrls(cache)) keep.add(href);
+  for (const href of await offlineEngineAssetUrls(cache)) keep.add(href);
   const requests = await cache.keys();
   await Promise.allSettled(
     requests

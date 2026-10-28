@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { MOBILE_TAB_PANEL_IDS, mobileTabId } from './layout/mobileTabs';
+import { commitPendingGameDrafts } from '../utils/gameDrafts';
 import {
   FaTimes,
   FaFolderOpen,
@@ -101,6 +102,9 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
+import { getLibraryFolderPath } from '../utils/libraryNavigation';
+import { MobilePanelRegion } from './layout/MobilePanelRegion';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
@@ -130,6 +134,9 @@ const reduceLibraryItems = (state: LibraryItemsState, action: LibraryItemsAction
 const isFolder = (item: LibraryItem): item is LibraryFolder => item.type === 'folder';
 
 const LIBRARY_FOLDERS_EXPANDED_STORAGE_KEY = 'web-katrain:library_folders_expanded:v1';
+// Preserve the true depth in ARIA while keeping names and controls inside a
+// narrow panel. Unlimited indentation pushed deeply nested rows off-screen.
+const libraryTreeIndent = (depth: number): string => `min(${12 + depth * 16}px, 12%)`;
 const isFile = (item: LibraryItem): item is LibraryFile => item.type === 'file';
 const safeDownloadName = (name: string, fallback: string): string =>
   stripUnsafeFilenameControls(name)
@@ -233,6 +240,7 @@ const LibraryTextDialog: React.FC<{
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
+                if (isComposingKeyEvent(e.nativeEvent)) return;
                 if (e.key === 'Enter') {
                   // Unhandled, the same Enter went on to the button focus
                   // returns to and opened the dialog again: a second Enter
@@ -444,9 +452,12 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const breadcrumbTrailRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const didLoadLibraryRef = useRef(false);
   /**
@@ -750,6 +761,9 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     }
     return arr;
   }, [filteredItems, sortKey]);
+  const hasTreeItems = isSearching
+    ? sortedItems.length > 0
+    : libraryStatus !== 'loading' && libraryStatus !== 'error' && items.length > 0;
 
   /**
    * Rows mounted before "Show more". A library has no size cap and imports SGFs
@@ -816,27 +830,17 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   }, [items]);
 
   const breadcrumbs = useMemo(() => {
-    if (!activeFolderId) return [];
-    const trail: LibraryFolder[] = [];
-    let current: LibraryItem | undefined = items.find((item) => item.id === activeFolderId);
-    while (current && isFolder(current)) {
-      trail.push(current);
-      const parentId = current.parentId ?? null;
-      current = parentId ? items.find((item) => item.id === parentId) : undefined;
-    }
-    return trail.reverse();
-  }, [activeFolderId, items]);
+    return getLibraryFolderPath(itemById, activeFolderId);
+  }, [activeFolderId, itemById]);
 
   const activeAncestorIds = useMemo(() => {
-    if (!loadedFileId) return new Set<string>();
-    const ancestors = new Set<string>();
-    let current = items.find((item) => item.id === loadedFileId);
-    while (current?.parentId) {
-      ancestors.add(current.parentId);
-      current = items.find((item) => item.id === current?.parentId);
-    }
-    return ancestors;
-  }, [loadedFileId, items]);
+    return new Set(getLibraryFolderPath(itemById, loadedFileId).map(folder => folder.id));
+  }, [loadedFileId, itemById]);
+
+  useLayoutEffect(() => {
+    const trail = breadcrumbTrailRef.current;
+    if (trail) trail.scrollLeft = trail.scrollWidth;
+  }, [activeFolderId, breadcrumbs.length, isSearching]);
 
   const childrenMap = useMemo(() => {
     const map = new Map<string | null, LibraryItem[]>();
@@ -900,15 +904,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   };
 
-  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null) => {
+  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null, opener: HTMLElement) => {
     const position = clampContextMenuPosition(x, y);
+    contextMenuOpenerRef.current = opener;
     setContextMenu({ ...position, itemId: item?.id ?? null });
   };
 
   const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
-    openContextMenuAt(event.clientX, event.clientY, item);
+    openContextMenuAt(event.clientX, event.clientY, item, event.currentTarget as HTMLElement);
   };
 
   const openKeyboardContextMenu = (event: React.KeyboardEvent<HTMLElement>, item: LibraryItem | null) => {
@@ -916,7 +921,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     openContextMenuAt(
       rect.left + Math.min(32, rect.width / 2),
       rect.top + Math.min(32, rect.height / 2),
-      item
+      item,
+      event.currentTarget
     );
   };
 
@@ -924,10 +930,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    openContextMenuAt(rect.right - 230, rect.bottom + 4, item);
+    openContextMenuAt(rect.right - 230, rect.bottom + 4, item, event.currentTarget);
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    // Restore before an action mounts a dialog, so that dialog remembers a
+    // durable opener and takes focus after it. Outside-pointer dismissal keeps
+    // its separate closer and lets the newly clicked control receive focus.
+    if (contextMenuOpenerRef.current?.isConnected) contextMenuOpenerRef.current.focus({ preventScroll: true });
+  };
 
   const handleContextMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (isLibraryMenuCloseKey(event.key)) {
@@ -986,6 +998,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event.nativeEvent)) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
     if (action === 'none') return;
     event.preventDefault();
@@ -1000,6 +1013,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     hasChildren: boolean,
     allowChildren: boolean
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event.nativeEvent)) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
@@ -1032,6 +1046,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
       );
       return;
     }
+    commitPendingGameDrafts();
     const sgf = getCurrentSgf();
     if (!sgf.trim()) {
       onToast('Nothing to save yet.', 'info');
@@ -1656,11 +1671,13 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const renderShowMore = (key: string, total: number, depth = 0) => {
     const hidden = total - limitFor(key);
     if (hidden <= 0) return null;
+    const indent = libraryTreeIndent(depth);
     return (
       <button
         type="button"
         className="library-show-more"
-        style={depth > 0 ? { marginLeft: 12 + depth * 16 } : undefined}
+        style={depth > 0 ? { marginLeft: indent, width: `calc(100% - ${indent} - 6px)` } : undefined}
+        data-library-show-more={key}
         onClick={() =>
           setVisibleLimits((limits) => ({
             ...limits,
@@ -1704,13 +1721,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           isLoaded ? 'loaded' : '',
           isLoadedDirty ? 'dirty' : '',
         ].join(' ')}
-        style={{ paddingLeft: 12 + depth * 16 }}
+        style={{ paddingLeft: libraryTreeIndent(depth) }}
         role="treeitem"
+        aria-level={depth + 1}
         tabIndex={0}
         aria-selected={isSelected}
         aria-current={isLoaded ? 'true' : undefined}
         aria-label={`${item.name}, game file, ${moveSummary}${isLoadedDirty ? ', unsaved changes' : ''}`}
         data-library-row="file"
+        data-library-depth={depth}
         data-library-row-name={item.name}
         data-library-loaded-dirty={isLoadedDirty ? 'true' : undefined}
         onClick={() => void handleLoad(item)}
@@ -1895,13 +1914,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
             hasDirtyLoaded ? 'has-loaded-dirty' : '',
             dragOverId === item.id ? 'drop-target' : '',
           ].join(' ')}
-          style={{ paddingLeft: 12 + depth * 16 }}
+          style={{ paddingLeft: libraryTreeIndent(depth) }}
           role="treeitem"
+          aria-level={depth + 1}
           tabIndex={0}
           aria-selected={isSelected || activeFolderId === item.id}
           aria-expanded={allowChildren && children.length > 0 ? isExpanded : undefined}
           aria-label={`${item.name}, folder, ${children.length} item${children.length === 1 ? '' : 's'}${hasDirtyLoaded ? ', contains loaded game with unsaved changes' : ''}`}
           data-library-row="folder"
+          data-library-depth={depth}
           data-library-row-name={item.name}
           data-library-folder-loaded-dirty={hasDirtyLoaded ? 'true' : undefined}
           onClick={() => activateFolderRow(item)}
@@ -2236,6 +2257,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         <OgsSyncModal items={items} onClose={() => setShowOgsSync(false)} onImport={handleOgsSyncImport} />
       )}
       <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
+      <MobilePanelRegion isMobile={isMobile} label="Game library">
       <div
         ref={panelRef}
         data-dropzone="library"
@@ -2248,7 +2270,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
           'fixed inset-y-0 left-0 z-40 w-full max-w-none sm:max-w-sm',
           'lg:static lg:z-auto',
           docked ? 'lg:max-w-none' : 'lg:w-80',
-          isMobile ? 'mobile-safe-bottom mobile-safe-inset' : '',
+          isMobile ? 'flex-1 min-h-0 mobile-safe-bottom mobile-safe-inset' : '',
         ].join(' ')}
         style={docked && width ? { width } : undefined}
         onDragOver={handleDragOver}
@@ -2461,6 +2483,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 <div className="relative flex-1 min-w-[160px]">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 ui-text-faint text-xs" />
                   <input
+                    ref={searchInputRef}
                     type="search"
                     value={query}
                     autoCapitalize="none"
@@ -2489,7 +2512,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                     <button
                       type="button"
                       className="library-search-clear absolute right-0 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                      onClick={() => setQuery('')}
+                      onClick={() => {
+                        setQuery('');
+                        searchInputRef.current?.focus();
+                      }}
                       aria-label="Clear library search"
                     >
                       <FaTimes aria-hidden="true" size={11} />
@@ -2556,10 +2582,15 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                 {/* The trail sat in a band of its own under a toolbar row that
                     was empty between the root button and the item count. It
                     reads as the same thing, so it shares the row. */}
-                <div className="library-breadcrumbs flex min-w-0 flex-wrap items-center gap-1 text-[0.6875rem] ui-text-faint">
+                <div
+                  ref={breadcrumbTrailRef}
+                  role="navigation"
+                  aria-label="Current folder path"
+                  className="library-breadcrumbs flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap text-[0.6875rem] ui-text-faint"
+                >
                   {/* The trail already ends at the current folder, so naming it
                       in the label too printed it twice ("Folder: X  X"). */}
-                  <span>Folder:</span>
+                  <span className="shrink-0">Folder:</span>
                   {isSearching || breadcrumbs.length === 0 ? (
                     <span>{currentFolderName}</span>
                   ) : (
@@ -2567,20 +2598,25 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                       <button
                         key={crumb.id}
                         type="button"
-                        className="library-breadcrumb-button px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)] ui-text-faint"
+                        className={[
+                          'library-breadcrumb-button shrink-0 px-1.5 py-0.5 rounded hover:bg-[var(--ui-surface-2)]',
+                          index === breadcrumbs.length - 1 ? 'font-semibold text-[var(--ui-text)]' : 'ui-text-faint',
+                        ].join(' ')}
                         onClick={() => setCurrentFolderId(crumb.id)}
                         aria-label={`Open folder ${crumb.name}`}
+                        aria-current={index === breadcrumbs.length - 1 ? 'location' : undefined}
+                        title={crumb.name}
                       >
                         {index === 0 ? crumb.name : `/${crumb.name}`}
                       </button>
                     ))
                   )}
-                  {isDragging && (
-                    <span className="ui-accent-soft border rounded px-2 py-0.5">
-                      Drop SGF, GIB, NGF, OGS URL, ZIP, or board images to import
-                    </span>
-                  )}
                 </div>
+                {isDragging && (
+                  <span className="ui-accent-soft border rounded px-2 py-0.5">
+                    Drop SGF, GIB, NGF, OGS URL, ZIP, or board images to import
+                  </span>
+                )}
                 <div className="ml-auto flex items-center gap-2 text-[0.6875rem] ui-text-faint">
                   <div>
                     {sortedItems.length} items{visibleSelectedIds.size > 0 ? ` · ${visibleSelectedIds.size} selected` : ''}
@@ -2669,8 +2705,10 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
                   isMobile ? 'max-h-[calc(100dvh-220px)]' : 'panel-compact-list',
                   dragOverRoot ? 'bg-[var(--ui-accent-soft)]' : '',
                 ].join(' ')}
-                role="tree"
-                aria-label="Library games"
+                role={hasTreeItems ? 'tree' : undefined}
+                aria-label={hasTreeItems ? 'Library games' : undefined}
+                aria-busy={libraryStatus === 'loading' || libraryStatus === 'saving'}
+                aria-live={hasTreeItems ? undefined : 'polite'}
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
@@ -2752,6 +2790,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
         </div>
       </div>
       {renderContextMenu()}
+      </MobilePanelRegion>
     </>
   );
 };

@@ -7,8 +7,10 @@ describe('the board click-suppression flag', () => {
     // and it swallowed the next real click: a right-click mark, then a left
     // click that placed no stone.
     const source = readFileSync('src/components/GoBoard.tsx', 'utf8');
-    expect(source).toMatch(
-      /const handlePointerDown = \(e: React\.PointerEvent<HTMLDivElement>\) => \{[\s\S]{0,400}?suppressNextClickRef\.current = false;\s*if \(e\.button !== 0\) return;/
-    );
+    const handler = source.slice(source.indexOf('const handlePointerDown ='));
+    const reset = handler.indexOf('suppressNextClickRef.current = false;');
+    const firstButtonCheck = handler.indexOf('if (e.button');
+    expect(reset).toBeGreaterThanOrEqual(0);
+    expect(firstButtonCheck).toBeGreaterThan(reset);
   });
 });

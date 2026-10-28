@@ -161,7 +161,8 @@ code, not the compiler's, so a real failure reads as success.
 
 ## Project Invariants
 
-- Supported board sizes are 9, 13, and 19.
+- Supported board sizes are 5, 7, 9, 11, 13, 15, 17, and 19. Star and handicap
+  points are derived from size; the standard 9, 13, and 19 layouts are preserved.
 - Analysis values are stored from Black's perspective: `rootWinRate` is Black
   win probability and `rootScoreLead` is Black score lead.
 - Worker messages must remain serializable.

@@ -4,7 +4,7 @@ import { unsupportedSgfBoardSize } from '../src/utils/boardSize';
 
 describe('unsupported SGF board size', () => {
   it('says nothing for the sizes the app actually supports', () => {
-    for (const size of [9, 13, 19]) {
+    for (const size of [5, 7, 9, 11, 13, 15, 17, 19]) {
       expect(unsupportedSgfBoardSize(`(;GM[1]FF[4]SZ[${size}]KM[6.5];B[cc])`)).toBeNull();
     }
     // Square SZ[w:h] is still just that size.
@@ -12,10 +12,9 @@ describe('unsupported SGF board size', () => {
   });
 
   it('names a legal board the app cannot open at its own size', () => {
-    // 5x5 and 7x7 tsumego are real files; they load as 19x19 with the shape
-    // scattered, which reads as a broken app unless we say what happened.
-    expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[5]KM[6.5];B[cc])')).toBe('5');
-    expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[7];B[cc])')).toBe('7');
+    // Even and oversized boards still require a clear fallback notice.
+    expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[6]KM[6.5];B[cc])')).toBe('6');
+    expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[8];B[cc])')).toBe('8');
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[21];B[cc])')).toBe('21');
     expect(unsupportedSgfBoardSize('(;GM[1]FF[4]SZ[25];B[cc])')).toBe('25');
   });

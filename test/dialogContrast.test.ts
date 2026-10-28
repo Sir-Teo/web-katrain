@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const sweep = readFileSync('scripts/check-viewports.mjs', 'utf8');
+const contrast = readFileSync('scripts/lib/text-contrast.mjs', 'utf8');
 
 /**
  * The contrast audit reads whatever is in the DOM when it runs, and it ran
@@ -12,8 +13,8 @@ const sweep = readFileSync('scripts/check-viewports.mjs', 'utf8');
  */
 describe('the sweep measures dialog text, not just the shell', () => {
   it('lets the contrast audit be pointed at a subtree', () => {
-    expect(sweep).toContain('const auditContrast = (skipSelector, scope) => {');
-    expect(sweep).toContain("for (const el of (scope || document).querySelectorAll('*')) {");
+    expect(sweep).toContain('const auditContrast = ${auditTextContrast.toString()};');
+    expect(contrast).toContain("for (const el of (scope ?? document).querySelectorAll('*')) {");
     // Undefined scope has to keep meaning the whole document, or the existing
     // per-viewport pass silently stops checking anything.
     expect(sweep).toContain('contrastFailures: auditContrastAllThemes(),');

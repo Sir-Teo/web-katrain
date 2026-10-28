@@ -56,7 +56,8 @@ describe('the candidate list', () => {
     // On a touchscreen no hover arrives before the tap, so this is what makes
     // the first tap a preview and the second the move.
     expect(source).toContain('if (hoveredKey !== key) {');
-    expect(source).toMatch(/onHover\(null\);\s*\n\s*playMove\(move\.x, move\.y\);/);
+    expect(source).toContain('if (move.x === -1 && move.y === -1) passTurn();');
+    expect(source).toContain('else playMove(move.x, move.y);');
   });
 
   it('is reachable from both shells, which have separate panels', () => {
@@ -101,8 +102,8 @@ describe('candidate list controls', () => {
     expect(block('.candidate-list-head .cl-sort {')).toContain('min-height: 1.5rem');
     expect(block('.candidate-list-head .cl-detail-toggle {')).toContain('width: 1.5rem');
     expect(block('.candidate-list-head .cl-detail-toggle {')).toContain('height: 1.5rem');
-    expect(block('.candidate-row .cl-pv-toggle {')).toContain('width: 1.5rem');
-    expect(block('.candidate-row .cl-pv-toggle {')).toContain('height: 1.5rem');
+    expect(block('.candidate-row-group .cl-pv-toggle {')).toContain('width: 1.5rem');
+    expect(block('.candidate-row-group .cl-pv-toggle {')).toContain('height: 1.5rem');
     expect(block('.candidate-list .cl-pv-action {')).toContain('min-height: 1.5rem');
     // The head budgets exactly 1.5rem in the list's max-height, so the taller
     // controls have to replace its padding rather than stack on top of it.
@@ -110,7 +111,7 @@ describe('candidate list controls', () => {
     expect(source).toContain("+ 1.5rem");
   });
 
-  it('fades a candidate the search has barely read, as the board does', () => {
+  it('distinguishes candidates the search has barely read', () => {
     expect(source).toContain('state.settings.trainerLowVisits');
     expect(source).toContain("move.order !== 0 && move.visits < lowVisitsThreshold");
     expect(css).toContain('.candidate-row.is-uncertain .cl-num');

@@ -11,6 +11,24 @@ export const RECENT_COMMANDS_STORAGE_KEY = 'web-katrain:recent_commands:v1';
  */
 export const MAX_RECENT_COMMANDS = 5;
 
+/** Arrow navigation wraps among commands that can actually run. */
+export function getCommandNavigationIndex(
+  commands: readonly { disabledReason?: string }[],
+  currentIndex: number,
+  direction: 1 | -1,
+): number {
+  const count = commands.length;
+  if (!count) return -1;
+  const start = currentIndex >= 0 && currentIndex < count
+    ? currentIndex
+    : direction === 1 ? -1 : count;
+  for (let step = 1; step <= count; step++) {
+    const index = (start + direction * step + count) % count;
+    if (!commands[index].disabledReason) return index;
+  }
+  return -1;
+}
+
 export function readRecentCommandIds(): string[] {
   const stored = readLocalStorage(RECENT_COMMANDS_STORAGE_KEY);
   if (!stored) return [];

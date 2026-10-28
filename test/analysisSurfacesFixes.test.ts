@@ -42,12 +42,13 @@ describe('Candidate list', () => {
     expect(source).toContain("const forMover = toPlay === 'white' ? -1 : 1;");
     expect(source).toContain("case 'win': return forMover * m.winRate;");
     expect(source).toContain("case 'score': return forMover * m.scoreLead;");
-    expect(source).toContain("sortCandidates(onBoard, isPro ? sortKey : 'rank', toPlay)");
+    expect(source).toContain("sortCandidates(visibleMoves, isPro ? sortKey : 'rank', toPlay)");
   });
 
   it('drops a previewed candidate when the position changes', () => {
     const source = read('src/components/Layout.tsx');
 
-    expect(source).toMatch(/if \(reportHoverNodeId !== currentNode\.id\) \{\s*setReportHoverNodeId\(currentNode\.id\);\s*if \(reportHoverMove\) setReportHoverMove\(null\);/);
+    expect(source).toContain('reportHoverSelection?.context === previewContext ? reportHoverSelection.move : null');
+    expect(source).toContain('hoveredSelection?.context === previewContext ? hoveredSelection : null');
   });
 });

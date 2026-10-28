@@ -48,6 +48,7 @@ import { getTapConfirmAction, TAP_CONFIRM_TIMEOUT_MS, type TapConfirmPoint } fro
 import { playNavigationHaptic, playStoneHaptic } from '../utils/haptics';
 import { getResizeObserverConstructor } from '../utils/resizeObserver';
 import { getBoardTooltipPlacement } from '../utils/boardTooltipPlacement';
+import { CandidateMoveTooltip } from './CandidateMoveTooltip';
 import { useResolvedUiTheme } from '../hooks/useResolvedUiTheme';
 import {
   boardKeyboardCursorHandlesKey,
@@ -2082,6 +2083,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
     // click to follow, and it swallowed the next real one: a right-click mark,
     // then a left click that placed no stone.
     suppressNextClickRef.current = false;
+    if (e.button === 1 && onPvCommit && hoveredMove?.pv?.length) {
+      // Suppress browser autoscroll before auxclick keeps the continuation.
+      e.preventDefault();
+      return;
+    }
     if (e.button !== 0) return;
     boardPointerFocusRef.current = true;
     setIsKeyboardCursorActive(false);
@@ -2235,7 +2241,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           const dy = localY - cy;
           const inHint = dx * dx + dy * dy <= radius * radius;
           if (inHint) {
-            if (!hoveredMove || hoveredMove.x !== move.x || hoveredMove.y !== move.y) onHoverMove(move);
+            // The displayed preview may still belong to the candidate list.
+            // Record this board hover even at the same coordinate so clearing
+            // the list's preview cannot erase the handoff. An unchanged
+            // coordinate is a no-op for the parent's selection setter.
+            onHoverMove(move);
           } else if (hoveredMove) {
             onHoverMove(null);
           }
@@ -3177,31 +3187,6 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           </div>
         )}
 
-        {/* Wheel-stepping a variation: where you are, and how to keep it */}
-        {pvScrollHint && !isEditMode && !scoringMode && (
-          <div
-            className="absolute left-1/2 bottom-14 z-40 max-w-[calc(100%-1rem)] -translate-x-1/2"
-            role="status"
-            aria-live="polite"
-            data-pv-scroll-hint="true"
-          >
-            <div className="ui-panel flex items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-xl">
-              <span>
-                Variation {pvScrollHint.shown} / {pvScrollHint.total}
-              </span>
-              {onPvCommit && (
-                <button
-                  type="button"
-                  className="min-h-11 shrink-0 rounded-md border border-[var(--ui-accent)] bg-[var(--ui-accent-soft)] px-3 font-semibold text-[var(--ui-accent)] hover:brightness-110 lg:min-h-8 lg:px-2.5"
-                  onClick={onPvCommit}
-                >
-                  Keep in tree
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Mistake drill: the answer, once the player has committed to one. */}
         {drillAnswered && drillMistake && (() => {
           const best = currentNode.analysis?.moves?.find((move) => move.order === 0) ?? currentNode.analysis?.moves?.[0];
@@ -3667,66 +3652,11 @@ export const GoBoard: React.FC<GoBoardProps> = ({
           })()
         )}
 
-        {/* Tooltip */}
-        {hasAnalysisOverlay && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (
-          (() => {
-            const d = toDisplay(hoveredMove.x, hoveredMove.y);
-            const anchorX = originX + d.x * cellSize;
-            const anchorY = originY + d.y * cellSize;
-            const tooltipPlacement = getBoardTooltipPlacement({
-              anchorX,
-              anchorY,
-              boardWidth,
-              boardHeight,
-              cellSize,
-            });
-            return (
-              <div
-                className="absolute z-20 bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs p-2 rounded-lg shadow-xl pointer-events-none border border-[var(--ui-border-strong)]"
-                style={{
-                  left: tooltipPlacement.left,
-                  top: tooltipPlacement.top,
-                  transform: tooltipPlacement.transform,
-                  minWidth: tooltipPlacement.minWidth,
-                  maxWidth: tooltipPlacement.maxWidth,
-                }}
-              >
-                <div className="font-bold mb-1">Move: {formatBoardMoveLabel(hoveredMove, boardSize)}</div>
-                <div>Win Rate: {(hoveredMove.winRate * 100).toFixed(1)}%</div>
-                <div>Score: {hoveredMove.scoreLead > 0 ? '+' : ''}{hoveredMove.scoreLead.toFixed(1)}</div>
-                {typeof hoveredMove.scoreStdev === 'number' && (
-                  <div>Score Stdev: {hoveredMove.scoreStdev.toFixed(1)}</div>
-                )}
-                <div>Points Lost: {hoveredMove.pointsLost.toFixed(1)}</div>
-                {typeof hoveredMove.relativePointsLost === 'number' && (
-                  <div>Rel. Points Lost: {hoveredMove.relativePointsLost.toFixed(1)}</div>
-                )}
-                {typeof hoveredMove.winRateLost === 'number' && (
-                  <div>Winrate Lost: {(hoveredMove.winRateLost * 100).toFixed(1)}%</div>
-                )}
-                {typeof hoveredMove.lcb === 'number' && (
-                  <div title="Lower confidence bound: how bad this move could still turn out to be">
-                    LCB: {(hoveredMove.lcb * 100).toFixed(1)}%
-                  </div>
-                )}
-                {typeof hoveredMove.prior === 'number' && (
-                  <div>Prior: {(hoveredMove.prior * 100).toFixed(1)}%</div>
-                )}
-                {typeof hoveredMove.humanPrior === 'number' && (
-                  <div>Human: {(hoveredMove.humanPrior * 100).toFixed(1)}%</div>
-                )}
-                <div>Visits: {hoveredMove.visits}</div>
-                {hoveredMove.pv && hoveredMove.pv.length > 0 && (
-                  <div className="mt-1 whitespace-normal break-words">
-                    PV: {hoveredMove.pv.join(' ')}
-                  </div>
-                )}
-              </div>
-            );
-          })()
-        )}
-
       </div>
+      {hasAnalysisOverlay && hoverFromHoveringPointer && hoveredMove && hoveredMove.x >= 0 && hoveredMove.y >= 0 && (() => {
+        const point = toDisplay(hoveredMove.x, hoveredMove.y);
+        return <CandidateMoveTooltip boardRef={boardSnapshotRef} anchorX={originX + point.x * cellSize} anchorY={originY + point.y * cellSize} cellSize={cellSize} boardSize={boardSize} move={hoveredMove} pvScrollHint={pvScrollHint} />;
+      })()}
     </div>
   );
 };

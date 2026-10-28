@@ -169,6 +169,7 @@ export interface DesktopDashboardProps {
   onChooseModel?: () => void;
   onCommandPalette: () => void;
   onKeyboardHelp: (returnFocus?: HTMLElement | null) => void;
+  onFindNotes?: (returnFocus?: HTMLElement | null) => void;
   onAbout: (returnFocus?: HTMLElement | null) => void;
 
   toast: (message: string, type?: 'info' | 'error' | 'success') => void;
@@ -265,7 +266,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
     isTeachMode, onToggleTeachMode,
     onNewGame, onLessons, onSaveSgf, onCopySgf, onCopyBoardText, onCopyShareLink, onCopyBoardImage,
     onExportBoardImage, onPrintKifu, onSaveToLibrary, onLoadSgf, onPasteSgf, onScanBoard,
-    onSettings, onCommandPalette, onKeyboardHelp, onAbout,
+    onSettings, onCommandPalette, onKeyboardHelp, onFindNotes, onAbout,
     toast, headerNotification,
   } = props;
   const rulesLabel = formatRulesLabel(rules);
@@ -782,7 +783,7 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
           </div>
           )}
 
-          <div className="board-stage">
+          <div className="board-stage" data-board-tooltip-boundary="true">
             {/* Panel toggles: named for the panel, as their label reads, with
                 aria-expanded for open or closed. A "Hide …"/"Show …" name that
                 was also aria-pressed said the state twice, and contradicted
@@ -1330,7 +1331,11 @@ export const DesktopDashboard: React.FC<DesktopDashboardProps> = (props) => {
 
             {/* Comment / notes */}
             <div className={`section${sections.notes ? ' open' : ''}`}>
-              {sectionHead('notes', 'Comment', 'comment')}
+              {sectionHead('notes', 'Comment', 'comment', onFindNotes && (
+                <button type="button" className="pbtn pico" aria-label="Find notes" title="Find notes in this game" onClick={(event) => onFindNotes(event.currentTarget)}>
+                  <Icon name="search" size={13} />
+                </button>
+              ))}
               <div className="section-body flush">
                 {/* "Lock AI details (Play mode)" is a teacher's setting; the
                     other shell honours it, this one used to show the PV and

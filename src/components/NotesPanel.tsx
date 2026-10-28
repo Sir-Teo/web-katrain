@@ -9,7 +9,10 @@ import { mediaQueryMatches } from '../utils/mediaQuery';
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
+import { GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
+import { useGameDraftLifecycle } from '../hooks/useGameDraftLifecycle';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { formatBoardNoteBlock } from '../utils/boardTextDiagram';
@@ -362,12 +365,24 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const noteTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const shouldFocusNoteRef = React.useRef(false);
   const previousNoteNodeIdRef = React.useRef(currentNode.id);
-  // Written during render so the sync effect can read what was in the editor
-  // at the moment the board moved, without re-running on every keystroke.
+  // The navigation effect reads the latest editor text without rerunning on
+  // every keystroke.
   const noteDraftRef = React.useRef(currentNote);
+  const pendingNoteRef = React.useRef<{ nodeId: string; note: string } | null>(null);
   const previousNoteTextRef = React.useRef(currentNote);
   const lastFocusRequestRef = React.useRef(0);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
+
+  const preservePendingNote = React.useCallback(() => {
+    const pending = pendingNoteRef.current;
+    pendingNoteRef.current = null;
+    if (!pending) return false;
+    const before = useGameStore.getState().treeVersion;
+    setNodeNote(pending.nodeId, pending.note);
+    if (useGameStore.getState().treeVersion === before) return false;
+    window.dispatchEvent(new Event(GAME_DRAFT_COMMITTED_EVENT));
+    return true;
+  }, [setNodeNote]);
 
   const scrollNoteEditorIntoView = React.useCallback(() => {
     const editor = noteTextareaRef.current;
@@ -404,6 +419,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [noteDraft]);
 
   React.useEffect(() => {
+    // A new node initially renders with the previous editor's draft. Wait for
+    // the sync below before assigning that text to the arriving node.
+    if (previousNoteNodeIdRef.current !== currentNode.id) return;
+    pendingNoteRef.current = isEditingNote && noteDraft !== currentNote
+      ? { nodeId: currentNode.id, note: noteDraft }
+      : null;
+  }, [currentNode.id, currentNote, isEditingNote, noteDraft]);
+
+  React.useEffect(() => {
     // Keep what was typed before the sync below replaces it with the arriving
     // node's note. It belongs to the node being left.
     const rescue = getNoteDraftRescue({
@@ -413,7 +437,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       draft: noteDraftRef.current,
       previousNote: previousNoteTextRef.current,
     });
-    if (rescue) setNodeNote(rescue.nodeId, rescue.note);
+    if (rescue) {
+      pendingNoteRef.current = null;
+      setNodeNote(rescue.nodeId, rescue.note);
+    }
 
     const sync = getNoteEditorSyncDecision({
       previousNodeId: previousNoteNodeIdRef.current,
@@ -427,6 +454,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     setNoteDraft(sync.draft);
     setIsEditingNote(sync.editing);
   }, [currentNode.id, currentNote, isEditingNote, setNodeNote]);
+
+  useGameDraftLifecycle(preservePendingNote, () => setIsEditingNote(false));
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
@@ -455,6 +484,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   }, [isEditingNote, scrollNoteEditorIntoView]);
 
   const startNoteEdit = React.useCallback(() => {
+    noteDraftRef.current = currentNote;
+    pendingNoteRef.current = null;
     setNoteDraft(currentNote);
     requestNoteEditorFocus();
     setIsEditingNote(true);
@@ -466,8 +497,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     startNoteEdit();
   }, [focusRequest, showNotesBlock, startNoteEdit]);
 
+  const changeNoteDraft = (draft: string) => {
+    if (useGameStore.getState().currentNode.id !== currentNode.id) return;
+    // A page-hide event can arrive before a render's passive effects.
+    noteDraftRef.current = draft;
+    pendingNoteRef.current = draft !== currentNote ? { nodeId: currentNode.id, note: draft } : null;
+    setNoteDraft(draft);
+  };
+
   const saveNote = () => {
-    setCurrentNodeNote(noteDraft);
+    preservePendingNote();
     setIsEditingNote(false);
   };
 
@@ -477,7 +516,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
   const addShapeCoachToNote = () => {
     if (!shapeCoachNoteBlock || hasShapeCoachNoteBlock) return;
     if (isEditingNote) {
-      setNoteDraft((draft) => appendNoteBlock(draft, shapeCoachNoteBlock));
+      changeNoteDraft(appendNoteBlock(noteDraftRef.current, shapeCoachNoteBlock));
       requestNoteEditorFocus();
       return;
     }
@@ -505,11 +544,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
 
   const addBoardToNote = () => {
     if (hasBoardNoteBlock) return;
-    setNoteDraft((draft) => appendNoteBlock(draft, boardNoteBlock));
+    changeNoteDraft(appendNoteBlock(noteDraftRef.current, boardNoteBlock));
     requestNoteEditorFocus();
   };
 
   const cancelNoteEdit = () => {
+    pendingNoteRef.current = null;
+    noteDraftRef.current = currentNote;
     setNoteDraft(currentNote);
     setIsEditingNote(false);
   };
@@ -522,7 +563,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       ctrlKey: event.ctrlKey,
       metaKey: event.metaKey,
       shiftKey: event.shiftKey,
-      isComposing: event.nativeEvent.isComposing,
+      isComposing: isComposingKeyEvent(event.nativeEvent),
     });
     if (action === 'cancel') {
       event.preventDefault();
@@ -780,7 +821,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
             <textarea
               ref={noteTextareaRef}
               value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
+              onChange={(e) => changeNoteDraft(e.target.value)}
               onKeyDown={handleNoteKeyDown}
               onFocus={scrollNoteEditorIntoView}
               aria-label="User note"

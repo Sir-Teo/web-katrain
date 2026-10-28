@@ -1,6 +1,6 @@
 import type { LegacyGameEncoding } from './utils/gameRecordImport';
 
-export type BoardSize = 9 | 13 | 19;
+export type BoardSize = 5 | 7 | 9 | 11 | 13 | 15 | 17 | 19;
 export const DEFAULT_BOARD_SIZE: BoardSize = 19;
 export const KOMI = 6.5;
 

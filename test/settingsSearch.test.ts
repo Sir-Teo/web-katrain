@@ -52,6 +52,11 @@ describe('settings search index', () => {
 });
 
 describe('settings search', () => {
+  it('finds the board-size setting by a supported dimension', () => {
+    for (const query of ['5x5', '7×7', '11x11', '15×15', '17x17']) {
+      expect(searchSettings(query)[0]?.id, query).toBe('settings-default-board-size');
+    }
+  });
   it('finds a setting by a word from its label', () => {
     expect(searchSettings('komi').length + searchSettings('handicap').length).toBeGreaterThan(0);
     expect(searchSettings('handicap')[0]?.id).toBe('settings-default-handicap');

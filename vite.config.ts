@@ -64,6 +64,23 @@ function versionMetadataPlugin(): Plugin {
   };
 }
 
+/** Identify the lazy engine without starting it or preloading it in the page. */
+function offlineEnginePlugin(): Plugin {
+  return {
+    name: 'web-katrain-offline-engine',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_, ctx) {
+        if (!ctx.bundle || !/(^|\/)index\.html$/.test(ctx.filename.replace(/\\/g, '/'))) return;
+        const workers = Object.keys(ctx.bundle).filter((name) => /^assets\/katago-worker-[\w-]+\.js$/.test(name));
+        if (workers.length !== 1) throw new Error('Expected exactly one KataGo worker for the offline cache.');
+        return [{ tag: 'meta', attrs: { name: 'web-katrain-offline-worker', content: base + workers[0] }, injectTo: 'head' }];
+      },
+    },
+  };
+}
+
 /**
  * Starts the desktop shell downloading alongside the entry chunk.
  *
@@ -151,7 +168,16 @@ function preloadDesktopShellPlugin(): Plugin {
 
 export default defineConfig({
   base,
-  plugins: [react(), tailwindcss(), versionMetadataPlugin(), preloadDesktopShellPlugin()],
+  plugins: [react(), tailwindcss(), versionMetadataPlugin(), offlineEnginePlugin(), preloadDesktopShellPlugin()],
+  worker: {
+    rollupOptions: {
+      output: {
+        entryFileNames: (chunk) => chunk.facadeModuleId?.replace(/\\/g, '/').endsWith('/src/engine/katago/worker.ts')
+          ? 'assets/katago-worker-[hash].js'
+          : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   // These imports live behind the analysis worker, outside the initial HTML
   // scan. Discovering them on the first Analyze click rebuilt shared chunks
   // and reloaded the page, interrupting the game and the cold-cache browser QA.

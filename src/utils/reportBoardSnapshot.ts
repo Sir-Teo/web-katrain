@@ -1,4 +1,4 @@
-import { parseGtpMove } from '../lib/gtp';
+import { formatGtpMove, parseGtpMove } from '../lib/gtp';
 import { getHoshiPoints, normalizeBoardSize } from './boardSize';
 import { DEFAULT_BOARD_SIZE, type BoardState, type Move } from '../types';
 
@@ -75,6 +75,19 @@ export function captureReportBoardSnapshot(args: {
     ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(0, 0, BOARD_IMAGE_SIZE, BOARD_IMAGE_SIZE);
+
+    ctx.fillStyle = '#3a2618';
+    ctx.font = '600 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < boardSize; i++) {
+      const p = BOARD_PADDING + i * cell;
+      const column = formatGtpMove(i, 0, boardSize).replace(/\d+$/, '');
+      ctx.fillText(column, p, 16);
+      ctx.fillText(column, p, BOARD_IMAGE_SIZE - 16);
+      ctx.fillText(String(boardSize - i), 16, p);
+      ctx.fillText(String(boardSize - i), BOARD_IMAGE_SIZE - 16, p);
+    }
 
     ctx.strokeStyle = 'rgba(44, 24, 16, 0.78)';
     ctx.lineWidth = 1.5;

@@ -6,10 +6,12 @@ import type { UiMode } from '../components/layout/types';
 import { EDIT_TOOL_SHORTCUT_DEFINITIONS, eventMatchesShortcut, isNativePasteShortcutEvent, loadShortcutOverrides } from '../utils/shortcuts';
 import { toggleAppFullscreen } from '../utils/fullscreen';
 import { shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { nextPolicyHeatmapMetric } from '../utils/topMoveMetric';
 import { copyTextToClipboard } from '../utils/clipboard';
 import type { MoveTreeCommand } from '../utils/moveTreeCommands';
 import { NOTHING_TO_TAKE_BACK_MESSAGE, getPlayerUndoSteps } from '../utils/playerUndo';
+import { commitPendingGameDrafts } from '../utils/gameDrafts';
 
 interface UseKeyboardShortcutsOptions {
   mode: UiMode;
@@ -139,7 +141,7 @@ export function useKeyboardShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (shouldIgnoreShortcutForKey(e.key, e.target, document.activeElement)) return;
+      if (isComposingKeyEvent(e) || shouldIgnoreShortcutForKey(e.key, e.target, document.activeElement)) return;
 
       const shift = e.shiftKey;
       const overrides = loadShortcutOverrides();
@@ -153,7 +155,8 @@ export function useKeyboardShortcuts({
       };
 
       const copySgfToClipboard = async () => {
-        const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+        commitPendingGameDrafts();
+        const sgf = generateSgfFromTree(useGameStore.getState().rootNode, sgfExportOptions);
         if (await copyTextToClipboard(sgf)) {
           toast('Copied SGF to clipboard.', 'success');
           return;

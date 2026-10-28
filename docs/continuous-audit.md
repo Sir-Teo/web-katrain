@@ -1,7 +1,8 @@
 # Repository audit findings
 
 Started 2026-09-12 at `d868c00` on `codex/repo-audit-improvements`; merged into `main`.
-This audit is being wrapped up at the user’s request. It does not claim that
+The original audit was wrapped up at the user’s request; dated continuation
+entries below record subsequent work. This document does not claim that
 every line or every workflow has been validated. The starting `src/` tree contained about 84,500 lines. Keep
 reproduced failures separate from candidates that still need investigation.
 
@@ -253,7 +254,7 @@ file selection through the success toast and checks persisted content afterward.
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |
 | Medium | Continue profiling large-library operations. | ZIP export preparation, batch import naming, single-folder duplication, and selection/deletion now use indexes, with measured gains on large fixtures. OGS sync now merges against current state; dropped-text imports and naming dialogs still use separate paths. Compression still takes most of total export time. The 12,000-folder picker crash and duplication metadata loss are fixed. Bulk duplication across multiple roots still repeats naming, indexing, and array copies. Fully expanded deep folder rendering and breadcrumb traversal remain separate checks. Native folder-copy timing varied: the first post-fix sample took 233–252 ms through its DOM update with 255–261 ms long tasks; the post-commit repeat took 45–72 ms with 68–70 ms long tasks. Profile repeated normalization, whole-store persistence, and rendering under controlled conditions before choosing the next optimization. Intentionally empty library reload now passes in both storage modes. Its empty state now offers a visible Import files button rather than pointing at the overflow menu. |
 | Medium | Initial bundle size and slower-device behavior need targeted profiling. | The current production entry is about 724 kB uncompressed / 213 kB gzip. Idle dialog warming and worker inference already help. Measure cold network loading and CPU-throttled interaction before choosing further split points; do not infer gains from line counts alone. |
-| Medium | Browser coverage is Chrome-only in this audit. | Touch capability and viewport sizes were emulated, but WebKit/Firefox, physical phone behavior, and browser-specific WebGPU/WASM fallbacks were not validated. Prioritize load/import/review/scoring and dialog keyboard behavior across engines. |
+| Medium | Broaden browser and device coverage. | Chromium has the full viewport suite. Selected editing, export, theme and keyboard flows now also pass in Firefox 153 and WebKit 26.5 at three viewport sizes, with real WASM analysis on desktop. Physical phones and broader browser-specific engine fallbacks remain unvalidated. |
 
 ## Feature order for beginners and experienced players
 
@@ -294,3 +295,723 @@ Detailed line-by-line review of the full neural graph/search implementation,
 all import formats and storage failure modes, every study modal, and every
 accessibility path remains incomplete. The remaining investigations above are
 follow-up work beyond this audit’s wrap-up.
+
+## 2026-10-27 continuation: keyboard and metadata editing
+
+- Reproduced a command-palette selection at y=1396–1440 while its visible list
+  ended at y=692. Arrow navigation now keeps the selection visible, skips
+  unavailable commands, and wraps at either end. Clearing the search returns
+  focus to the input.
+- Reproduced Escape saving a komi draft of 12.5 instead of retaining 6.5. Komi
+  and handicap cancellation now bypass blur commits synchronously. Empty or
+  incomplete decimal input and malformed handicap values restore the saved
+  value; negative fractional komi and valid handicap edits still commit.
+- Composition keys now stay with the IME in the palette, Settings search,
+  game-info fields, library naming, Save Copy, and the note editor. The shared
+  Escape and app-shortcut handlers also respect composition, including the
+  Safari key-code 229 confirmation case. Save Copy uses the shared initial-focus
+  hook and selects its proposed name when focused.
+- Native Chrome key/pointer checks pass at 1280×800 and 390×844, including
+  unchanged game state and edit history after cancellation, selection visibility,
+  search focus, Save Copy focus, and normal commits. Composition events are
+  synthetic; this does not establish operating-system IME compatibility.
+- `npm run verify` passed with 3,269 tests, five intentional skips, both
+  typechecks, lint, and a production build. The new keyboard workflow check is
+  included in the viewport suite.
+
+## 2026-10-27 continuation: Find notes
+
+- Added Find notes to the Comment header in both layouts and to the command
+  palette. It searches complete saved comments, SGF position names, and move
+  coordinates across the main line and every variation, including collapsed
+  branches. A result identifies its move, color, and variation and opens that
+  exact node. Long comments show the passage around the match.
+- Results render 50 positions at a time, with Show more. Keyboard wrapping stays
+  within the rendered page, so Arrow Up cannot accidentally mount an entire
+  large study. Search is capped at the same 200 characters as other filters.
+- Collection and numbering use an explicit traversal and carry depth and
+  variation membership forward; a 12,000-comment regression passes without
+  recursion or repeated ancestor walks. Search snapshots saved annotations when
+  opened, so live analysis cannot repeatedly scan the study or reset selection.
+- Corrected a related palette issue discovered during this pass: rebuilding
+  commands for background analysis must preserve a valid keyboard selection.
+  Its browser regression advances the store's tree revision and checks both the
+  selected command and the visible search workflow.
+- Native Chrome workflows pass at 1280×800 and 390×844: variation navigation,
+  matching text below the first line, paging 130 notes, search focus, and
+  returning focus to the Comment trigger. The full 11-size viewport suite,
+  including dialog contrast and existing library/scoring workflows, passes.
+- `CI=1 npm run verify` passed: 3,203 tests, 77 intentional CI skips, both
+  typechecks, lint, and production build. The earlier non-CI run exercised the
+  real engine tests; this UI change did not alter engine code. Production
+  responsiveness passed: 6.58 ms first-move synchronous work, 1.01 ms median
+  move work, 48.3 ms warm-dialog open, 40 ms input-latency p98, no long tasks.
+
+## 2026-10-27 continuation: Library navigation
+
+- Reproduced a 40-folder path consuming a 783 px-high phone toolbar, with the
+  game tree beginning at y=839 in an 844 px viewport. The path now stays on one
+  horizontally scrollable row and starts at the current folder. Its complete
+  ancestry remains available to pointer and keyboard navigation. The same
+  fixture now has a 207 px toolbar and a visible tree starting at y=263.
+- Breadcrumb and loaded-game ancestry walks now use the panel's existing ID
+  index rather than searching the complete library for every parent. A
+  12,000-folder path test retains every level with exactly 12,000 lookups and
+  covers cycles and missing parents without mutating the records. Five local
+  calculation samples measured a median 346.94 ms before and 2.54 ms after;
+  these isolate the path walk and do not measure library loading or rendering.
+- Clearing Library and shortcut-reference searches now returns focus to the
+  input, so subsequent typing continues the search. Command and note-search
+  options stay out of the Tab sequence: arrow keys choose options, while Tab
+  reaches the dialog controls.
+- Native Chrome checks pass at 1280×800, 390×844, and 320×568 for path bounds,
+  current-folder visibility, all 40 keyboard-reachable ancestors, navigation,
+  the phone's 44 px target floor, and continued typing after Clear. The full
+  11-size viewport suite and `CI=1 npm run verify` pass (3,206 tests, 77 CI
+  skips, typechecks, lint, and production build).
+
+## 2026-10-27 continuation: Practice board sizes and saved defaults
+
+- New Game, Settings, SGF, NGF, text diagrams, photo-board setup and OGS
+  library sync now support every odd square board from 5 through 19. Existing
+  9/13/19 star points and handicap patterns are preserved. New sizes use
+  distinct in-bounds setup points, including all nine handicap stones.
+- Startup used to construct an empty 19x19 game before loading preferences.
+  It now honors saved board size and handicap, including White to play and
+  SGF setup properties. Changing a default still leaves the live game intact.
+- Text-diagram parsing checks both dimensions before treating an all-dash
+  row as a border. A bordered 9x9 is eleven rows tall; supporting 11x11 must
+  not turn it into the wrong board or strip genuine empty grid rows.
+- Regression coverage includes corner play, undo/redo, SGF round trips,
+  startup preferences, OGS filtering, NGF coordinates and bordered diagrams.
+  Real engine evaluation passes for all sizes 2–19 (18 engine cases).
+- Native desktop and 390/320 px phone checks pass for all five added sizes:
+  create, corner play, real WASM analysis, SGF file download and re-import,
+  changing the saved default, and opening that default after reload. The
+  reload deliberately accepts the private fixture's unsaved-game guard.
+- `CI=1 npm run verify` passes: 3,226 tests, 77 intentional CI skips,
+  typechecks, lint and production build. Production responsiveness remains
+  within every budget: first move 14.29 ms, median move 1.00 ms, warm dialog
+  50.3 ms, input latency p98 48 ms, longest observed task 68 ms.
+
+## 2026-10-27 continuation: Mobile landmarks and immediate search actions
+
+- Full-screen Tree, Review and Library tabs now have named landmark regions,
+  including their tab-panel containers. The wrapper maintains bounded flex
+  height so the content retains its original scrolling behavior. An empty or
+  loading library no longer declares a tree without any tree items.
+- Settled axe-core 4.14.0 scans report no violations across the sampled board,
+  Review, notes search, Settings, pro-game browser, score quiz and Library
+  states on desktop and phone. These are scoped samples, not a claim about
+  every state of the application.
+- A broad browser run caught a notes-search timing failure: filtering 100
+  shown results down to one and immediately pressing Enter could consult the
+  previous selection index. Input changes now reset selection synchronously;
+  the palette also keeps selection by command ID through background updates.
+- The keyboard workflow regression passes on desktop and phone, including
+  paging and immediate filtered-result activation. Library navigation checks
+  also verify landmark ancestry and valid empty-search semantics.
+
+## 2026-10-27 continuation: Candidate controls
+
+- Reproduced two Pro candidate rows failing axe's `nested-interactive` rule:
+  each variation disclosure was a focusable span inside its play button. The
+  disclosure is now a separate native button with expanded state and a linked
+  content region. Shared grid columns keep it aligned beside the move.
+- Native phone input reproduced an unintended first-tap move. Touch-generated
+  mouse and focus events selected the preview before the click handler ran,
+  so the handler treated the same tap as confirmation. Hover previews now use
+  non-touch pointer events; keyboard focus previews only when focus is visible.
+  Coach and Pro both preview on the first tap and play on the second.
+- Opening all Pro columns at 320 px squeezed the detail button to 8.4 px and
+  clipped the score-spread column. Candidate content now has one bounded
+  scroller for both axes, with a sticky header, consistent column widths, and
+  a non-shrinking detail control. Expanded text belongs to its current node
+  and does not automatically reopen on another position with the same move.
+- Native Chrome regressions pass at 1280×800, 390×844 and 320×568: independent
+  disclosure, Space/Enter, keyboard and mouse play, touch confirmation in both
+  experiences, complete horizontal access, aligned columns and sticky headers
+  over a long list. The regression is included in the viewport suite.
+- Settled axe scans are clear for the sampled Pro lists at 1280, 390 and 320 px,
+  including expanded detail columns on the narrowest phone. The wider code
+  checks pass with 3,226 tests and 77 intentional CI skips.
+- The complete 11-size viewport suite passes, including the new practice-board
+  and candidate checks, keyboard workflows, library save recovery and scoring.
+
+## 2026-10-28 continuation: Report PDF pagination
+
+- Reproduced a 30-move synthetic report producing 23 PDF pages for ten
+  positions. Each board's continuation split onto another page and a blank
+  page remained at the end. Hiding the app with visibility left its layout
+  in the print flow, and viewport-relative figure sizes exceeded the paper.
+- The report now uses a body portal, as kifu printing already does. Print CSS
+  removes the app from flow, uses the full paper width and places a bounded
+  diagram beside its continuation. Header duplication, page spacing and the
+  empty trailing page are removed. The nested on-screen guide stays off paper.
+- Diagrams include standard coordinates on all four sides, including Go's
+  skipped I. A legend identifies the played-move circle and suggested-move
+  square. Printed wording now identifies Web KaTrain and calls the engine line
+  a suggested continuation rather than a correct move tree.
+- The browser's own Print command prepares diagrams through `beforeprint`,
+  as well as the app's Print / Save PDF button. Existing game state and filters
+  are retained, and the report remains usable on screen after printing.
+- Native Chrome checks generate and inspect actual PDF page/image objects on
+  desktop and phone. The fixture now produces 12 pages including all ten
+  diagrams; a single position with 24 continuation moves produces one page.
+  The app-button and direct-browser paths pass, including guide dismissal and
+  unchanged game state. These checks are included in the viewport suite.
+- `CI=1 npm run verify` passes with 3,228 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The complete 11-size viewport suite
+  passes with the generated-PDF checks included. A final print-only shadow
+  removal is covered by rerunning the native PDF regression.
+
+## 2026-10-28 continuation: Readable analysis text
+
+- Reproduced candidate contrast failures in all four UI themes, Coach and Pro,
+  and both move-quality palettes. Coach words inherited board-marker colors
+  (Best measured 3.87:1 on Light); low-visit text was additionally faded to 55%
+  opacity (a selected quality word measured 1.17:1).
+- Quality words now inherit the row's readable theme color. Low-visit numbers
+  use italics and a faded quality dot while the text stays opaque. Selected
+  and keyboard-focused numeric columns inherit the selected row's text color.
+  The existing visit-count explanation remains available to assistive tech.
+- Small score and win-rate axis labels also fell below 4.5:1. Their shades now
+  retain contrast against the graph surface; the plotted line colors remain
+  the same.
+- The browser contrast guard now composes both text and background through
+  ancestor opacity. Its former calculation ignored opacity. Disabled controls
+  and their associated labels are exempt, while other faded text remains
+  audited. Seven regressions
+  include 50%-opacity black on white (3.98:1), group opacity, transparent text,
+  the large-text threshold, inactive controls, and their associated labels.
+- Native browser coverage checks complete analyzed views in 16 combinations of
+  UI theme, experience and move-quality palette, including selected low-visit
+  candidates. The shared computed-color audit and independent settled axe
+  samples pass all 16 cases.
+- The code checks pass, including the full CI test suite and production build.
+  Focused contrast regressions and the complete 11-size viewport suite pass
+  with the inactive-label exemption included.
+
+## 2026-10-28 continuation: Candidate preview placement
+
+- Reproduced a center-board 80-move preview with a 346 px card but only 282 px
+  visible; the board clipped its final lines. The board's own container has
+  little side space, while the surrounding desktop stage has usable margins.
+- Candidate cards now use that stage and prefer an available side margin,
+  reserving room for panel handles. Width and measured height determine the
+  final position; resize and rotation update it without resizing the board.
+  A small board's larger stones do not consume the outside margin gap.
+- Short views retain all metrics and show the PV count instead of squeezing
+  an entire sequence into the card. Full continuation text, Copy and Keep in
+  tree are now available in both Coach and Pro. B win and B score identify
+  the Black perspective. Touch gestures do not display a hover card under the
+  finger, and the card never captures pointer input.
+- Moving mouse focus from a variation disclosure to its play button now keeps
+  the existing preview, so the mouse still plays with one click. An unpreviewed
+  touch candidate still needs a preview tap and a confirmation tap.
+- Native Chrome checks pass at 1280×800, 1024×500, 390×844, 320×568 and
+  568×320, including center/corner candidates, an 80-move sequence, all ten
+  metrics, pointer ownership, unchanged game state and clockwise rotation.
+  Card text passes contrast checks in all four UI themes. Nine placement
+  regressions also cover fallback geometry, edge handles and small boards.
+- Relative text sizing follows the browser font preference. With a 20 px root
+  font in a short landscape view, the card reflows its metrics into two
+  columns and remains inside the usable stage. Reserved padding for bars and
+  notices is excluded from the card's vertical space.
+- The full code checks and complete 11-size viewport suite pass. Final targeted
+  checks cover all 11 sizes plus the enlarged-text case, followed by a fresh
+  production build. Production responsiveness passes: 4.93 ms first move,
+  1.09 ms median move, 63.9 ms warm dialog, 40 ms input latency p98, 51 ms
+  longest observed task.
+
+## 2026-10-28 continuation: Live candidate previews
+
+- Reproduced a stationary board hover retaining 70 visits, 55% win rate and
+  its original continuation after the candidate list had updated to 12,345
+  visits, 60% and a different line. Board and candidate-panel previews now
+  resolve their selected coordinate against the current analysis. Removing
+  a candidate or clearing analysis removes its old preview immediately.
+- Search refinements preserve the continuation's animation progress instead
+  of restarting it. Moving from the candidate list onto the same board point
+  records the board's hover before the list releases its selection.
+- Hover ownership belongs to each visit to a position. Navigation clears both
+  board and panel previews, including cached-analysis positions and returning
+  to an earlier node; queued input from a previous position cannot revive it.
+- Explicit previews respect scoring, setup editing and analysis-region tools.
+  Historical report rows still preview their own continuation, and the report's
+  review queue retains its place when Next navigates to another position.
+- A native Chrome regression exercises these cases on desktop and phone and
+  is included in the complete viewport suite. Its deterministic analysis
+  fixtures verify display and interaction behavior rather than engine strength.
+- `CI=1 npm run verify` passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The complete 11-size viewport suite
+  passes with the stationary-pointer and historical-report checks included.
+
+## 2026-10-28 continuation: Continuation mouse gestures
+
+- Reproduced the help's advertised wheel gesture advancing the game from
+  move 0 to move 1 instead of reading a candidate's continuation. Middle-click
+  left the tree unchanged. Both board callbacks existed but were not connected.
+- Wheel input over a candidate now steps between the first and final move,
+  pausing the automatic reveal. Search updates refresh the displayed line and
+  clamp the visible prefix when the engine returns a shorter continuation.
+  Moving away restores ordinary wheel navigation; Shift-wheel still uses the
+  existing mistake-navigation path and browser zoom gestures remain available.
+- Middle-click keeps the visible prefix, preserves the current position and
+  existing game branches, and uses the existing undoable tree action. Repeating
+  it reuses the branch. The browser's middle-button autoscroll is suppressed.
+- The candidate card shows the step count and gesture hint, using its existing
+  bounded placement and compact layout. It does not add another panel over
+  continuation stones. Candidate text and mobile tiles retain their explicit
+  Keep in tree controls for keyboard and touch access.
+- Native Chrome coverage exercises bounded stepping, paused animation, live
+  refinements, prefix length, duplicate prevention, Undo/Redo and normal game
+  navigation on desktop, phone and short landscape layouts, including enlarged
+  text and all ten candidate metrics. It is included in the viewport suite.
+- Code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build. The final complete 11-size viewport
+  suite passes, including all four gesture cases. An earlier run encountered
+  an intermittent Chrome practice-board reload abort; its 15 isolated cases
+  and the final full suite passed without a navigation behavior change.
+
+## 2026-10-28 continuation: Game-specific metadata drafts
+
+- Reproduced a pending player-name draft surviving native SGF file import on
+  desktop and phone. The imported name initially read correctly in the store;
+  pressing Tab then overwrote it with the old game's draft and added an undo
+  entry. A komi draft of 42.5 similarly replaced the imported game's 7.5.
+- Game-info editor state is now keyed to the game root, resetting text, komi,
+  handicap and editing state together on replacement. Text-field blur and
+  unmount cleanup also check ownership before writing, while closing a panel
+  within the same game retains its pending-text save behavior.
+- The native regression uses actual SGF file input with an unfinished name,
+  komi or handicap edit. It checks the imported metadata, root setup stones,
+  board size, move sequence and empty undo history, then verifies fresh input
+  values, spaced player names, Enter, Undo and Done on desktop and phones.
+- All nine native cases pass at 1280×800, 390×844 and 320×568, as do the
+  existing desktop/phone keyboard workflows. `CI=1 npm run verify` passes
+  with 3,244 tests, 77 intentional CI skips, typechecks, lint and build.
+
+## 2026-10-28 continuation: Pass recommendations
+
+- Reproduced a pass-only analysis displaying "No candidates for this position
+  yet" on desktop and an empty continuation strip on mobile. Both controls
+  discarded negative coordinates, including the engine's canonical pass.
+- Coach and Pro now rank Pass alongside point moves, preserving its metrics
+  and continuation. Pass rows invoke the ordinary pass action, retaining the
+  existing preview/confirmation behavior. Mobile tiles can pin and keep lines
+  beginning with a pass, including later passes in the same continuation.
+- Six native cases cover Coach/Pro at 1280×800, 390×844 and 320×568: ranking,
+  pass-only results, disclosure, keeping Pass → D4 → Pass, Undo, mobile tile
+  preview, keyboard activation and two confirmed passes. They verify the
+  expected players in saved variations and that passing places no stones.
+  The regression is included in the complete viewport suite.
+- The existing native candidate-control and live-preview checks also pass.
+  `CI=1 npm run verify` completed with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build before the execution disconnect.
+
+## 2026-10-28 continuation: Unfinished notes across panel changes
+
+- Reproduced mobile Comment collapse discarding an unfinished note. Desktop
+  collapse kept its mounted editor, but switching to the mobile shell also
+  discarded that draft when the desktop panel unmounted.
+- Unmount now preserves a changed draft on its original position, following
+  the existing navigation-rescue behavior. Cancel and explicit Save clear the
+  pending draft; untouched editors do not write. Empty drafts preserve a
+  deliberate deletion. Saved changes use the existing undoable note action.
+- Ownership is tracked before navigation synchronization, so simultaneous
+  navigation and collapse cannot assign the outgoing note to the arriving
+  position. Replacing the game cannot write into the replacement's note.
+- Native checks pass at 1280×800, 390×844 and 320×568, covering responsive
+  shell handoff, collapse, Undo/Redo, Cancel, deletion, untouched editors,
+  replacement games, concurrent navigation and explicit Save. The regression
+  is included in the viewport suite; 21 focused note tests also pass.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and build. The browser run passed keyboard and note-draft
+  coverage, then stopped at the previously observed Chrome practice-board
+  reload abort (`ERR_ABORTED`); that navigation is being isolated separately.
+
+## 2026-10-28 continuation: Browser navigation readiness
+
+- Isolated the intermittent mobile practice-board reload abort. Closing
+  Settings removes its dialog before the Back-gesture history marker is
+  popped. The trace shows a same-document history traversal starting after
+  the requested reload and aborting it.
+- The practice check now waits for both dialog dismissal and history cleanup.
+  A controlled delayed Back call and network latency reproduce the failure
+  without the barrier; the same case completes with the barrier. The 320 px
+  practice case keeps that coverage in the browser suite.
+- Note retention input also waits two animation frames after scrolling before
+  measuring its target. An earlier fast click had reached Add board when a
+  focus-related scroll moved the Comment header.
+- All 15 practice-board cases and all three note-retention viewport flows pass
+  with these readiness checks, including the delayed-history case at 320 px.
+
+## 2026-10-28 continuation: Note recovery on page exit
+
+- Reproduced native reload silently losing an open note draft on desktop and
+  phone, without a before-unload warning or recovery copy. React unmount
+  cleanup does not run when the browser destroys its document.
+- Pending note text is now committed on before-unload, page-hide and hidden
+  visibility events, using its original node ID. The exit callback claims the
+  browser warning for a changed draft and requests an immediate recovery
+  flush after committing, independent of lifecycle-listener order.
+- Typing and append actions update the pending snapshot synchronously, so a
+  hide event can preserve text before passive effects run. Cancel clears it;
+  unchanged editors do not create a recovery copy or exit warning.
+- Recovery writes track the store's tree revision. A draft committed during
+  exit is written even when the prior revision's debounce already completed;
+  repeated lifecycle events do not rewrite the same revision.
+- Nine browser cases pass at 1280×800, 390×844 and 320×568. Native reloads
+  exercise warning cancellation, recovery of the latest Unicode draft,
+  clean Cancel and untouched-editor reloads, and recovery after deletion.
+  Synthetic hide events also verify immediate persistence and one write per
+  revision. These checks are included in the viewport suite; 23 focused tests,
+  typechecks and lint pass.
+- Full code verification passes with 3,244 tests and 77 intentional CI skips.
+  The complete 11-size viewport suite passes, including note retention and
+  exit recovery, delayed-history navigation, Pass controls, print output,
+  continuation gestures and game-info replacement checks.
+
+## 2026-10-28 continuation: Game-info recovery on page exit
+
+- Reproduced unfinished player-name and komi edits disappearing on native
+  reload at desktop and phone widths, without a warning or recovery copy.
+  Their normal blur/unmount commits do not cover document destruction.
+- Notes and game-info fields now share a lifecycle hook for owned drafts.
+  Text, komi and handicap values commit through their existing store actions,
+  request immediate recovery persistence and claim the browser warning when
+  a value changes. Root identity guards still reject writes into another game.
+- Input changes keep pending values current before a render. Escape clears
+  them before blur; invalid numbers do not change the game. Done explicitly
+  finishes numeric edits, including platforms that do not focus the button.
+- Eighteen native cases pass at 1280×800, 390×844 and 320×568. They exercise
+  name deletion, latest-value recovery for names/komi/handicap, correct handicap
+  setup stones, Cancel, invalid and untouched fields, and simultaneous note
+  and metadata recovery. The new regression is included in the viewport suite;
+  26 focused tests, typechecks and lint pass.
+- Full verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and build. The complete 11-size browser suite also passes,
+  including the existing replacement, note recovery and library save checks.
+
+## 2026-10-28 continuation: Open drafts in saved and shared games
+
+- Reproduced Save SGF, Copy SGF, share links and Save Copy to Library taking
+  their snapshot before an open note editor committed. The downloaded, copied
+  and stored games contained the older note while the newer text stayed visible.
+- User-requested save and export actions now synchronously finish owned drafts
+  through the shared lifecycle hook before serializing. Clipboard and share
+  actions read the current store after the commit, avoiding an older render's
+  tree. Background serialization and asynchronous save comparisons stay pure.
+- Seventeen native cases pass across 1280×800, 390×844 and 320×568. They inspect
+  actual downloads, clipboard SGF, decoded share URLs and stored Library games,
+  covering Unicode text, deliberate deletion, Cancel, loaded-game updates,
+  the desktop Library panel, keyboard copy and mobile panel handoff. The new
+  checks are included in the viewport suite.
+- The existing nine note-exit and eighteen metadata-exit cases also pass.
+  Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+- The complete 11-size browser suite passes at `62a3fb4`, including all new
+  save/export cases and existing library failures, overlapping saves, recovery,
+  analysis, print output, keyboard and responsive-layout workflows.
+
+## 2026-10-28 continuation: Protect drafts before game replacement
+
+- Reproduced native SGF import replacing a clean game with an unfinished note
+  without offering Save, Discard or Cancel. The visible note disappeared and
+  no recovery copy remained because the guard only compared the stored tree.
+- The replacement guard now finishes owned editor drafts before checking for
+  unsaved changes. Existing choices then apply to the latest text: Save retains
+  the original game, Discard replaces it, and Cancel keeps its edited contents
+  and recovery copy. Untouched editors and invalid numbers do not make it dirty.
+- Twenty-seven native cases pass across 1280×800, 390×844 and 320×568: all three
+  choices for note and player-name drafts, actual outgoing SGF downloads, and
+  clean imports with untouched notes or invalid komi/handicap. Nine metadata
+  replacement flows also pass with explicit Discard and direct store replacement
+  coverage, retaining the root ownership guard during editor cleanup.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+
+## 2026-10-28 continuation: Compact, reliable live-depth editing
+
+- Reproduced typing 37 live-analysis visits and dismissing the selector with
+  an outside click retaining 16. The document pointer handler removed the input
+  before native focus could deliver its blur commit. Pointer dismissal now
+  explicitly blurs the mounted input; Escape continues to cancel its draft.
+- Phone/tablet selectors now fit their content and scroll within the available
+  space. The previous fixed top/bottom layout left a large blank area over the
+  board. A ResizeObserver measures the bottom dock so enlarged text cannot make
+  the exact-visits field extend behind navigation controls.
+- Twenty-seven native checks pass at 390×844, 320×568 and 768×1024: outside taps,
+  Enter, Tab, Close, Escape, preset changes and empty input. They verify persisted
+  settings, a stopped engine, unchanged game positions, compact bounds and
+  reachable touch input at 100% and 200% text. The regression joins the viewport
+  suite; the original real-analysis reproduction also keeps 37 after dismissal.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+- The complete 11-size browser suite passes at `56ebb66`, including the new
+  replacement-choice and depth-selector checks alongside the save/export,
+  library recovery, analysis, print and responsive-layout regressions.
+
+## 2026-10-28 continuation: Main-line note search
+
+- Find notes now offers a Main line only switch. Searches include every
+  variation by default; limiting them retains the query and includes annotated
+  starting positions and all descendants on the SGF main line. Changing scope
+  resets pagination and selection without navigating or editing the game.
+- Empty states distinguish a query with no matches from a main line with no
+  notes. Reopening the dialog includes every variation again.
+- Scope controls, counts and results share the scrollable content area, while
+  the search field and close button stay visible. This fixes enlarged text
+  consuming the entire results area on a 320 px phone.
+- Native keyboard workflows pass at 1280×800, 390×844 and 320×568. They cover
+  filtering five annotated positions to four, retaining a variation-only query,
+  Space activation, navigation, reopening defaults, resetting a 100-item page,
+  variation-only empty states and reading results at 200% text.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+
+## 2026-10-28 continuation: Bounded search pastes and readable empty states
+
+- Native pastes of 10,000 characters into the command palette, shortcut help,
+  Settings and pro-game search were accepted in full. Filtering already limited
+  its work, but the input and empty-state messages still held the entire paste;
+  those messages measured roughly 66,000 px wide in desktop Chrome.
+- The four fields now use the existing 200-character search limit. Empty
+  messages in those dialogs and Find notes wrap unbroken query text within their
+  containers, keeping the dialog width stable.
+- Fifteen native cases pass at 1280×800, 390×844 and 320×568. Each pastes 10,000
+  characters, verifies the native input limit, bounded message length and no
+  horizontal overflow, then replaces it with an ordinary query and finds results.
+  Current game identity, annotations, board and tree revision stay unchanged.
+  These cases are included in the viewport suite.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+- The complete 11-size browser suite passes at `5e8e9d0`, including main-line
+  search, enlarged-text results and all fifteen search-paste cases.
+
+## 2026-10-28 continuation: Theme report verification
+
+- The reported theme-selection issue does not reproduce at 1365×633 in the
+  current app. Native Settings selection gives Dark, Kaya, Studio and Light
+  distinct shell and panel colors. System follows dark/light media changes,
+  and Dark survives a reload. No theme implementation change was needed.
+
+## 2026-10-28 continuation: First-visit offline board and analysis
+
+- The production offline check reproduced three failed requests for the
+  default Hikaru board and stone SVGs after a first visit. They were absent
+  from the precache. The existing asset guard matched only `katrain/` paths,
+  silently skipping every SVG in the default theme.
+- The default SVGs now join the precache. The guard derives all resolved board,
+  stone and variation assets, so another default theme cannot evade it. Its
+  revised assertion failed before the fix; all 35 focused asset/worker tests
+  pass afterward.
+- Speculative dialog downloads now pause while offline and restart on a
+  reconnect, retaining Data Saver and slow-connection checks. The stricter
+  production probe had caught unused dialog chunks being fetched while offline.
+- `test:offline` now uses a private profile, disables HTTP caches, restores its
+  owned recovery and plays a new position. A real worker response must report
+  at least 16 WASM visits for that one-stone position with White to play. An
+  uncached CORS endpoint succeeds in the online worker and fails in the new
+  offline worker, proving the boundary independently of `navigator.onLine`.
+- The former offline-analysis timeout was blocked by the recovery modal; its
+  repeated synthetic shortcuts never reached the engine. The new check uses
+  native controls and cannot pass with the restored position's cached result.
+- All 44 focused cache/warming tests, the production build and the strengthened
+  production offline check pass, including no failed page resource requests.
+- Full verification passes with 3,245 tests, 77 intentional CI skips,
+  typechecks, lint and build. The production offline check also passes with
+  `/web-katrain/` as the deployment base; the normal local build is restored.
+
+## 2026-10-28 continuation: First-ever offline analysis
+
+- A separate cold-install probe reproduced an engine error: no analysis had
+  run online, so the lazy hashed engine worker was absent from CacheStorage.
+  The model and WASM were available, but the browser could not start the worker.
+- The production build now records the actual worker URL in index metadata.
+  Install caches it alongside the optional model assets without starting the
+  engine. A failed download preserves the offline shell; cache cleanup retains
+  the current worker and removes older workers. Staged updates keep the new
+  worker separate until activation.
+- The production offline check now covers two fresh profiles. One never starts
+  KataGo online and uses a test-owned worker only for the positive network
+  control. The other analyzes online and restores its recovery offline. Both
+  disable HTTP caches, verify network isolation and require a real 16-visit WASM
+  result for a newly played position with White to play.
+- All 34 focused worker/asset tests pass, including deployment-prefix URLs,
+  optional worker-download failure, cache retention and update staging. Both
+  production scenarios pass at `/` and `/web-katrain/` with no failed page
+  resource requests.
+- Full verification passes with 3,247 tests, 77 intentional CI skips,
+  typechecks, lint and build; the default local build is restored.
+
+## 2026-10-28 continuation: Shortcut reference with enlarged text
+
+- Native checks reproduced a default-size shortcut row painting into the next
+  column. At 200% text, the reference gained a horizontal scrollbar on desktop;
+  a 320 px phone had roughly 531 px of content inside its 270 px dialog body.
+- Reference grids now choose columns using the available space and text size.
+  Labels and binding chips wrap within their rows, including long pointer and
+  gamepad labels on the narrowest phone.
+- The existing native keyboard workflow now checks every reference row for
+  overlap and horizontal overflow at 100% and 200% text. All six layout cases
+  pass at 1280×800, 390×844 and 320×568, alongside search, focus, IME ownership,
+  game-info edits, note filtering and pagination. Reading help leaves the game
+  unchanged.
+- Typechecks, lint, production build and all 3,247 tests pass, with 77
+  intentional CI skips.
+
+## 2026-10-28 continuation: Library action keys and focus
+
+- Native Enter on a file's Select and More actions buttons opened the game
+  instead. Folder collapse stayed expanded and changed the current folder.
+  The row's key handler was intercepting its descendants' native button keys.
+- File and folder row handlers now act only when the row itself owns the key,
+  retaining their direct navigation and context-menu shortcuts.
+- Closing a row actions menu also dropped focus. Escape now returns to its
+  opener, and menu actions restore that opener before mounting a dialog, so
+  Rename receives focus and Cancel returns to a connected control. Outside
+  pointer dismissal continues to focus the newly clicked control.
+- All 27 native check groups pass at 1280×800, 390×844 and 320×568: Tab reaches
+  controls; Enter and Space select and deselect files/folders, open menus and
+  expand/collapse folders; Rename owns focus; Escape returns to its opener;
+  outside dismissal preserves search focus. Arrow navigation, Shift+F10 and
+  Enter on the row itself retain their behavior. The current game and stored
+  records remain unchanged until the explicit final game-open check.
+- These checks join the viewport suite. All 25 focused library keyboard and
+  accessibility tests pass, alongside typechecking and focused lint.
+- Full verification passes with 3,247 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.
+- The full 11-size viewport suite passes at `3396515`, including the enlarged
+  shortcut reference and all 27 Library keyboard/focus check groups.
+
+## 2026-10-28 continuation: Canceling OGS sync at every stage
+
+- A native controlled-response probe confirmed that Cancel closed the dialog
+  while its player lookup continued. Releasing that obsolete response started
+  a game-list request and changed the remembered username after cancellation.
+- One controller now owns the entire sync: lookup, paginated listing, SGF
+  downloads and shared-queue backoff. Cancel, Close, Escape and unmount abort
+  that controller. Obsolete completions cannot update preferences, import
+  games or change a later dialog's state. A synchronous request guard prevents
+  duplicate starts before React updates the running state.
+- OGS request utilities accept the same cancellation options. Canceled
+  downloads do not count as failures, and stopping one sync retains the
+  server's rate-limit deadline for the next. Username IME confirmation no
+  longer starts a sync.
+- All 39 focused OGS tests pass, including six new cancellation regressions
+  for active/queued requests, pagination, downloads and cooldown preservation.
+- Twelve native cases pass across 1280×800, 390×844 and 320×568. Every stage
+  aborts through its dialog controls; a newly opened sync then imports a real
+  fixture SGF through the normal library path. Canceled attempts leave saved
+  records untouched, and sync never replaces the current game. Synthetic IME
+  confirmation keys do not submit; an ordinary native Enter still does.
+  All OGS requests are intercepted fixtures, with no real account or service
+  traffic. These cases are included in the viewport suite.
+- Full verification passes with 3,253 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.
+
+## 2026-10-28 continuation: Score-quiz answer validation
+
+- Native Enter in a cleared answer field started evaluation, displayed a
+  zero-point Black guess and counted a round. No answer had been entered.
+- The quiz now requires a nonnegative decimal in the half-point steps already
+  specified by its input. Invalid drafts keep Reveal disabled, explain the
+  constraint through an accessible description and cannot start evaluation
+  through Enter. IME confirmation leaves the draft alone. An explicit zero
+  remains valid and is displayed as Even.
+- Fifteen native check groups pass at 1280×800, 390×844 and 320×568. Blank,
+  negative, unfinished and off-step input produces no evaluation or round;
+  zero submits with native Enter, White +4.5 submits by pointer/touch, and
+  repeat practice retains one scored round. The current game stays unchanged.
+  Fixed model responses isolate input behavior from engine quality.
+- The prior request-ordering checks also pass at desktop and narrow-phone
+  sizes, covering late results, errors, retries and close/reopen. All ten
+  focused quiz/numeric tests, both typechecks and lint pass. The native answer
+  checks are included in the viewport suite.
+- Full verification passes with 3,253 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.
+- The full 11-size viewport suite passes at `15a26db`, including all twelve
+  OGS cancellation cases and fifteen native quiz-answer check groups.
+
+## 2026-10-28 continuation: Firefox and WebKit core-flow checks
+
+- Firefox 153 and WebKit 26.5 pass selected core flows at 1280×800, 390×844 and
+  320×568: note search with main-line filtering and Enter navigation; note
+  editing, Save and Cancel; a real downloaded SGF containing the edit; four UI
+  themes and System color changes; the shortcut reference at 200% text.
+- Both engines also produce a real 16-visit WASM analysis on desktop. These
+  passes report no uncaught page errors. No browser-specific product repair
+  was needed for the tested flows.
+- Test browsers and supporting runtime libraries live in temporary directories;
+  the app and its package dependencies are unchanged by that setup. This tests
+  the Linux browser engines, not physical phones or macOS/iOS Safari.
+
+## 2026-10-28 continuation: Quiz practice feedback and landscape results
+
+- Quiz statistics now explain that each position counts once and subsequent
+  guesses are practice. The three statistics wrap instead of colliding in a
+  narrow column.
+- The short-landscape grid allowed the feedback row to be smaller than its
+  contents. At 568×320, the result started 22 px above the scrollable body even
+  at scrollTop 0, making its title unreachable. The row now keeps its content
+  height; a cancellable reveal-frame scroll brings the complete feedback into
+  view.
+- All 25 native answer check groups pass across desktop, both portrait phones
+  and 844×390/568×320 landscape layouts. The reveal card must fit inside the
+  visible scroll region. Prior stale-result, retry and close/reopen checks also
+  pass, along with all ten focused quiz/numeric tests and lint.
+- The production build also passes.
+
+## 2026-10-28 continuation: Readable nested libraries
+
+- Thirty expanded folders reproduced almost blank library views: indentation
+  pushed the last game outside the pane, leaving four pixels for its name.
+  At the default desktop width, names were already too narrow after six levels.
+- Tree indentation is now bounded by panel width, nested names can use two
+  lines, and rows announce their actual hierarchy level. Nested pagination
+  includes its indentation in its width and keeps a 44 px touch target.
+- WebKit's stable scrollbar gutter also made mobile child rows eight pixels
+  wider than their scroll area. Reserving the native scrollbar consistently
+  fixes that overflow without changing the outer panel width.
+- Expanded 40-level paths with 105 nested games pass in Chromium, Firefox 153
+  and WebKit 26.5 at 1280×800, 390×844 and 320×568. Names remain readable,
+  horizontal overflow is absent, pagination fits, collapse/expand retains
+  revealed rows, hierarchy levels remain accurate and the final game opens.
+- All 38 focused library tests, both typechecks, lint and the existing 27
+  keyboard/focus check groups pass. The expanded navigation check joins the
+  viewport gate. The dependency audit reports zero vulnerabilities.
+
+## 2026-10-28 delivery: Depth-check readiness
+
+- The PR browser gate reached the 320×568 enlarged-text depth check but did
+  not observe its expected saved value. That path sent text and dismissed the
+  editor without confirming native focus or the new input value.
+- The check now waits for opening focus, verifies input focus after the touch,
+  and confirms the enlarged-text draft before dismissing. All saved-depth,
+  persistence, cancellation and stopped-engine assertions remain in place.
+  Failures also report input, focus and store state for diagnosis.
+- The focused native check passes on both phone widths and tablet at normal
+  speed and with sixfold CPU slowdown. Script lint and syntax checks pass.
+- The next CI run localized the failure to native focus. Chrome 156 reproduced
+  it locally: nearest-edge scrolling put the input at the popover's clipping
+  edge while the enlarged dock was still changing its height. The touch could
+  miss even though the earlier DOM hit test accepted that coordinate.
+- The helper now centers the control and requires its full height inside the
+  popover before touching it. The same assertions pass in Chrome 154 and 156,
+  with sixfold CPU slowdown and on the CI `/web-katrain/` base path. Failure
+  diagnostics report the active control without dumping the entire page DOM.
+
+## 2026-10-28 delivery: Practice-board pointer readiness
+
+- Another CI run reached the practice-size interaction but placed the test
+  stone one intersection away from the expected corner. The check aimed as
+  soon as the board-size attribute changed and reused that pixel coordinate
+  for touch confirmation while the container could still resize.
+- The helper now waits for three frames of stable board bounds and grid
+  geometry, then calculates each tap from the current layout. The exact-corner,
+  real-analysis, download and re-import assertions remain unchanged. Failures
+  report board geometry and the actual move.
+- All 15 size/viewport combinations pass in Chrome 156 on the CI base path,
+  both normally and with sixfold CPU slowdown. Script lint and syntax pass.

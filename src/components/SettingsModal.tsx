@@ -1,4 +1,5 @@
 import React from 'react';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -37,6 +38,7 @@ import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { SETTINGS_TAB_LABELS, searchAvailableSettings, type SettingsSearchEntry } from '../utils/settingsSearch';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { ShortcutSettingsPanel } from './ShortcutSettingsPanel';
 import { POLICY_HEATMAP_METRIC_SELECT_OPTIONS, TOP_MOVE_METRIC_SELECT_OPTIONS } from '../utils/topMoveMetric';
 import {
@@ -613,11 +615,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                             autoCorrect="off"
                             spellCheck={false}
                             value={settingsQuery}
+                            maxLength={MAX_SEARCH_QUERY_LENGTH}
                             onChange={(e) => {
                                 setSettingsQuery(e.target.value);
                                 setActiveSettingsResult(-1);
                             }}
                             onKeyDown={(e) => {
+                                if (isComposingKeyEvent(e.nativeEvent)) return;
                                 if (e.key === 'Escape' && settingsQuery) {
                                     // Clear the query first; a second Escape closes the modal.
                                     e.stopPropagation();
@@ -638,7 +642,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         {settingsQuery.trim() !== '' && (
                             <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
                                 {settingsResults.length === 0 ? (
-                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                    <li className="settings-search-empty wrap-anywhere" data-search-empty="true">No setting matches “{settingsQuery.trim()}”</li>
                                 ) : (
                                     settingsResults.map((entry, index) => (
                                         <li key={entry.id}>

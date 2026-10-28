@@ -7,10 +7,10 @@ import {
 } from '../src/utils/boardTextDiagram';
 import { parseNoteBlocks } from '../src/utils/notePreview';
 import { boardFromRows } from '../src/data/lessons';
-import { createEmptyBoard, getHoshiPoints } from '../src/utils/boardSize';
+import { BOARD_SIZES, createEmptyBoard, getHoshiPoints } from '../src/utils/boardSize';
 import type { BoardSize, BoardState } from '../src/types';
 
-const SIZES: BoardSize[] = [9, 13, 19];
+const SIZES: BoardSize[] = BOARD_SIZES;
 
 /** The grid alone: labels and spacing stripped, the way a parser would want it. */
 const gridRows = (diagram: string, size: number): string[] =>
@@ -115,6 +115,15 @@ describe('formatBoardTextDiagram', () => {
 });
 
 describe('parseBoardTextDiagram', () => {
+  it('distinguishes drawn borders from genuine empty rows at every supported size', () => {
+    for (const size of SIZES) {
+      const rows = Array.from({ length: size }, (_, y) => y === 2 ? `--X${'-'.repeat(size - 3)}` : '-'.repeat(size));
+      const bare = rows.join('\n');
+      const bordered = ['-'.repeat(size), ...rows, '-'.repeat(size)].join('\n');
+      expect(parseBoardTextDiagram(bordered), String(size)).toEqual(parseBoardTextDiagram(bare));
+      expect(parseBoardTextDiagram(bordered)?.length, String(size)).toBe(size);
+    }
+  });
   it('reads back everything this app prints', () => {
     for (const size of SIZES) {
       const board: BoardState = createEmptyBoard(size);

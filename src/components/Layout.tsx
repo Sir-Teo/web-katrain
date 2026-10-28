@@ -44,7 +44,7 @@ import { summarizePointsLost } from '../utils/analysisSummary';
 import { getKaTrainEvalColors } from '../utils/katrainTheme';
 import { getEngineModelLabel } from '../utils/engineLabel';
 import { getEngineActivityPresentation, getEngineStatusSummary } from '../utils/engineStatusSummary';
-import { normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
+import { BOARD_SIZES, normalizeBoardSize, unsupportedSgfBoardSize } from '../utils/boardSize';
 import { LazyModalBoundary, LazyModalFallback } from './LazyModalBoundary';
 import {
   createIdleScheduler,
@@ -63,6 +63,7 @@ import {
 } from '../utils/photoBoard';
 import { countRootHandicapStones } from '../utils/handicapAi';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
@@ -136,6 +137,8 @@ import { resetSoundFailureReport, setSoundInitErrorHandler, warmAudioContext } f
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
+import { resolveCandidatePreview } from '../utils/candidatePreview';
+import { commitPendingGameDrafts, GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -147,6 +150,8 @@ const gameReportModalChunk = createWarmableLazy(() => import('./GameReportModal'
 const GameReportModal = gameReportModalChunk.Component;
 const commandPaletteModalChunk = createWarmableLazy(() => import('./CommandPaletteModal'), (module) => module.CommandPaletteModal);
 const CommandPaletteModal = commandPaletteModalChunk.Component;
+const gameNotesSearchModalChunk = createWarmableLazy(() => import('./GameNotesSearchModal'), (module) => module.GameNotesSearchModal);
+const GameNotesSearchModal = gameNotesSearchModalChunk.Component;
 const keyboardHelpModalChunk = createWarmableLazy(() => import('./KeyboardHelpModal'), (module) => module.KeyboardHelpModal);
 const KeyboardHelpModal = keyboardHelpModalChunk.Component;
 const newGameModalChunk = createWarmableLazy(() => import('./NewGameModal'), (module) => module.NewGameModal);
@@ -210,6 +215,7 @@ const WARMED_DIALOG_CHUNKS: readonly ChunkWarmer[] = [
   { name: 'ProblemModal', load: problemModalChunk.warm },
   { name: 'KifuPrintModal', load: kifuPrintModalChunk.warm },
   { name: 'CommandPaletteModal', load: commandPaletteModalChunk.warm },
+  { name: 'GameNotesSearchModal', load: gameNotesSearchModalChunk.warm },
   { name: 'TournamentModal', load: tournamentModalChunk.warm },
   { name: 'ScoreQuizModal', load: scoreQuizModalChunk.warm },
   { name: 'LessonsModal', load: lessonsModalChunk.warm },
@@ -479,17 +485,33 @@ export const Layout: React.FC = () => {
   const boardShellRef = useRef<HTMLDivElement>(null);
   const analysisCommandBarRef = useRef<HTMLDivElement>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
-  const [hoveredMove, setHoveredMove] = useState<CandidateMove | null>(null);
-  const [reportHoverMove, setReportHoverMove] = useState<CandidateMove | null>(null);
-  // A previewed candidate belongs to the position it came from. Kept across a
-  // move, its variation stayed drawn on the new board and the row with the
-  // same coordinates read as already previewed, so one Enter played it.
-  const [reportHoverNodeId, setReportHoverNodeId] = useState(currentNode.id);
-  if (reportHoverNodeId !== currentNode.id) {
-    setReportHoverNodeId(currentNode.id);
-    if (reportHoverMove) setReportHoverMove(null);
-  }
-  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number } | null>(null);
+  // Each visit is distinct: returning to a node must not revive an old hover.
+  const [previewContext, setPreviewContext] = useState({ nodeId: currentNode.id });
+  if (previewContext.nodeId !== currentNode.id) setPreviewContext({ nodeId: currentNode.id });
+  const previewContextRef = useRef(previewContext);
+  React.useLayoutEffect(() => { previewContextRef.current = previewContext; }, [previewContext]);
+  const [hoveredSelection, setHoveredSelection] = useState<(Pick<CandidateMove, 'x' | 'y'> & { context: typeof previewContext }) | null>(null);
+  const setHoveredMove = useCallback((move: CandidateMove | null) => {
+    setHoveredSelection(previous => {
+      if (!move) return previous?.context === previewContext ? null : previous;
+      return previous?.context === previewContext && previous.x === move.x && previous.y === move.y ? previous : { context: previewContext, x: move.x, y: move.y };
+    });
+  }, [previewContext]);
+  const [reportHoverSelection, setReportHoverSelection] = useState<{ context: typeof previewContext; move: CandidateMove } | null>(null);
+  const reportHoverMove = reportHoverSelection?.context === previewContext ? reportHoverSelection.move : null;
+  // Historical-report callbacks stay stable while its review queue navigates.
+  const setReportHoverMove = useCallback((move: CandidateMove | null) => {
+    setReportHoverSelection(move ? { context: previewContextRef.current, move } : null);
+  }, []);
+  // Candidate events belong to the position that rendered their control. An
+  // event queued before navigation cannot revive a preview in the next one.
+  const setCandidateHoverMove = useCallback((move: CandidateMove | null) => {
+    setReportHoverSelection(previous => {
+      if (!move) return previous?.context === previewContext ? null : previous;
+      return previous?.context === previewContext && previous.move === move ? previous : { context: previewContext, move };
+    });
+  }, [previewContext]);
+  const [pvAnim, setPvAnim] = useState<{ key: string; startMs: number; upToMove: number; manual?: boolean } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsFocusModel, setSettingsFocusModel] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -497,6 +519,7 @@ export const Layout: React.FC = () => {
   const [isTsumegoFrameOpen, setIsTsumegoFrameOpen] = useState(false);
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isGameNotesSearchOpen, setIsGameNotesSearchOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isScoreQuizOpen, setIsScoreQuizOpen] = useState(false);
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
@@ -560,8 +583,22 @@ export const Layout: React.FC = () => {
   // so the first click on one is not the click that pays for the chunk.
   useEffect(() => {
     if (typeof navigator === 'undefined' || typeof window === 'undefined') return;
-    if (!shouldWarmChunks(navigator as unknown as Parameters<typeof shouldWarmChunks>[0])) return;
-    return warmChunksWhenIdle(WARMED_DIALOG_CHUNKS, createIdleScheduler(window));
+    let cancelWarming: (() => void) | undefined;
+    const refreshWarming = () => {
+      cancelWarming?.();
+      cancelWarming = undefined;
+      if (shouldWarmChunks(navigator as unknown as Parameters<typeof shouldWarmChunks>[0])) {
+        cancelWarming = warmChunksWhenIdle(WARMED_DIALOG_CHUNKS, createIdleScheduler(window));
+      }
+    };
+    refreshWarming();
+    window.addEventListener('online', refreshWarming);
+    window.addEventListener('offline', refreshWarming);
+    return () => {
+      cancelWarming?.();
+      window.removeEventListener('online', refreshWarming);
+      window.removeEventListener('offline', refreshWarming);
+    };
   }, []);
 
   useEffect(() => {
@@ -583,6 +620,12 @@ export const Layout: React.FC = () => {
     return isDesktopLayoutViewport();
   });
   const isMobile = !isDesktop;
+  const openGameNotesSearch = useCallback((returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? (isMobile
+      ? document.getElementById(mobileTabId(mobileTab))
+      : document.querySelector<HTMLElement>('[aria-label="Command palette"]'));
+    setIsGameNotesSearchOpen(true);
+  }, [isMobile, mobileTab]);
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
     const raw = readLocalStorage('web-katrain:left_panel_width:v1');
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
@@ -641,7 +684,11 @@ export const Layout: React.FC = () => {
   });
 
   const mode = uiState.mode;
-  const boardUiMode = reportHoverMove ? 'analyze' : mode;
+  const candidates = analysisData?.moves ?? currentNode.analysis?.moves;
+  // The report can preview an earlier position. Board and candidate-panel
+  // hovers instead select a coordinate in the current position's live search.
+  const activeReportHoverMove = isGameReportOpen ? reportHoverMove : resolveCandidatePreview(reportHoverMove, candidates);
+  const boardUiMode = activeReportHoverMove ? 'analyze' : mode;
   const shapeCoachEnabled = uiState.shapeCoachEnabled;
   const modeControls = uiState.analysisControls[mode];
   const modePanels = uiState.panels[mode];
@@ -980,7 +1027,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (!scoringMode) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
+      if (isComposingKeyEvent(event) || shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (event.key === 'Escape') setScoringMode(false);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -991,7 +1038,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
+      if (isComposingKeyEvent(event) || shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
         event.preventDefault();
         toggleFocusMode();
@@ -1269,10 +1316,13 @@ export const Layout: React.FC = () => {
     if (currentGameDirtyRef.current) {
       setAutoSaveStatus((current) => (current?.state === 'pending' ? current : { state: 'pending' }));
     }
-    let written = false;
+    let writtenTreeVersion: number | null = null;
     const writeNow = () => {
-      if (written) return;
-      written = true;
+      // Page-exit capture listeners may commit a note after this version's
+      // debounce already ran. Always consider the store's latest revision.
+      const currentTreeVersion = useGameStore.getState().treeVersion;
+      if (writtenTreeVersion === currentTreeVersion) return;
+      writtenTreeVersion = currentTreeVersion;
       if (!hasUnsavedChanges()) {
         clearAutoSavedGame();
         setAutoSaveStatus(null);
@@ -1308,10 +1358,12 @@ export const Layout: React.FC = () => {
       if (document.visibilityState === 'hidden') writeNow();
     };
     window.addEventListener('pagehide', writeNow);
+    window.addEventListener(GAME_DRAFT_COMMITTED_EVENT, writeNow);
     document.addEventListener('visibilitychange', writeOnHide);
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener('pagehide', writeNow);
+      window.removeEventListener(GAME_DRAFT_COMMITTED_EVENT, writeNow);
       document.removeEventListener('visibilitychange', writeOnHide);
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);
@@ -1340,6 +1392,7 @@ export const Layout: React.FC = () => {
 
   /** Whether the game is now saved. `false` means the game is still only here. */
   const handleSaveCurrentSgf = useCallback(async (): Promise<boolean> => {
+    commitPendingGameDrafts();
     const sgf = generateCurrentSgf();
     if (await saveLoadedLibraryFile(sgf)) return true;
     try {
@@ -1355,6 +1408,7 @@ export const Layout: React.FC = () => {
 
   const openSaveToLibraryDialog = useCallback(async (returnFocus?: HTMLElement | null) => {
     modalReturnFocusRef.current = returnFocus ?? null;
+    commitPendingGameDrafts();
     const sgf = generateCurrentSgf();
     try {
       const items = await loadLibrary();
@@ -1405,6 +1459,7 @@ export const Layout: React.FC = () => {
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
+    commitPendingGameDrafts();
     if (!hasUnsavedChanges()) return 'discard';
     setIsUnsavedChangesOpen(true);
     return new Promise((resolve) => {
@@ -1557,25 +1612,27 @@ export const Layout: React.FC = () => {
   }, [currentNode.id, isAnalysisMode, runAnalysis]);
 
   // PV animation
-  const activeHoverMove = reportHoverMove ?? hoveredMove;
+  const activeHoverMove = activeReportHoverMove ?? resolveCandidatePreview(hoveredSelection?.context === previewContext ? hoveredSelection : null, candidates);
   // Candidate tiles follow the same ownership rule as the board canvases: a
   // temporary board tool gets a quiet targeting surface without switching the
   // user's analysis preference off.
   const boardAnalysisOverlaysActive =
     isAnalysisMode && !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
-  const pvOverlayEnabled = boardAnalysisOverlaysActive || !!reportHoverMove;
+  const allowExplicitPvPreview = !isEditMode && !scoringMode && !isSelectingRegionOfInterest;
+  const pvOverlayEnabled = boardAnalysisOverlaysActive || (!!activeReportHoverMove && allowExplicitPvPreview);
   const pvKey = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
-    return `${currentNode.id}|${pv.join(' ')}`;
+    // Refining a line must not restart the reveal on every engine update.
+    return `${currentNode.id}|${activeHoverMove.x},${activeHoverMove.y}`;
   }, [currentNode.id, activeHoverMove, pvOverlayEnabled]);
 
   const evalColors = useMemo(() => getKaTrainEvalColors(settings.trainerTheme), [settings.trainerTheme]);
   const pvAnimTimeS = useMemo(() => {
-    if (reportHoverMove) return 0;
+    if (activeReportHoverMove) return 0;
     const t = settings.animPvTimeSeconds;
     return typeof t === 'number' && Number.isFinite(t) ? t : 0.5;
-  }, [reportHoverMove, settings.animPvTimeSeconds]);
+  }, [activeReportHoverMove, settings.animPvTimeSeconds]);
 
   useEffect(() => {
     if (!pvKey || pvAnimTimeS <= 0) {
@@ -1588,7 +1645,7 @@ export const Layout: React.FC = () => {
 
   const pvLen = activeHoverMove?.pv?.length ?? 0;
   useEffect(() => {
-    if (!pvAnim) return;
+    if (!pvAnim || pvAnim.manual) return;
     if (!pvKey || pvKey !== pvAnim.key) return;
     if (pvLen <= 0) return;
 
@@ -1598,7 +1655,7 @@ export const Layout: React.FC = () => {
       const now = getAnimationNow();
       const progress = getPvAnimationProgress(now - pvAnim.startMs, delayMs, pvLen);
       setPvAnim((current) => {
-        if (!current || current.key !== pvAnim.key || current.upToMove === progress.upToMove) return current;
+        if (!current || current.manual || current.key !== pvAnim.key || current.upToMove === progress.upToMove) return current;
         return { ...current, upToMove: progress.upToMove };
       });
       if (progress.nextDelayMs !== null) timer = window.setTimeout(tick, progress.nextDelayMs);
@@ -1612,10 +1669,31 @@ export const Layout: React.FC = () => {
   const pvUpToMove = useMemo(() => {
     const pv = activeHoverMove?.pv;
     if (!pvOverlayEnabled || !pv || pv.length === 0) return null;
+    if (pvAnim?.key === pvKey && pvAnim.manual) return Math.min(pv.length - 1, pvAnim.upToMove);
     if (pvAnimTimeS <= 0) return pv.length;
     if (!pvAnim || pvAnim.key !== pvKey) return 0;
     return pvAnim.upToMove;
   }, [activeHoverMove, pvOverlayEnabled, pvAnim, pvAnimTimeS, pvKey]);
+
+  const handlePvScroll = useCallback((direction: 1 | -1) => {
+    if (!pvKey || pvLen === 0 || previewContextRef.current !== previewContext) return;
+    setPvAnim(previous => {
+      const lastIndex = pvLen - 1;
+      const shownIndex = previous?.key === pvKey ? Math.min(lastIndex, previous.upToMove) : lastIndex;
+      return { key: pvKey, startMs: getAnimationNow(), upToMove: Math.max(0, Math.min(lastIndex, shownIndex + direction)), manual: true };
+    });
+  }, [pvKey, pvLen, previewContext]);
+
+  const handlePvCommit = useCallback(() => {
+    const pv = activeHoverMove?.pv;
+    if (!pvOverlayEnabled || !pv?.length || previewContextRef.current !== previewContext) return;
+    // The board uses a zero-based last index; the tree action takes a count.
+    useGameStore.getState().addPvVariation(pv, Math.min(pv.length, (pvUpToMove ?? pv.length - 1) + 1));
+  }, [activeHoverMove, pvOverlayEnabled, pvUpToMove, previewContext]);
+
+  const pvScrollHint = pvKey && pvAnim?.key === pvKey && pvAnim.manual && pvUpToMove !== null
+    ? { shown: pvUpToMove + 1, total: pvLen }
+    : null;
 
   const passPv = useMemo(() => {
     const pv = activeHoverMove?.pv;
@@ -2079,8 +2157,8 @@ export const Layout: React.FC = () => {
     toast,
   ]);
 
-  // Only 9, 13 and 19 are supported, so any other declared size quietly became
-  // a 19x19 board with the stones scattered across it. Call after loadGame:
+  // Unsupported sizes fall back to 19x19 with the stones scattered across
+  // it. Call after loadGame:
   // it reports what the file asked for and what it actually opened at.
   const boardSizeCoercionNotice = (sgfText: string): string => {
     const declared = unsupportedSgfBoardSize(sgfText);
@@ -2177,7 +2255,8 @@ export const Layout: React.FC = () => {
   };
 
   const handleCopySgf = async () => {
-    const sgf = generateSgfFromTree(rootNode, sgfExportOptions);
+    commitPendingGameDrafts();
+    const sgf = generateCurrentSgf();
     if (await copyTextToClipboard(sgf)) {
       toast('Copied SGF to clipboard.', 'success');
       return;
@@ -2222,7 +2301,8 @@ export const Layout: React.FC = () => {
   const handleCopyShareLink = async () => {
     // The game, not its analysis: saved KT/KA blobs made a 200-move reviewed
     // game a 385,000-character link, past what an opening app will read.
-    const sgf = generateSgfFromTree(rootNode, {
+    commitPendingGameDrafts();
+    const sgf = generateSgfFromTree(useGameStore.getState().rootNode, {
       ...sgfExportOptions,
       trainer: { ...sgfExportOptions.trainer, saveAnalysis: false },
     });
@@ -2706,7 +2786,7 @@ export const Layout: React.FC = () => {
         category: 'Game',
         shortcutId: 'new-game',
         run: () => { void openNewGameWithGuard(); },
-        keywords: ['board size', 'handicap', 'komi', 'rules', 'players'],
+        keywords: ['board size', 'handicap', 'komi', 'rules', 'players', ...BOARD_SIZES.flatMap(size => [`${size}x${size}`, `${size}×${size}`])],
       },
       {
         id: 'save-sgf',
@@ -2789,6 +2869,13 @@ export const Layout: React.FC = () => {
         category: 'File',
         run: () => { void handleCopyShareLink(); },
         keywords: ['url', 'link', 'share', 'sgf', 'send', 'position'],
+      },
+      {
+        id: 'find-notes',
+        label: 'Find notes in this game',
+        category: 'Navigation',
+        run: () => openSimpleModal(() => openGameNotesSearch()),
+        keywords: ['search', 'comments', 'annotations', 'text', 'named positions', 'variations'],
       },
       {
         id: 'nav-back',
@@ -3684,6 +3771,7 @@ export const Layout: React.FC = () => {
     isKifuPrintOpen ||
     isGameReportOpen ||
     isCommandPaletteOpen ||
+    isGameNotesSearchOpen ||
     isKeyboardHelpOpen ||
     isNewGameOpen ||
     isScoreQuizOpen ||
@@ -3850,6 +3938,20 @@ export const Layout: React.FC = () => {
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
             returnFocus={modalReturnFocusRef.current}
+          />
+        )}
+        {isGameNotesSearchOpen && (
+          <GameNotesSearchModal
+            onClose={() => setIsGameNotesSearchOpen(false)}
+            returnFocus={modalReturnFocusRef.current}
+            onSelectNode={(node) => {
+              if (useGameStore.getState().isInsertMode) {
+                toast('Finish inserting before navigating.', 'error');
+                return;
+              }
+              useGameStore.getState().jumpToNode(node);
+              setIsGameNotesSearchOpen(false);
+            }}
           />
         )}
         {isScoreQuizOpen && (
@@ -4182,8 +4284,11 @@ export const Layout: React.FC = () => {
                   hoveredMove={activeHoverMove}
                   onHoverMove={setHoveredMove}
                   pvUpToMove={pvUpToMove}
+                  onPvScroll={pvOverlayEnabled ? handlePvScroll : undefined}
+                  onPvCommit={pvOverlayEnabled ? handlePvCommit : undefined}
+                  pvScrollHint={pvScrollHint}
                   uiMode={boardUiMode}
-                  forcePvOverlay={!!reportHoverMove}
+                  forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                   scoringMode={scoringMode}
                   scoreTerritory={manualScoreEstimate.territory}
                   deadStones={manualDeadStones}
@@ -4237,8 +4342,8 @@ export const Layout: React.FC = () => {
             currentNode={currentNode}
             treeVersion={treeVersion}
             drillHidesAnswer={drillHidesAnswer}
-            hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-            onHoverCandidate={setReportHoverMove}
+            hoveredCandidateKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+            onHoverCandidate={setCandidateHoverMove}
             branchInfo={branchInfo}
             showAnalysis={isAnalysisMode || mode === 'analyze'}
             winRate={winRate ?? null}
@@ -4343,6 +4448,7 @@ export const Layout: React.FC = () => {
             onSettings={() => setIsSettingsOpen(true)}
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
             onKeyboardHelp={openKeyboardHelp}
+            onFindNotes={openGameNotesSearch}
             onAbout={openAbout}
             toast={toast}
             headerNotification={
@@ -4573,8 +4679,8 @@ export const Layout: React.FC = () => {
             </div>
             {isMobile && showBoardAnalysisCommandBar && isAnalysisMode && !isEditMode && !scoringMode && (
               <CandidatePvTiles
-                pinnedKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-                onPin={setReportHoverMove}
+                pinnedKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+                onPin={setCandidateHoverMove}
               />
             )}
             {showMobileMatchStrip && (
@@ -4595,8 +4701,9 @@ export const Layout: React.FC = () => {
               // Only a tab panel on mobile: on desktop there is no tab bar, so the role
               // and the aria-labelledby would point at tabs that are not rendered.
               {...(isMobile ? { role: 'tabpanel', id: MOBILE_TAB_PANEL_IDS.board, 'aria-labelledby': mobileTabId('board') } : {})}
+              data-board-tooltip-boundary="true"
               className={[
-                'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0',
+                'mobile-board-canvas flex-1 flex justify-center min-h-0 min-w-0 relative',
                 // On mobile the Score (top-left) and Edit (bottom-left) launchers float
                 // over the board shell. Reserve vertical clearance so the board never
                 // grows under them and covers the corner coordinates / play area.
@@ -4624,8 +4731,11 @@ export const Layout: React.FC = () => {
                 hoveredMove={activeHoverMove}
                 onHoverMove={setHoveredMove}
                 pvUpToMove={pvUpToMove}
+                onPvScroll={pvOverlayEnabled ? handlePvScroll : undefined}
+                onPvCommit={pvOverlayEnabled ? handlePvCommit : undefined}
+                pvScrollHint={pvScrollHint}
                 uiMode={boardUiMode}
-                forcePvOverlay={!!reportHoverMove}
+                forcePvOverlay={!!activeReportHoverMove && allowExplicitPvPreview}
                 scoringMode={scoringMode}
                 scoreTerritory={manualScoreEstimate.territory}
                 deadStones={manualDeadStones}
@@ -4638,8 +4748,8 @@ export const Layout: React.FC = () => {
         </main>
 
         <RightPanel
-          hoveredCandidateKey={reportHoverMove ? `${reportHoverMove.x},${reportHoverMove.y}` : null}
-          onHoverCandidate={setReportHoverMove}
+          hoveredCandidateKey={activeReportHoverMove ? `${activeReportHoverMove.x},${activeReportHoverMove.y}` : null}
+          onHoverCandidate={setCandidateHoverMove}
           open={rightPanelOpen}
           onClose={handleCloseRightPanel}
           width={isDesktop ? rightPanelWidth : undefined}
@@ -4693,6 +4803,7 @@ export const Layout: React.FC = () => {
           shapeCoachEnabled={shapeCoachEnabled}
           onToggleShapeCoach={toggleShapeCoach}
           noteFocusRequest={noteFocusRequest}
+          onFindNotes={openGameNotesSearch}
           isMobile={isMobile}
           activeMobileTab={mobileTab}
           showAnalysisSection={!isDesktop}

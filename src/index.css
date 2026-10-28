@@ -2496,17 +2496,19 @@
     }
 
     .analysis-command-bar__depth-popover {
-      position: fixed;
-      top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
-      right: max(0.75rem, env(safe-area-inset-right));
-      bottom: calc(
+      --depth-popover-top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
+      --depth-popover-bottom: calc(
         var(--mobile-tabbar-height) +
           var(--mobile-bottom-controls-height, 0px) +
           max(0.75rem, env(safe-area-inset-bottom))
       );
+      position: fixed;
+      top: var(--depth-popover-top);
+      right: max(0.75rem, env(safe-area-inset-right));
+      bottom: auto;
       left: max(0.75rem, env(safe-area-inset-left));
       width: auto;
-      max-height: none;
+      max-height: calc(100dvh - var(--depth-popover-top) - var(--depth-popover-bottom));
       overflow-y: auto;
       overscroll-behavior: contain;
     }
@@ -2642,6 +2644,13 @@
   .library-tree {
     display: flex;
     flex-direction: column;
+  }
+
+  .library-tree.panel-scroll-region {
+    /* Reserve the native scrollbar consistently. WebKit's stable gutter made
+       child rows eight pixels wider than the visible mobile scroll area. */
+    scrollbar-gutter: auto;
+    overflow-y: scroll;
   }
 
   /* A mainline game lays the move tree out as a single row across the top of
@@ -3262,6 +3271,14 @@
     font-weight: 500;
   }
 
+  .library-tree-node[data-library-depth]:not([data-library-depth='0']) .library-tree-node-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .library-tree-node-meta {
     flex-shrink: 0;
     margin-left: auto;
@@ -3502,6 +3519,7 @@
 
   .library-show-more {
     display: block;
+    min-height: 44px;
     width: calc(100% - 12px);
     margin: 6px;
     padding: 7px 10px;
@@ -5605,7 +5623,7 @@
     .score-quiz-body {
       display: grid;
       grid-template-columns: minmax(8rem, 0.72fr) minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(min-content, 1fr) auto;
       gap: 8px 16px;
       padding: 8px 16px !important;
     }
@@ -6825,14 +6843,20 @@
    against each other without hovering each in turn. Sized to the panel it
    lives in rather than to the board. */
 .candidate-list {
-  display: flex;
-  flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   --candidate-row-height: 1.75rem;
+  --candidate-min-width: 19rem;
+}
+.candidate-list[data-analysis-experience='coach'] {
+  --candidate-min-width: 13rem;
+}
+.candidate-list[data-candidate-detail='true'] {
+  --candidate-min-width: 22.5rem;
 }
 
 .candidate-list-head,
+.candidate-row-group,
 .candidate-row {
   display: grid;
   grid-template-columns: 1.25rem minmax(3rem, 1fr) 3.25rem 3rem 2.75rem 2.75rem;
@@ -6845,14 +6869,16 @@
 }
 
 .candidate-list[data-analysis-experience='coach'] .candidate-list-head,
+.candidate-list[data-analysis-experience='coach'] .candidate-row-group,
 .candidate-list[data-analysis-experience='coach'] .candidate-row {
   grid-template-columns: 1.25rem minmax(4rem, 1fr) 5rem;
 }
 
 /* Pro with the prior and spread columns open: six figures, tighter gap. */
 .candidate-list[data-candidate-detail='true'] .candidate-list-head,
+.candidate-list[data-candidate-detail='true'] .candidate-row-group,
 .candidate-list[data-candidate-detail='true'] .candidate-row {
-  grid-template-columns: 1rem minmax(2.5rem, 1fr) 2.75rem 2.5rem 2.25rem 2.25rem 2.25rem 2.25rem;
+  grid-template-columns: 1rem minmax(3.5rem, 1fr) 2.75rem 2.5rem 2.25rem 2.25rem 2.25rem 2.25rem;
   gap: 0.25rem;
   font-size: 0.625rem;
 }
@@ -6892,10 +6918,30 @@
   text-underline-offset: 2px;
 }
 
-.candidate-row .cl-pv-toggle {
-  margin-left: auto;
+/* Keep the play button and disclosure separate in the accessibility tree.
+   Sharing the row's columns preserves alignment with the table header. */
+.candidate-row-group > .candidate-row {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  grid-template-columns: subgrid;
+  padding-inline: 0;
+  min-width: 0;
+}
+.candidate-row-group.has-pv .cl-move {
+  padding-inline-end: 1.5rem;
+}
+.candidate-row-group .cl-pv-toggle {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+  z-index: 1;
   width: 1.5rem;
   height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   border-radius: 0.25rem;
   display: inline-flex;
   align-items: center;
@@ -6904,18 +6950,18 @@
   font-weight: 700;
   transition: transform 120ms ease;
 }
-.candidate-row .cl-pv-toggle:focus-visible {
+.candidate-row-group .cl-pv-toggle:focus-visible {
   color: var(--ui-text);
   background: var(--ui-surface-2);
 }
 
 @media (hover: hover) {
-  .candidate-row .cl-pv-toggle:hover {
+  .candidate-row-group .cl-pv-toggle:hover {
     color: var(--ui-text);
     background: var(--ui-surface-2);
   }
 }
-.candidate-row .cl-pv-toggle.is-open {
+.candidate-row-group .cl-pv-toggle.is-open {
   transform: rotate(90deg);
 }
 
@@ -6971,6 +7017,7 @@
 }
 
 .candidate-list-head .cl-detail-toggle {
+  flex-shrink: 0;
   border: 1px solid var(--ui-border);
   background: var(--ui-surface);
   color: var(--ui-text-faint);
@@ -6997,13 +7044,18 @@
   }
 }
 
-/* The engine has barely looked at these, so their figures are rough; the board
-   fades the same candidates and Settings says both surfaces do. The move label
-   and its quality dot keep full contrast -- what is uncertain is the numbers,
-   not which point the row is about. */
+/* Low-visit estimates stay readable. Italic figures and a faded quality dot
+   distinguish their uncertainty without fading small text below contrast. */
 .candidate-row.is-uncertain .cl-num,
 .candidate-row.is-uncertain .cl-quality {
+  font-style: italic;
+}
+.candidate-row.is-uncertain .cl-dot {
   opacity: 0.55;
+}
+.candidate-row.is-active .cl-num,
+.candidate-row:focus-visible .cl-num {
+  color: inherit;
 }
 
 .candidate-list .cl-quality {
@@ -7065,6 +7117,11 @@
 }
 
 .candidate-list-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: var(--candidate-min-width);
+  background: var(--ui-panel);
   min-height: 1.5rem;
   padding-block: 0;
   color: var(--ui-text-faint);
@@ -7077,7 +7134,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
+  min-width: var(--candidate-min-width);
   min-height: 0;
 }
 
