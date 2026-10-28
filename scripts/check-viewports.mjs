@@ -12,6 +12,7 @@ import { assertManualScoring } from './lib/manual-scoring-check.mjs';
 import { assertHeaderNotificationsFit } from './lib/header-notification-check.mjs';
 import { assertKeyboardWorkflows } from './lib/keyboard-workflows-check.mjs';
 import { assertLibraryNavigation } from './lib/library-navigation-check.mjs';
+import { assertLibraryActionKeys } from './lib/library-action-keys-check.mjs';
 import { assertPracticeBoardSizes } from './lib/practice-board-sizes-check.mjs';
 import { assertCandidateControls } from './lib/candidate-controls-check.mjs';
 import { assertReportPrinting } from './lib/report-print-check.mjs';
@@ -4084,6 +4085,7 @@ async function main() {
     await assertNoteDraftRetention(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertNotePageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertLibraryActionKeys(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPassCandidates(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);

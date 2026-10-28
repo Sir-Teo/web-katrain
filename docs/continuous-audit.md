@@ -861,3 +861,25 @@ follow-up work beyond this audit’s wrap-up.
   unchanged.
 - Typechecks, lint, production build and all 3,247 tests pass, with 77
   intentional CI skips.
+
+## 2026-10-28 continuation: Library action keys and focus
+
+- Native Enter on a file's Select and More actions buttons opened the game
+  instead. Folder collapse stayed expanded and changed the current folder.
+  The row's key handler was intercepting its descendants' native button keys.
+- File and folder row handlers now act only when the row itself owns the key,
+  retaining their direct navigation and context-menu shortcuts.
+- Closing a row actions menu also dropped focus. Escape now returns to its
+  opener, and menu actions restore that opener before mounting a dialog, so
+  Rename receives focus and Cancel returns to a connected control. Outside
+  pointer dismissal continues to focus the newly clicked control.
+- All 27 native check groups pass at 1280×800, 390×844 and 320×568: Tab reaches
+  controls; Enter and Space select and deselect files/folders, open menus and
+  expand/collapse folders; Rename owns focus; Escape returns to its opener;
+  outside dismissal preserves search focus. Arrow navigation, Shift+F10 and
+  Enter on the row itself retain their behavior. The current game and stored
+  records remain unchanged until the explicit final game-open check.
+- These checks join the viewport suite. All 25 focused library keyboard and
+  accessibility tests pass, alongside typechecking and focused lint.
+- Full verification passes with 3,247 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.

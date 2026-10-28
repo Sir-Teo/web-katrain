@@ -449,6 +449,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   const [contextMenu, setContextMenu] = useState<LibraryContextMenuState | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -900,15 +901,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     };
   };
 
-  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null) => {
+  const openContextMenuAt = (x: number, y: number, item: LibraryItem | null, opener: HTMLElement) => {
     const position = clampContextMenuPosition(x, y);
+    contextMenuOpenerRef.current = opener;
     setContextMenu({ ...position, itemId: item?.id ?? null });
   };
 
   const openContextMenu = (event: React.MouseEvent, item: LibraryItem | null) => {
     event.preventDefault();
     event.stopPropagation();
-    openContextMenuAt(event.clientX, event.clientY, item);
+    openContextMenuAt(event.clientX, event.clientY, item, event.currentTarget as HTMLElement);
   };
 
   const openKeyboardContextMenu = (event: React.KeyboardEvent<HTMLElement>, item: LibraryItem | null) => {
@@ -916,7 +918,8 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     openContextMenuAt(
       rect.left + Math.min(32, rect.width / 2),
       rect.top + Math.min(32, rect.height / 2),
-      item
+      item,
+      event.currentTarget
     );
   };
 
@@ -924,10 +927,16 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    openContextMenuAt(rect.right - 230, rect.bottom + 4, item);
+    openContextMenuAt(rect.right - 230, rect.bottom + 4, item, event.currentTarget);
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    // Restore before an action mounts a dialog, so that dialog remembers a
+    // durable opener and takes focus after it. Outside-pointer dismissal keeps
+    // its separate closer and lets the newly clicked control receive focus.
+    if (contextMenuOpenerRef.current?.isConnected) contextMenuOpenerRef.current.focus({ preventScroll: true });
+  };
 
   const handleContextMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (isLibraryMenuCloseKey(event.key)) {
@@ -986,6 +995,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   };
 
   const handleFileRowKeyDown = (item: LibraryFile) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event.nativeEvent)) return;
     const action = getLibraryRowKeyAction({ key: event.key, shiftKey: event.shiftKey, kind: 'file' });
     if (action === 'none') return;
     event.preventDefault();
@@ -1000,6 +1010,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     hasChildren: boolean,
     allowChildren: boolean
   ) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || isComposingKeyEvent(event.nativeEvent)) return;
     const action = getLibraryRowKeyAction({
       key: event.key,
       shiftKey: event.shiftKey,
