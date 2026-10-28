@@ -176,6 +176,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
   const updateSettings = useGameStore((state) => state.updateSettings);
   const depthButtonRef = React.useRef<HTMLButtonElement>(null);
   const depthPopoverRef = React.useRef<HTMLDivElement>(null);
+  const depthInputRef = React.useRef<HTMLInputElement>(null);
   const depthCloseButtonRef = React.useRef<HTMLButtonElement>(null);
   const depthPopoverId = React.useId();
   const depthPopoverTitleId = React.useId();
@@ -393,6 +394,26 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
     setReviewNow(now);
   }, [isGameAnalysisRunning, gameAnalysisType, gameAnalysisDone, gameAnalysisTotal]);
 
+  React.useLayoutEffect(() => {
+    if (!depthPopoverOpen) return;
+    const popover = depthPopoverRef.current;
+    const dock = document.querySelector<HTMLElement>('.mobile-bottom-dock');
+    if (!popover || !dock) return;
+    // Enlarged text can make the dock taller than its CSS minimum heights.
+    const updateInset = () => {
+      const inset = Math.max(0, window.innerHeight - dock.getBoundingClientRect().top);
+      popover.style.setProperty('--depth-popover-bottom', `calc(${inset}px + 0.75rem)`);
+    };
+    updateInset();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateInset);
+    observer?.observe(dock);
+    window.addEventListener('resize', updateInset);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateInset);
+    };
+  }, [depthPopoverOpen]);
+
   React.useEffect(() => {
     if (!depthPopoverOpen) return;
     depthCloseButtonRef.current?.focus({ preventScroll: true });
@@ -402,6 +423,9 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
       if (!target) return;
       if (depthPopoverRef.current?.contains(target)) return;
       if (depthButtonRef.current?.contains(target)) return;
+      // Pointer dismissal unmounts the editor before native focus can blur it.
+      // Finish its normal commit while it is still mounted; Escape cancels.
+      depthInputRef.current?.blur();
       closeDepthPopover();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -487,6 +511,7 @@ export const AnalysisCommandBar: React.FC<AnalysisCommandBarProps> = ({
           onChange={(event) => applyLiveVisits(sliderValueToVisitCount(Number.parseFloat(event.currentTarget.value)))}
         />
         <input
+          ref={depthInputRef}
           type="number"
           min={ANALYSIS_MIN_VISITS}
           max={ENGINE_MAX_VISITS}

@@ -711,6 +711,9 @@ follow-up work beyond this audit’s wrap-up.
 - The existing nine note-exit and eighteen metadata-exit cases also pass.
   Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.
+- The complete 11-size browser suite passes at `62a3fb4`, including all new
+  save/export cases and existing library failures, overlapping saves, recovery,
+  analysis, print output, keyboard and responsive-layout workflows.
 
 ## 2026-10-28 continuation: Protect drafts before game replacement
 
@@ -726,5 +729,23 @@ follow-up work beyond this audit’s wrap-up.
   clean imports with untouched notes or invalid komi/handicap. Nine metadata
   replacement flows also pass with explicit Discard and direct store replacement
   coverage, retaining the root ownership guard during editor cleanup.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.
+
+## 2026-10-28 continuation: Compact, reliable live-depth editing
+
+- Reproduced typing 37 live-analysis visits and dismissing the selector with
+  an outside click retaining 16. The document pointer handler removed the input
+  before native focus could deliver its blur commit. Pointer dismissal now
+  explicitly blurs the mounted input; Escape continues to cancel its draft.
+- Phone/tablet selectors now fit their content and scroll within the available
+  space. The previous fixed top/bottom layout left a large blank area over the
+  board. A ResizeObserver measures the bottom dock so enlarged text cannot make
+  the exact-visits field extend behind navigation controls.
+- Twenty-seven native checks pass at 390×844, 320×568 and 768×1024: outside taps,
+  Enter, Tab, Close, Escape, preset changes and empty input. They verify persisted
+  settings, a stopped engine, unchanged game positions, compact bounds and
+  reachable touch input at 100% and 200% text. The regression joins the viewport
+  suite; the original real-analysis reproduction also keeps 37 after dismissal.
 - Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.

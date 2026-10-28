@@ -2496,17 +2496,19 @@
     }
 
     .analysis-command-bar__depth-popover {
-      position: fixed;
-      top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
-      right: max(0.75rem, env(safe-area-inset-right));
-      bottom: calc(
+      --depth-popover-top: max(4.75rem, calc(env(safe-area-inset-top) + 0.75rem));
+      --depth-popover-bottom: calc(
         var(--mobile-tabbar-height) +
           var(--mobile-bottom-controls-height, 0px) +
           max(0.75rem, env(safe-area-inset-bottom))
       );
+      position: fixed;
+      top: var(--depth-popover-top);
+      right: max(0.75rem, env(safe-area-inset-right));
+      bottom: auto;
       left: max(0.75rem, env(safe-area-inset-left));
       width: auto;
-      max-height: none;
+      max-height: calc(100dvh - var(--depth-popover-top) - var(--depth-popover-bottom));
       overflow-y: auto;
       overscroll-behavior: contain;
     }
