@@ -86,7 +86,7 @@ const coachQualityText = (quality: string, pointsLost: number): string => {
 };
 
 export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey, onHover, maxRows = 8 }) => {
-  const { moves, nodeId, toPlay, drillHidesAnswer, boardSize, playMove, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
+  const { moves, nodeId, toPlay, drillHidesAnswer, boardSize, playMove, passTurn, trainerTheme, thresholds, analysisExperience, isAnalysisMode, topK, lowVisits, addPvVariation } = useGameStore(
     (state) => ({
       moves: state.currentNode.analysis?.moves ?? null,
       nodeId: state.currentNode.id,
@@ -98,6 +98,7 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
       drillHidesAnswer: isAnswerHidden(state, state.currentNode.id),
       boardSize: state.currentNode.gameState.board.length,
       playMove: state.playMove,
+      passTurn: state.passTurn,
       trainerTheme: state.settings.trainerTheme,
       thresholds: state.settings.trainerEvalThresholds,
       analysisExperience: state.settings.analysisExperience,
@@ -138,8 +139,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
   const visibleCap = Math.max(1, Math.min(Number.isFinite(topK) ? topK : 10, 50));
   const rows = useMemo(() => {
     if (drillHidesAnswer) return [];
-    const onBoard = (moves ?? []).filter((move) => move.x >= 0 && move.y >= 0).slice(0, visibleCap);
-    return sortCandidates(onBoard, isPro ? sortKey : 'rank', toPlay);
+    const visibleMoves = (moves ?? []).filter(move => (move.x >= 0 && move.y >= 0) || (move.x === -1 && move.y === -1)).slice(0, visibleCap);
+    return sortCandidates(visibleMoves, isPro ? sortKey : 'rank', toPlay);
   }, [drillHidesAnswer, isPro, moves, sortKey, toPlay, visibleCap]);
 
   const sortButton = (key: SortKey, label: string, title: string) => (
@@ -245,7 +246,8 @@ export const CandidateMoveList: React.FC<CandidateMoveListProps> = ({ hoveredKey
                       return;
                     }
                     onHover(null);
-                    playMove(move.x, move.y);
+                    if (move.x === -1 && move.y === -1) passTurn();
+                    else playMove(move.x, move.y);
                   }}
                   title={
                     isPro

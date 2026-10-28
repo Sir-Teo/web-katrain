@@ -17,7 +17,8 @@ PWA. There is no analysis server to run.
 - A Candidates list beside the board: rank, move, quality, win rate, score,
   points lost and visits for every candidate at once. Hover a row to lay its
   variation on the board; click it to play the move. Open its continuation as
-  text in Coach or Pro, copy it, or keep it in the move tree.
+  text in Coach or Pro, copy it, or keep it in the move tree. Pass suggestions
+  use the same preview and confirmation controls.
 - Scroll over a candidate on the board to step through its continuation.
   Middle-click to keep the moves currently shown as a variation, without
   leaving the current position. Keeping a line supports Undo edit and Redo.

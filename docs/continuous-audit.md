@@ -591,3 +591,21 @@ follow-up work beyond this audit’s wrap-up.
 - All nine native cases pass at 1280×800, 390×844 and 320×568, as do the
   existing desktop/phone keyboard workflows. `CI=1 npm run verify` passes
   with 3,244 tests, 77 intentional CI skips, typechecks, lint and build.
+
+## 2026-10-28 continuation: Pass recommendations
+
+- Reproduced a pass-only analysis displaying "No candidates for this position
+  yet" on desktop and an empty continuation strip on mobile. Both controls
+  discarded negative coordinates, including the engine's canonical pass.
+- Coach and Pro now rank Pass alongside point moves, preserving its metrics
+  and continuation. Pass rows invoke the ordinary pass action, retaining the
+  existing preview/confirmation behavior. Mobile tiles can pin and keep lines
+  beginning with a pass, including later passes in the same continuation.
+- Six native cases cover Coach/Pro at 1280×800, 390×844 and 320×568: ranking,
+  pass-only results, disclosure, keeping Pass → D4 → Pass, Undo, mobile tile
+  preview, keyboard activation and two confirmed passes. They verify the
+  expected players in saved variations and that passing places no stones.
+  The regression is included in the complete viewport suite.
+- The existing native candidate-control and live-preview checks also pass.
+  `CI=1 npm run verify` completed with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build before the execution disconnect.

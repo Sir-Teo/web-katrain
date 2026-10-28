@@ -47,7 +47,7 @@ export const CandidatePvTiles: React.FC<CandidatePvTilesProps> = ({ pinnedKey, o
   const tiles = useMemo(
     () =>
       (moves ?? [])
-        .filter((m) => m.x >= 0 && m.y >= 0 && m.pv && m.pv.length > 0)
+        .filter(m => ((m.x >= 0 && m.y >= 0) || (m.x === -1 && m.y === -1)) && m.pv && m.pv.length > 0)
         .slice(0, 12),
     [moves]
   );

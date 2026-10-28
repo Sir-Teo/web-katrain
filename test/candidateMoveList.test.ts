@@ -56,7 +56,8 @@ describe('the candidate list', () => {
     // On a touchscreen no hover arrives before the tap, so this is what makes
     // the first tap a preview and the second the move.
     expect(source).toContain('if (hoveredKey !== key) {');
-    expect(source).toMatch(/onHover\(null\);\s*\n\s*playMove\(move\.x, move\.y\);/);
+    expect(source).toContain('if (move.x === -1 && move.y === -1) passTurn();');
+    expect(source).toContain('else playMove(move.x, move.y);');
   });
 
   it('is reachable from both shells, which have separate panels', () => {

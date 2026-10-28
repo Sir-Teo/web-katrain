@@ -19,6 +19,7 @@ import { assertCandidateTooltips } from './lib/candidate-tooltip-check.mjs';
 import { assertLiveCandidatePreviews } from './lib/live-candidate-preview-check.mjs';
 import { assertPvGestures } from './lib/pv-gestures-check.mjs';
 import { assertGameInfoReplacement } from './lib/game-info-replacement-check.mjs';
+import { assertPassCandidates } from './lib/pass-candidate-check.mjs';
 import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4076,6 +4077,7 @@ async function main() {
     await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertPassCandidates(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertReportPrinting(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertCandidateTooltips(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir, VIEWPORTS);
     await assertLiveCandidatePreviews(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);

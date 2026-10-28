@@ -42,7 +42,7 @@ describe('Candidate list', () => {
     expect(source).toContain("const forMover = toPlay === 'white' ? -1 : 1;");
     expect(source).toContain("case 'win': return forMover * m.winRate;");
     expect(source).toContain("case 'score': return forMover * m.scoreLead;");
-    expect(source).toContain("sortCandidates(onBoard, isPro ? sortKey : 'rank', toPlay)");
+    expect(source).toContain("sortCandidates(visibleMoves, isPro ? sortKey : 'rank', toPlay)");
   });
 
   it('drops a previewed candidate when the position changes', () => {
