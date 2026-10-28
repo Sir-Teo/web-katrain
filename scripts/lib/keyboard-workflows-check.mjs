@@ -1,0 +1,139 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { connectDevtools, evaluate, loadedModuleUrl, navigate, setViewport, waitForExpression } from './browser.mjs';
+
+// Native key events exercise focus, scrolling, and React's blur ordering. IME
+// events are synthetic: this checks ownership of the keys, not an OS keyboard.
+export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDir) {
+  const version = await (await fetch(`http://127.0.0.1:${devtoolsPort}/json/version`)).json();
+  const browser = connectDevtools(version.webSocketDebuggerUrl);
+  await browser.ready;
+  const reports = [];
+  try {
+    for (const [width, height] of [[1280, 800], [390, 844]]) {
+      const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
+      const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
+      const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
+      await cdp.ready;
+      const mobile = width < 1000;
+      const wait = expression => waitForExpression(cdp, expression, { label: 'Keyboard workflow', timeoutMs: 15_000 });
+      const key = async (key, code, modifiers = 0) => {
+        for (const type of ['keyDown', 'keyUp']) {
+          const reply = await cdp.send('Input.dispatchKeyEvent', { type, key, windowsVirtualKeyCode: code, modifiers });
+          assert.ok(!reply.error, JSON.stringify(reply.error));
+        }
+      };
+      const click = async expression => {
+        const point = await wait(`(()=>{
+          const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});
+          const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+          return r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false;
+        })()`);
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await cdp.send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 });
+        }
+      };
+      const field = label => `[...document.querySelectorAll('[data-game-info-edit-form] label')].find(e=>e.textContent.trim()===${JSON.stringify(label)})?.querySelector('input')`;
+      const replaceField = async (label, text) => {
+        await click(field(label));
+        await key('a', 65, 2);
+        if (text) await cdp.send('Input.insertText', { text });
+        else await key('Backspace', 8);
+        await wait(`${field(label)}.value===${JSON.stringify(text)}`);
+      };
+      const state = () => evaluate(cdp, `(()=>{const s=window.keyboardAuditStore.getState();return {komi:s.komi,handicap:s.rootNode.properties.HA?.[0]??'0',treeVersion:s.treeVersion,undo:s.editUndoCount}})()`);
+      try {
+        await cdp.send('Page.enable');
+        await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+        await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+          performance.setResourceTimingBufferSize(5000);
+          localStorage.setItem('web-katrain:mobile_home_dismissed:v1','true');
+          localStorage.setItem('web-katrain:pwa-install-dismissed:v1','true');
+          localStorage.setItem('web-katrain:settings:v3',JSON.stringify({soundEnabled:false,loadSgfFastAnalysis:false}));
+        ` });
+        await setViewport(cdp, { width, height, mobile });
+        await navigate(cdp, appUrl);
+        await wait('!!document.querySelector("[data-board-snapshot=true]")');
+        await evaluate(cdp, `(async()=>{const url=${loadedModuleUrl.toString()};window.keyboardAuditStore=(await import(url('/src/store/gameStore.ts'))).useGameStore;return true})()`);
+
+        await key('k', 75, 2);
+        const search = 'document.querySelector("[data-command-palette-search]")';
+        await wait(`${search}===document.activeElement`);
+        for (let i = 0; i < 24; i++) await key('ArrowDown', 40);
+        const navigation = await wait(`(()=>{
+          const list=document.querySelector('[role=listbox][aria-label=Commands]');
+          const selected=list?.querySelector('[aria-selected=true]');if(!selected)return false;
+          const r=selected.getBoundingClientRect(),v=list.getBoundingClientRect();
+          return list.scrollTop>0&&r.top>=v.top-1&&r.bottom<=v.bottom+1&&!selected.disabled
+            ?{scrollTop:list.scrollTop,command:selected.dataset.commandPaletteItem}:false;
+        })()`);
+        // Selecting candidates in an IME must not move the palette selection,
+        // execute it, or dismiss the surrounding dialog.
+        for (const composition of [{ isComposing: true }, { keyCode: 229 }]) {
+          const before = await evaluate(cdp, `${search}.getAttribute('aria-activedescendant')`);
+          for (const key of ['ArrowDown', 'ArrowUp', 'Enter', 'Escape']) {
+            await evaluate(cdp, `${search}.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true,cancelable:true,...${JSON.stringify(composition)}}))`);
+          }
+          assert.equal(await evaluate(cdp, `${search}?.getAttribute('aria-activedescendant')`), before);
+        }
+        // Clearing by pointer must put subsequent typing back in the search.
+        await cdp.send('Input.insertText', { text: 'about' });
+        await click(`document.querySelector('[aria-label="Clear command search"]')`);
+        await wait(`${search}===document.activeElement&&${search}.value===''`);
+        await key('Escape', 27);
+        await wait('!document.querySelector("[data-command-palette]")');
+
+        await key('S', 83, 10);
+        const saveName = 'document.querySelector("#save-to-library-name")';
+        await wait(`${saveName}===document.activeElement&&${saveName}.selectionStart===0&&${saveName}.selectionEnd===${saveName}.value.length`);
+        for (const composition of [{ isComposing: true }, { keyCode: 229 }]) {
+          for (const key of ['Enter', 'Escape']) {
+            await evaluate(cdp, `${saveName}.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true,cancelable:true,...${JSON.stringify(composition)}}))`);
+          }
+          assert.equal(await evaluate(cdp, `!!${saveName}&&!${saveName}.disabled`), true, 'IME key submitted or dismissed Save Copy');
+        }
+        await key('Escape', 27);
+        await wait(`!${saveName}`);
+
+        if (mobile) await click('document.querySelector("#mobile-tab-info")');
+        const info = "[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Game info')";
+        if (!await evaluate(cdp, 'document.querySelector("[data-game-info-panel]")?.getBoundingClientRect().height>0')) await click(info);
+        await click('document.querySelector("[data-game-info-edit-toggle]")');
+        await wait('!!document.querySelector("[data-game-info-edit-form]")');
+        const original = await state();
+        for (const [label, text] of [['Komi', '12.5'], ['Handicap', '4']]) {
+          await replaceField(label, text);
+          await key('Escape', 27);
+          assert.deepEqual(await state(), original, `${label} Escape changed the game`);
+        }
+        for (const [label, text] of [['Komi', ''], ['Komi', '-'], ['Komi', '0x10'], ['Handicap', '2abc'], ['Handicap', '1.5']]) {
+          await replaceField(label, text);
+          await key('Tab', 9);
+          assert.deepEqual(await state(), original, `${label} invalid draft ${JSON.stringify(text)} changed the game`);
+        }
+        await replaceField('Komi', '-0.5');
+        await key('Enter', 13);
+        assert.equal((await state()).komi, -0.5);
+        await replaceField('Handicap', '2');
+        await key('Enter', 13);
+        assert.equal((await state()).handicap, '2');
+        const committed = await state();
+        reports.push({ width, height, navigation, original, committed });
+        const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-keyboard-workflows.png`), Buffer.from(screenshot.result.data, 'base64'));
+      } catch (error) {
+        const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-keyboard-workflows-failed.png`), Buffer.from(screenshot.result.data, 'base64'));
+        throw error;
+      } finally {
+        cdp.close();
+        await browser.send('Target.disposeBrowserContext', { browserContextId: context });
+      }
+    }
+    fs.writeFileSync(path.join(screenshotDir, 'keyboard-workflows.json'), JSON.stringify(reports, null, 2));
+    console.log('Keyboard workflows: palette scrolling, IME ownership, search focus, and game-info cancel/commit passed on desktop and phone.');
+  } finally {
+    browser.close();
+  }
+}

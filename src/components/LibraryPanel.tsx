@@ -101,6 +101,7 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { normalizeSgfUtf8 } from '../utils/sgfEncoding';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile, type LegacyGameEncoding } from '../utils/gameRecordImport';
@@ -233,6 +234,7 @@ const LibraryTextDialog: React.FC<{
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
+                if (isComposingKeyEvent(e.nativeEvent)) return;
                 if (e.key === 'Enter') {
                   // Unhandled, the same Enter went on to the button focus
                   // returns to and opened the dialog again: a second Enter

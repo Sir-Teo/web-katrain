@@ -15,6 +15,8 @@ import {
   hasGameInfoMetadata,
   readRootInfoValue,
 } from '../utils/gameInfoDisplay';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
+import { parseDecimalDraft, parseIntegerDraft } from '../utils/numberDraft';
 
 type GameInfoField = {
   key: string;
@@ -90,6 +92,7 @@ const GameInfoTextField: React.FC<{
         onBlur={commit}
         onKeyDown={(e) => {
           e.stopPropagation();
+          if (isComposingKeyEvent(e.nativeEvent)) return;
           if (e.key === 'Enter') {
             e.currentTarget.blur();
           } else if (e.key === 'Escape') {
@@ -133,6 +136,7 @@ export const GameInfoPanel: React.FC = () => {
   const [isEditingKomi, setIsEditingKomi] = React.useState(false);
   const [handicapInput, setHandicapInput] = React.useState(() => String(handicap));
   const [isEditingHandicap, setIsEditingHandicap] = React.useState(false);
+  const cancelledNumberEditRef = React.useRef(false);
   const [isEditingInfo, setIsEditingInfo] = React.useState(false);
   const title = formatGameInfoTitle(rootProps);
   const blackName = readRootInfoValue(rootProps, 'PB');
@@ -158,8 +162,9 @@ export const GameInfoPanel: React.FC = () => {
   };
 
   const commitKomi = () => {
-    const parsed = Number(komiInput.trim());
-    if (Number.isFinite(parsed)) {
+    const parsed = cancelledNumberEditRef.current ? null : parseDecimalDraft(komiInput);
+    cancelledNumberEditRef.current = false;
+    if (parsed !== null) {
       setKomi(parsed);
       setKomiInput(String(Number(parsed.toFixed(2))));
     } else {
@@ -170,9 +175,12 @@ export const GameInfoPanel: React.FC = () => {
 
   const handleKomiKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleKeyDown(e);
+    if (isComposingKeyEvent(e.nativeEvent)) return;
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelledNumberEditRef.current = true;
       setKomiInput(String(komi));
       setIsEditingKomi(false);
       e.currentTarget.blur();
@@ -180,8 +188,9 @@ export const GameInfoPanel: React.FC = () => {
   };
 
   const commitHandicap = () => {
-    const parsed = Number.parseInt(handicapInput.trim(), 10);
-    if (Number.isFinite(parsed)) {
+    const parsed = cancelledNumberEditRef.current ? null : parseIntegerDraft(handicapInput);
+    cancelledNumberEditRef.current = false;
+    if (parsed !== null) {
       const next = Math.max(0, Math.min(parsed, maxHandicap));
       setHandicap(next);
       setHandicapInput(String(next));
@@ -193,9 +202,12 @@ export const GameInfoPanel: React.FC = () => {
 
   const handleHandicapKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleKeyDown(e);
+    if (isComposingKeyEvent(e.nativeEvent)) return;
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelledNumberEditRef.current = true;
       setHandicapInput(String(handicap));
       setIsEditingHandicap(false);
       e.currentTarget.blur();

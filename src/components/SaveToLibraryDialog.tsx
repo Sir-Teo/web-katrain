@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { formatLibraryFolderOptionLabel, type LibraryFolderOption } from '../utils/library';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 
 interface SaveToLibraryDialogProps {
   open: boolean;
@@ -32,15 +33,7 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmedName = name.trim();
   useEscapeToClose(onClose, open && !saving);
-  const dialogRef = useInitialDialogFocus<HTMLDivElement>(open, { focusContainer: false, returnFocus });
-
-  useEffect(() => {
-    if (!open) return;
-    window.setTimeout(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }, 0);
-  }, [open]);
+  const dialogRef = useInitialDialogFocus<HTMLDivElement>(open, { initialFocusRef: inputRef, returnFocus });
 
   if (!open) return null;
 
@@ -88,8 +81,10 @@ export const SaveToLibraryDialog: React.FC<SaveToLibraryDialogProps> = ({
               disabled={saving}
               value={name}
               onChange={(event) => setName(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
               onKeyDown={(event) => {
                 event.stopPropagation();
+                if (isComposingKeyEvent(event.nativeEvent)) return;
                 if (event.key === 'Enter') {
                   // Or the same Enter reaches the button focus returns to.
                   event.preventDefault();

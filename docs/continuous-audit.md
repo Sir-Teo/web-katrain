@@ -294,3 +294,26 @@ Detailed line-by-line review of the full neural graph/search implementation,
 all import formats and storage failure modes, every study modal, and every
 accessibility path remains incomplete. The remaining investigations above are
 follow-up work beyond this audit’s wrap-up.
+
+## 2026-10-27 continuation: keyboard and metadata editing
+
+- Reproduced a command-palette selection at y=1396–1440 while its visible list
+  ended at y=692. Arrow navigation now keeps the selection visible, skips
+  unavailable commands, and wraps at either end. Clearing the search returns
+  focus to the input.
+- Reproduced Escape saving a komi draft of 12.5 instead of retaining 6.5. Komi
+  and handicap cancellation now bypass blur commits synchronously. Empty or
+  incomplete decimal input and malformed handicap values restore the saved
+  value; negative fractional komi and valid handicap edits still commit.
+- Composition keys now stay with the IME in the palette, Settings search,
+  game-info fields, library naming, Save Copy, and the note editor. The shared
+  Escape and app-shortcut handlers also respect composition, including the
+  Safari key-code 229 confirmation case. Save Copy uses the shared initial-focus
+  hook and selects its proposed name when focused.
+- Native Chrome key/pointer checks pass at 1280×800 and 390×844, including
+  unchanged game state and edit history after cancellation, selection visibility,
+  search focus, Save Copy focus, and normal commits. Composition events are
+  synthetic; this does not establish operating-system IME compatibility.
+- `npm run verify` passed with 3,269 tests, five intentional skips, both
+  typechecks, lint, and a production build. The new keyboard workflow check is
+  included in the viewport suite.

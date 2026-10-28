@@ -8,6 +8,7 @@ import {
 } from '../utils/shortcuts';
 import {
   addRecentCommandId,
+  getCommandNavigationIndex,
   normalizeCommandQuery,
   orderCommandsByRecency,
   readRecentCommandIds,
@@ -16,6 +17,7 @@ import {
 } from '../utils/commandPalette';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 
 export type CommandPaletteCommand = {
   id: string;
@@ -38,6 +40,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const activeOptionRef = React.useRef<HTMLButtonElement>(null);
   const listboxId = React.useId();
   // The search field is the right landing spot here, so only the Tab wrap and the
   // focus restore are wanted from the dialog focus hook.
@@ -99,14 +102,12 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   );
 
   React.useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
+    setActiveIndex(getCommandNavigationIndex(filteredCommands, -1, 1));
+  }, [filteredCommands]);
 
   React.useEffect(() => {
-    if (activeIndex >= filteredCommands.length) {
-      setActiveIndex(Math.max(0, filteredCommands.length - 1));
-    }
-  }, [activeIndex, filteredCommands.length]);
+    activeOptionRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, filteredCommands]);
 
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
     if (command.disabledReason) return;
@@ -128,20 +129,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         aria-modal="true"
         aria-labelledby="command-palette-title"
         onKeyDown={(event) => {
-          if (event.key === 'ArrowDown') {
+          if (isComposingKeyEvent(event.nativeEvent)) return;
+          const fromSearch = event.target === inputRef.current || event.target === event.currentTarget;
+          if (fromSearch && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
             event.preventDefault();
-            setActiveIndex((index) => Math.min(Math.max(0, filteredCommands.length - 1), index + 1));
-            return;
-          }
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setActiveIndex((index) => Math.max(0, index - 1));
+            const direction = event.key === 'ArrowDown' ? 1 : -1;
+            setActiveIndex((index) => getCommandNavigationIndex(filteredCommands, index, direction));
             return;
           }
           // Enter runs the highlighted command only from the search field. On
           // a focused button it is that button's press: caught here, Enter on
           // Close ran Quick new game, and on Clear ran the command it filtered.
-          const fromSearch = event.target === inputRef.current || event.target === event.currentTarget;
           if (event.key === 'Enter' && activeCommand && fromSearch) {
             event.preventDefault();
             runCommand(activeCommand);
@@ -201,7 +199,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               <button
                 type="button"
                 className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  inputRef.current?.focus();
+                }}
                 aria-label="Clear command search"
               >
                 <FaTimes aria-hidden="true" size={11} />
@@ -222,6 +223,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                 return (
                   <button
                     key={command.id}
+                    ref={selected ? activeOptionRef : undefined}
                     id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"

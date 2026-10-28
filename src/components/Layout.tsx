@@ -63,6 +63,7 @@ import {
 } from '../utils/photoBoard';
 import { countRootHandicapStones } from '../utils/handicapAi';
 import { shouldIgnoreGlobalPasteTarget, shouldIgnoreShortcutForKey } from '../utils/keyboardTarget';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getMoveInsight } from '../utils/moveInsight';
 import {
   createUploadedModelUrl,
@@ -980,7 +981,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     if (!scoringMode) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
+      if (isComposingKeyEvent(event) || shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (event.key === 'Escape') setScoringMode(false);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -991,7 +992,7 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
+      if (isComposingKeyEvent(event) || shouldIgnoreShortcutForKey(event.key, event.target, document.activeElement)) return;
       if (eventMatchesShortcut(event, 'toggle-focus-mode')) {
         event.preventDefault();
         toggleFocusMode();

@@ -9,6 +9,7 @@ import { mediaQueryMatches } from '../utils/mediaQuery';
 import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewport';
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
+import { isComposingKeyEvent } from '../utils/keyboardComposition';
 import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
@@ -522,7 +523,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
       ctrlKey: event.ctrlKey,
       metaKey: event.metaKey,
       shiftKey: event.shiftKey,
-      isComposing: event.nativeEvent.isComposing,
+      isComposing: isComposingKeyEvent(event.nativeEvent),
     });
     if (action === 'cancel') {
       event.preventDefault();
