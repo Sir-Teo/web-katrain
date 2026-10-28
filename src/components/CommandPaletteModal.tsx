@@ -101,13 +101,21 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
     [query, recentIds]
   );
 
+  const firstEnabledIndex = getCommandNavigationIndex(filteredCommands, -1, 1);
+  const activeCommand = filteredCommands[activeIndex] ?? null;
+  const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
+
   React.useEffect(() => {
-    setActiveIndex(getCommandNavigationIndex(filteredCommands, -1, 1));
-  }, [filteredCommands]);
+    setActiveIndex(firstEnabledIndex);
+  }, [query, firstEnabledIndex]);
+
+  React.useEffect(() => {
+    if (!activeCommand || activeCommand.disabledReason) setActiveIndex(firstEnabledIndex);
+  }, [activeCommand, firstEnabledIndex]);
 
   React.useEffect(() => {
     activeOptionRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex, filteredCommands]);
+  }, [activeOptionId, activeCommand?.id]);
 
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
     if (command.disabledReason) return;
@@ -115,9 +123,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
     onClose();
     command.run();
   }, [onClose]);
-
-  const activeCommand = filteredCommands[activeIndex] ?? null;
-  const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-3 pt-[8dvh] sm:p-6 sm:pt-[12dvh] mobile-safe-inset mobile-safe-area-bottom">

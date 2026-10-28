@@ -317,3 +317,31 @@ follow-up work beyond this audit’s wrap-up.
 - `npm run verify` passed with 3,269 tests, five intentional skips, both
   typechecks, lint, and a production build. The new keyboard workflow check is
   included in the viewport suite.
+
+## 2026-10-27 continuation: Find notes
+
+- Added Find notes to the Comment header in both layouts and to the command
+  palette. It searches complete saved comments, SGF position names, and move
+  coordinates across the main line and every variation, including collapsed
+  branches. A result identifies its move, color, and variation and opens that
+  exact node. Long comments show the passage around the match.
+- Results render 50 positions at a time, with Show more. Keyboard wrapping stays
+  within the rendered page, so Arrow Up cannot accidentally mount an entire
+  large study. Search is capped at the same 200 characters as other filters.
+- Collection and numbering use an explicit traversal and carry depth and
+  variation membership forward; a 12,000-comment regression passes without
+  recursion or repeated ancestor walks. Search snapshots saved annotations when
+  opened, so live analysis cannot repeatedly scan the study or reset selection.
+- Corrected a related palette issue discovered during this pass: rebuilding
+  commands for background analysis must preserve a valid keyboard selection.
+  Its browser regression advances the store's tree revision and checks both the
+  selected command and the visible search workflow.
+- Native Chrome workflows pass at 1280×800 and 390×844: variation navigation,
+  matching text below the first line, paging 130 notes, search focus, and
+  returning focus to the Comment trigger. The full 11-size viewport suite,
+  including dialog contrast and existing library/scoring workflows, passes.
+- `CI=1 npm run verify` passed: 3,203 tests, 77 intentional CI skips, both
+  typechecks, lint, and production build. The earlier non-CI run exercised the
+  real engine tests; this UI change did not alter engine code. Production
+  responsiveness passed: 6.58 ms first-move synchronous work, 1.01 ms median
+  move work, 48.3 ms warm-dialog open, 40 ms input-latency p98, no long tasks.

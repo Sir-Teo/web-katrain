@@ -148,6 +148,8 @@ const gameReportModalChunk = createWarmableLazy(() => import('./GameReportModal'
 const GameReportModal = gameReportModalChunk.Component;
 const commandPaletteModalChunk = createWarmableLazy(() => import('./CommandPaletteModal'), (module) => module.CommandPaletteModal);
 const CommandPaletteModal = commandPaletteModalChunk.Component;
+const gameNotesSearchModalChunk = createWarmableLazy(() => import('./GameNotesSearchModal'), (module) => module.GameNotesSearchModal);
+const GameNotesSearchModal = gameNotesSearchModalChunk.Component;
 const keyboardHelpModalChunk = createWarmableLazy(() => import('./KeyboardHelpModal'), (module) => module.KeyboardHelpModal);
 const KeyboardHelpModal = keyboardHelpModalChunk.Component;
 const newGameModalChunk = createWarmableLazy(() => import('./NewGameModal'), (module) => module.NewGameModal);
@@ -211,6 +213,7 @@ const WARMED_DIALOG_CHUNKS: readonly ChunkWarmer[] = [
   { name: 'ProblemModal', load: problemModalChunk.warm },
   { name: 'KifuPrintModal', load: kifuPrintModalChunk.warm },
   { name: 'CommandPaletteModal', load: commandPaletteModalChunk.warm },
+  { name: 'GameNotesSearchModal', load: gameNotesSearchModalChunk.warm },
   { name: 'TournamentModal', load: tournamentModalChunk.warm },
   { name: 'ScoreQuizModal', load: scoreQuizModalChunk.warm },
   { name: 'LessonsModal', load: lessonsModalChunk.warm },
@@ -498,6 +501,7 @@ export const Layout: React.FC = () => {
   const [isTsumegoFrameOpen, setIsTsumegoFrameOpen] = useState(false);
   const [isGameReportOpen, setIsGameReportOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isGameNotesSearchOpen, setIsGameNotesSearchOpen] = useState(false);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState(false);
   const [isScoreQuizOpen, setIsScoreQuizOpen] = useState(false);
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
@@ -584,6 +588,12 @@ export const Layout: React.FC = () => {
     return isDesktopLayoutViewport();
   });
   const isMobile = !isDesktop;
+  const openGameNotesSearch = useCallback((returnFocus?: HTMLElement | null) => {
+    modalReturnFocusRef.current = returnFocus ?? (isMobile
+      ? document.getElementById(mobileTabId(mobileTab))
+      : document.querySelector<HTMLElement>('[aria-label="Command palette"]'));
+    setIsGameNotesSearchOpen(true);
+  }, [isMobile, mobileTab]);
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
     const raw = readLocalStorage('web-katrain:left_panel_width:v1');
     const parsed = raw ? Number.parseInt(raw, 10) : NaN;
@@ -2792,6 +2802,13 @@ export const Layout: React.FC = () => {
         keywords: ['url', 'link', 'share', 'sgf', 'send', 'position'],
       },
       {
+        id: 'find-notes',
+        label: 'Find notes in this game',
+        category: 'Navigation',
+        run: () => openSimpleModal(() => openGameNotesSearch()),
+        keywords: ['search', 'comments', 'annotations', 'text', 'named positions', 'variations'],
+      },
+      {
         id: 'nav-back',
         label: 'Previous move',
         category: 'Navigation',
@@ -3685,6 +3702,7 @@ export const Layout: React.FC = () => {
     isKifuPrintOpen ||
     isGameReportOpen ||
     isCommandPaletteOpen ||
+    isGameNotesSearchOpen ||
     isKeyboardHelpOpen ||
     isNewGameOpen ||
     isScoreQuizOpen ||
@@ -3851,6 +3869,20 @@ export const Layout: React.FC = () => {
             onClose={() => setIsKeyboardHelpOpen(false)}
             onOpenShortcutSettings={openShortcutSettings}
             returnFocus={modalReturnFocusRef.current}
+          />
+        )}
+        {isGameNotesSearchOpen && (
+          <GameNotesSearchModal
+            onClose={() => setIsGameNotesSearchOpen(false)}
+            returnFocus={modalReturnFocusRef.current}
+            onSelectNode={(node) => {
+              if (useGameStore.getState().isInsertMode) {
+                toast('Finish inserting before navigating.', 'error');
+                return;
+              }
+              useGameStore.getState().jumpToNode(node);
+              setIsGameNotesSearchOpen(false);
+            }}
           />
         )}
         {isScoreQuizOpen && (
@@ -4344,6 +4376,7 @@ export const Layout: React.FC = () => {
             onSettings={() => setIsSettingsOpen(true)}
             onCommandPalette={() => setIsCommandPaletteOpen(true)}
             onKeyboardHelp={openKeyboardHelp}
+            onFindNotes={openGameNotesSearch}
             onAbout={openAbout}
             toast={toast}
             headerNotification={
@@ -4694,6 +4727,7 @@ export const Layout: React.FC = () => {
           shapeCoachEnabled={shapeCoachEnabled}
           onToggleShapeCoach={toggleShapeCoach}
           noteFocusRequest={noteFocusRequest}
+          onFindNotes={openGameNotesSearch}
           isMobile={isMobile}
           activeMobileTab={mobileTab}
           showAnalysisSection={!isDesktop}

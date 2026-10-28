@@ -15,6 +15,7 @@ import {
   FaAlignLeft,
   FaStickyNote,
   FaChevronLeft,
+  FaSearch,
 } from 'react-icons/fa';
 import type { Player, GameNode, CandidateMove } from '../../types';
 import { useGameStore } from '../../store/gameStore';
@@ -141,6 +142,7 @@ interface RightPanelProps {
   shapeCoachEnabled?: boolean;
   onToggleShapeCoach?: () => void;
   noteFocusRequest?: number;
+  onFindNotes?: (returnFocus?: HTMLElement | null) => void;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -202,6 +204,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   shapeCoachEnabled = true,
   onToggleShapeCoach,
   noteFocusRequest = 0,
+  onFindNotes,
 }) => {
   const showTree = !isMobile || activeMobileTab === 'tree';
   const showAnalysis = !isMobile || activeMobileTab === 'info';
@@ -857,6 +860,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {renderSection({
               show: showNotes,
               title: 'Comment',
+              actions: onFindNotes && (
+                <button type="button" className="panel-icon-button" aria-label="Find notes" title="Find notes in this game" onClick={(event) => onFindNotes(event.currentTarget)}>
+                  <FaSearch size={12} aria-hidden="true" />
+                </button>
+              ),
               icon: <FaCommentDots size={12} />,
               open: modePanels.notesOpen,
               onToggle: () => updatePanels((current) => ({ notesOpen: !current.notesOpen })),

@@ -3505,6 +3505,12 @@ async function main() {
           document.querySelector('[data-command-palette-item="' + commandId + '"]')?.click();
           await waitForFrames(2);
         };
+        await smokeModal({
+          name: 'find notes',
+          selector: '[aria-labelledby="game-notes-search-title"]',
+          closeLabel: 'Close find notes',
+          open: openViaPalette('find-notes'),
+        });
         // Three read-only dialogs: they render, they do not touch the game, and
         // a smoke pass leaves the board exactly as it found it.
         await smokeModal({

@@ -61,6 +61,9 @@ PWA. There is no analysis server to run.
   number and score, so study starts from a real middlegame.
 - Branching move trees with collapsible variations, notes, setup stones,
   markup, and SGF-compatible export.
+- Find notes across every variation by comment text, position name, or move
+  coordinate, then jump straight to the matching position. Open it from the
+  Comment panel's search button or the command palette.
 - Frame a life-and-death problem as a tsumego (F10): walls the problem off and
   settles the rest of the board so the engine actually reads it.
 - Study tools: interactive fundamentals lessons, a score-estimation quiz, a

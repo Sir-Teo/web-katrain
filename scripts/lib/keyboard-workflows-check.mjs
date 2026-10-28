@@ -68,6 +68,8 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
           return list.scrollTop>0&&r.top>=v.top-1&&r.bottom<=v.bottom+1&&!selected.disabled
             ?{scrollTop:list.scrollTop,command:selected.dataset.commandPaletteItem}:false;
         })()`);
+        await evaluate(cdp, '(async()=>{keyboardAuditStore.setState(state=>({treeVersion:state.treeVersion+1}));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()');
+        assert.equal(await evaluate(cdp, `document.querySelector('[data-command-palette-item][aria-selected=true]')?.dataset.commandPaletteItem`), navigation.command, 'Background analysis reset the palette selection');
         // Selecting candidates in an IME must not move the palette selection,
         // execute it, or dismiss the surrounding dialog.
         for (const composition of [{ isComposing: true }, { keyCode: 229 }]) {
@@ -119,7 +121,60 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         await key('Enter', 13);
         assert.equal((await state()).handicap, '2');
         const committed = await state();
-        reports.push({ width, height, navigation, original, committed });
+        const fixture = '(;GM[1]SZ[9]C[Study overview];B[dd]C[Keep the corner];W[ff]C[First line\\n' + 'An opening thought. '.repeat(20) + 'Hidden tesuji wins here.]' + '(;B[ab]C[Main continuation])(;B[aa]N[Alternative ladder]C[Branch ladder]))';
+        await evaluate(cdp, `(async()=>{
+          const url=${loadedModuleUrl.toString()};const {parseSgf}=await import(url('/src/utils/sgf.ts'));
+          keyboardAuditStore.getState().loadGame(parseSgf(${JSON.stringify(fixture)}));
+          keyboardAuditStore.getState().navigateStart();return true;
+        })()`);
+        const noteSearch = `document.querySelector('[aria-label="Search game notes"]')`;
+        const openFindNotes = async () => {
+          await key('k', 75, 2);
+          await wait('!!document.querySelector("[data-command-palette-search]")');
+          await click(`document.querySelector('[data-command-palette-item="find-notes"]')`);
+          await wait(`${noteSearch}===document.activeElement`);
+        };
+        await openFindNotes();
+        await cdp.send('Input.insertText', { text: 'alternative ladder' });
+        await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        assert.equal(await evaluate(cdp, 'document.querySelector("[data-game-note-result]").textContent.includes("Variation")'), true);
+        await key('Enter', 13);
+        await wait('!document.querySelector("#game-notes-search-title")');
+        assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.note'), 'Branch ladder');
+        assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().board[0][0]'), 'black');
+        await openFindNotes();
+        await cdp.send('Input.insertText', { text: 'hidden tesuji' });
+        await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        assert.equal(await evaluate(cdp, 'document.querySelector("[data-game-note-result]").textContent.includes("Hidden tesuji")'), true, 'A match deep inside the note had no visible excerpt');
+        const searchScreenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-find-notes.png`), Buffer.from(searchScreenshot.result.data, 'base64'));
+        await click(`document.querySelector('[aria-label="Clear note search"]')`);
+        await wait(`${noteSearch}===document.activeElement&&${noteSearch}.value===''`);
+        await key('Escape', 27);
+        await wait('!document.querySelector("#game-notes-search-title")');
+        if (mobile) await click('document.querySelector("#mobile-tab-info")');
+        await click(`document.querySelector('[aria-label="Find notes"]')`);
+        await wait(`${noteSearch}===document.activeElement`);
+        await key('Escape', 27);
+        await wait(`document.querySelector('[aria-label="Find notes"]')===document.activeElement`);
+        const longStudy = '(;GM[1]SZ[9]' + Array.from({ length: 130 }, (_, index) => `;C[Study note ${index}]`).join('') + ')';
+        await evaluate(cdp, `(async()=>{
+          const url=${loadedModuleUrl.toString()};const {parseSgf}=await import(url('/src/utils/sgf.ts'));
+          keyboardAuditStore.getState().loadGame(parseSgf(${JSON.stringify(longStudy)}));return true;
+        })()`);
+        await openFindNotes();
+        await wait('document.querySelectorAll("[data-game-note-result]").length===50');
+        await key('ArrowUp', 38);
+        await wait('document.querySelectorAll("[data-game-note-result]")[49].getAttribute("aria-selected")==="true"');
+        assert.equal(await evaluate(cdp, 'document.querySelectorAll("[data-game-note-result]").length'), 50, 'Wrapping navigation rendered the whole study');
+        await click(`[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Show more positions')`);
+        await wait(`document.querySelectorAll('[data-game-note-result]').length===100&&${noteSearch}===document.activeElement`);
+        await cdp.send('Input.insertText', { text: 'note 129' });
+        await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        await key('Enter', 13);
+        await wait('!document.querySelector("#game-notes-search-title")');
+        assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.note'), 'Study note 129');
+        reports.push({ width, height, navigation, original, committed, noteSearch: 'Variation navigation, full-text excerpts, search focus and Comment trigger passed' });
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-keyboard-workflows.png`), Buffer.from(screenshot.result.data, 'base64'));
       } catch (error) {
@@ -132,7 +187,7 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
       }
     }
     fs.writeFileSync(path.join(screenshotDir, 'keyboard-workflows.json'), JSON.stringify(reports, null, 2));
-    console.log('Keyboard workflows: palette scrolling, IME ownership, search focus, and game-info cancel/commit passed on desktop and phone.');
+    console.log('Keyboard workflows: palette scrolling, IME ownership, search focus, game-info cancel/commit, and Find notes passed on desktop and phone.');
   } finally {
     browser.close();
   }
