@@ -105,6 +105,28 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
 
         await key('?', 191);
         const helpSearch = `document.querySelector('[aria-label="Search shortcuts"]')`;
+        await wait(`!!${helpSearch}`);
+        const beforeHelp = await state();
+        for (const fontSize of ['100%', '200%']) {
+          await evaluate(cdp, `document.documentElement.style.fontSize=${JSON.stringify(fontSize)};new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
+          const layout = await evaluate(cdp, `(()=>{
+            const d=document.querySelector('#keyboard-help-title').closest('[role=dialog]'),body=d.children[1];
+            const rows=[...d.querySelectorAll('[data-keyboard-help-row]')];
+            return {width:body.clientWidth,scroll:body.scrollWidth,count:rows.length,
+              broken:rows.filter(e=>{
+                const k=e.querySelector('kbd'),label=e.querySelector('span'),a=k.getBoundingClientRect(),b=label.getBoundingClientRect();
+                const overlap=a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1;
+                return e.scrollWidth>e.clientWidth+1||k.scrollWidth>k.clientWidth+1||overlap;
+              }).map(e=>e.textContent)};
+          })()`);
+          assert.ok(layout.count > 0, 'The shortcut reference has no rows');
+          assert.ok(layout.scroll <= layout.width + 1, `Shortcut reference scrolls horizontally at ${fontSize}`);
+          assert.deepEqual(layout.broken, [], `Shortcut labels overlap or escape their rows at ${fontSize}`);
+          const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+          fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-keyboard-help-${fontSize.replace('%', '')}.png`), Buffer.from(screenshot.result.data, 'base64'));
+        }
+        await evaluate(cdp, 'document.documentElement.style.fontSize=""');
+        assert.deepEqual(await state(), beforeHelp, 'Reading shortcuts changed the game');
         await click(helpSearch);
         await cdp.send('Input.insertText', { text: 'undo' });
         await click(`document.querySelector('[aria-label="Clear shortcut search"]')`);
@@ -245,7 +267,7 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
       }
     }
     fs.writeFileSync(path.join(screenshotDir, 'keyboard-workflows.json'), JSON.stringify(reports, null, 2));
-    console.log('Keyboard workflows: palette, IME ownership, game-info edits and Find notes pass on desktop and both phones, including main-line filtering, pagination and 200% text.');
+    console.log('Keyboard workflows: palette, IME ownership, game-info edits and Find notes pass on desktop and both phones, including main-line filtering, pagination and all shortcut-reference rows at 100% and 200% text.');
   } finally {
     browser.close();
   }

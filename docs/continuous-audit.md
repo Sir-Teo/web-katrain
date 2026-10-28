@@ -845,3 +845,19 @@ follow-up work beyond this audit’s wrap-up.
   resource requests.
 - Full verification passes with 3,247 tests, 77 intentional CI skips,
   typechecks, lint and build; the default local build is restored.
+
+## 2026-10-28 continuation: Shortcut reference with enlarged text
+
+- Native checks reproduced a default-size shortcut row painting into the next
+  column. At 200% text, the reference gained a horizontal scrollbar on desktop;
+  a 320 px phone had roughly 531 px of content inside its 270 px dialog body.
+- Reference grids now choose columns using the available space and text size.
+  Labels and binding chips wrap within their rows, including long pointer and
+  gamepad labels on the narrowest phone.
+- The existing native keyboard workflow now checks every reference row for
+  overlap and horizontal overflow at 100% and 200% text. All six layout cases
+  pass at 1280×800, 390×844 and 320×568, alongside search, focus, IME ownership,
+  game-info edits, note filtering and pagination. Reading help leaves the game
+  unchanged.
+- Typechecks, lint, production build and all 3,247 tests pass, with 77
+  intentional CI skips.
