@@ -133,6 +133,7 @@ the small KataGo test model exists at `public/models/katago-small.bin.gz`.
 | `npm run test:viewport` | Chrome interaction and layout checks at 11 desktop/mobile sizes. Uses a fresh Vite cache and Chrome profile; runs in CI and separately from `verify`. About 8 minutes locally. |
 | `npm run test:responsiveness` | Click-to-response budgets — first board move, dialog open, INP p98, long tasks. ~15s against `dist/`, so run `npm run build` first; not in `verify` or CI. |
 | `npm run test:study` | Chrome benchmarks for marker edits and 12,000-node export, nested import, solution lookup, copy/paste, and setup replay. Measures dev-store operations separately from production INP; not in `verify` or CI. |
+| `npm run test:offline` | Production cache, recovery and fresh WASM analysis with the network blocked. Run `build` first; not in `verify` or CI. |
 | `npm run bench` | Time the MCTS search. `BENCH_OUT=f.json` records a run, `BENCH_BASELINE=f.json` prints the delta against it. Needs a model. |
 | `npm run lint` | Run ESLint. |
 | `npm run build` | Type-check and build the production app. |

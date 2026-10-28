@@ -787,3 +787,39 @@ follow-up work beyond this audit’s wrap-up.
   These cases are included in the viewport suite.
 - Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.
+- The complete 11-size browser suite passes at `5e8e9d0`, including main-line
+  search, enlarged-text results and all fifteen search-paste cases.
+
+## 2026-10-28 continuation: Theme report verification
+
+- The reported theme-selection issue does not reproduce at 1365×633 in the
+  current app. Native Settings selection gives Dark, Kaya, Studio and Light
+  distinct shell and panel colors. System follows dark/light media changes,
+  and Dark survives a reload. No theme implementation change was needed.
+
+## 2026-10-28 continuation: First-visit offline board and analysis
+
+- The production offline check reproduced three failed requests for the
+  default Hikaru board and stone SVGs after a first visit. They were absent
+  from the precache. The existing asset guard matched only `katrain/` paths,
+  silently skipping every SVG in the default theme.
+- The default SVGs now join the precache. The guard derives all resolved board,
+  stone and variation assets, so another default theme cannot evade it. Its
+  revised assertion failed before the fix; all 35 focused asset/worker tests
+  pass afterward.
+- Speculative dialog downloads now pause while offline and restart on a
+  reconnect, retaining Data Saver and slow-connection checks. The stricter
+  production probe had caught unused dialog chunks being fetched while offline.
+- `test:offline` now uses a private profile, disables HTTP caches, restores its
+  owned recovery and plays a new position. A real worker response must report
+  at least 16 WASM visits for that one-stone position with White to play. An
+  uncached CORS endpoint succeeds in the online worker and fails in the new
+  offline worker, proving the boundary independently of `navigator.onLine`.
+- The former offline-analysis timeout was blocked by the recovery modal; its
+  repeated synthetic shortcuts never reached the engine. The new check uses
+  native controls and cannot pass with the restored position's cached result.
+- All 44 focused cache/warming tests, the production build and the strengthened
+  production offline check pass, including no failed page resource requests.
+- Full verification passes with 3,245 tests, 77 intentional CI skips,
+  typechecks, lint and build. The production offline check also passes with
+  `/web-katrain/` as the deployment base; the normal local build is restored.

@@ -583,8 +583,22 @@ export const Layout: React.FC = () => {
   // so the first click on one is not the click that pays for the chunk.
   useEffect(() => {
     if (typeof navigator === 'undefined' || typeof window === 'undefined') return;
-    if (!shouldWarmChunks(navigator as unknown as Parameters<typeof shouldWarmChunks>[0])) return;
-    return warmChunksWhenIdle(WARMED_DIALOG_CHUNKS, createIdleScheduler(window));
+    let cancelWarming: (() => void) | undefined;
+    const refreshWarming = () => {
+      cancelWarming?.();
+      cancelWarming = undefined;
+      if (shouldWarmChunks(navigator as unknown as Parameters<typeof shouldWarmChunks>[0])) {
+        cancelWarming = warmChunksWhenIdle(WARMED_DIALOG_CHUNKS, createIdleScheduler(window));
+      }
+    };
+    refreshWarming();
+    window.addEventListener('online', refreshWarming);
+    window.addEventListener('offline', refreshWarming);
+    return () => {
+      cancelWarming?.();
+      window.removeEventListener('online', refreshWarming);
+      window.removeEventListener('offline', refreshWarming);
+    };
   }, []);
 
   useEffect(() => {

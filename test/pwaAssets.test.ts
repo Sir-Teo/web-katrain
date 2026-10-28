@@ -255,20 +255,23 @@ describe('PWA assets', () => {
     const defaultTheme = useGameStore.getState().settings.boardTheme;
     // `getBoardTheme` hands back resolved URLs, so match the tail rather than
     // the raw `katrain/...` the theme table is written with.
-    const katrainAssets = (id: BoardThemeId) => {
+    const boardAssets = (id: BoardThemeId) => {
       const theme = getBoardTheme(id);
-      return [theme.board.texture, theme.stones.black.image, theme.stones.white.image]
-        .map((asset) => /(katrain\/[\w.-]+)$/.exec(asset ?? '')?.[1])
+      return [theme.board.texture, theme.stones.black.image, theme.stones.white.image,
+        ...(theme.stones.black.imageVariations ?? []), ...(theme.stones.white.imageVariations ?? [])]
+        .map((asset) => /((?:katrain\/|themes\/[^/]+\/)[\w.-]+)$/.exec(asset ?? '')?.[1])
         .filter((asset): asset is string => asset !== undefined);
     };
 
-    const usedByDefault = new Set(katrainAssets(defaultTheme));
+    const usedByDefault = new Set(boardAssets(defaultTheme));
     const onlyOtherThemes = [
-      ...new Set(BOARD_THEME_OPTIONS.flatMap((option) => katrainAssets(option.value))),
+      ...new Set(BOARD_THEME_OPTIONS.flatMap((option) => boardAssets(option.value))),
     ].filter((asset) => !usedByDefault.has(asset));
 
-    // The premise: the default board reaches for none of them.
-    expect(usedByDefault.size).toBe(0);
+    // Include SVG themes too: the old katrain-only pattern silently omitted
+    // all three of Hikaru's default assets from this guard and the precache.
+    expect(usedByDefault.size).toBeGreaterThan(0);
+    for (const asset of usedByDefault) expect(precache).toContain(asset);
     expect(onlyOtherThemes.length).toBeGreaterThanOrEqual(3);
     for (const asset of onlyOtherThemes) expect(precache).not.toContain(asset);
 

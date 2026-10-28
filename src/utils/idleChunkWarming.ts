@@ -18,6 +18,7 @@ type NetworkInformation = {
 };
 
 type WarmingNavigator = {
+  onLine?: boolean;
   connection?: NetworkInformation;
 };
 
@@ -28,6 +29,7 @@ type WarmingNavigator = {
  * speculative 33KB competes with something the reader actually asked for.
  */
 export function shouldWarmChunks(target?: WarmingNavigator | null): boolean {
+  if (target?.onLine === false) return false;
   const connection = target?.connection;
   if (!connection) return true;
   if (connection.saveData === true) return false;

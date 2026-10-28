@@ -43,19 +43,14 @@ const PRECACHE_URLS = [
   // the others stay cache-first at runtime, so a self-hosted deployment that
   // does send the headers still keeps its threaded build after using it once.
   './tfjs/tfjs-backend-wasm-simd.wasm',
-  // Only the images the *default* board draws are here. `dot`, `inner` and
-  // `topmove` are drawn by GoBoard under every theme, and `graph_bg` is 694
-  // bytes.
-  //
-  // The other three are 484KB -- 73% of this list -- for surfaces the default
-  // experience never renders: `board.png` is the bamboo texture alone, and the
-  // two stones belong to bamboo, flat and dark. Anyone who picks one of those
-  // themes fetches them once and cache-first keeps them, so a theme that has
-  // ever been used still works offline. What this trades away is narrow and
-  // cosmetic: choosing one of those three themes for the first time while
-  // offline falls back to the flat board colour, and the pass-preview chip
-  // (which borrows a stone image under every theme) loses its stone until the
-  // first time online.
+  // The default Hikaru board loads before this worker controls a first visit.
+  // Runtime caching cannot recover those requests after the network goes away.
+  './themes/hikaru/board.svg',
+  './themes/hikaru/stone-black.svg',
+  './themes/hikaru/stone-white.svg',
+  // Shared markers and graph paper are used under every theme. Other board
+  // textures and stones stay cache-first on use, including the 484KB of images
+  // belonging only to bamboo, flat and dark.
   './katrain/dot.png',
   './katrain/graph_bg.png',
   './katrain/inner.png',
