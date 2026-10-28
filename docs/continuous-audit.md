@@ -711,3 +711,20 @@ follow-up work beyond this audit’s wrap-up.
 - The existing nine note-exit and eighteen metadata-exit cases also pass.
   Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.
+
+## 2026-10-28 continuation: Protect drafts before game replacement
+
+- Reproduced native SGF import replacing a clean game with an unfinished note
+  without offering Save, Discard or Cancel. The visible note disappeared and
+  no recovery copy remained because the guard only compared the stored tree.
+- The replacement guard now finishes owned editor drafts before checking for
+  unsaved changes. Existing choices then apply to the latest text: Save retains
+  the original game, Discard replaces it, and Cancel keeps its edited contents
+  and recovery copy. Untouched editors and invalid numbers do not make it dirty.
+- Twenty-seven native cases pass across 1280×800, 390×844 and 320×568: all three
+  choices for note and player-name drafts, actual outgoing SGF downloads, and
+  clean imports with untouched notes or invalid komi/handicap. Nine metadata
+  replacement flows also pass with explicit Discard and direct store replacement
+  coverage, retaining the root ownership guard during editor cleanup.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.

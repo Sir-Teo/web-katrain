@@ -1445,6 +1445,7 @@ export const Layout: React.FC = () => {
   }, [generateCurrentSgf, markCurrentGameCleanAndClearAutoSave, saveToLibraryDialog?.sgf, setLoadedLibraryFile, toast]);
 
   const confirmReplaceCurrentGame = useCallback(async (): Promise<UnsavedChangesChoice> => {
+    commitPendingGameDrafts();
     if (!hasUnsavedChanges()) return 'discard';
     setIsUnsavedChangesOpen(true);
     return new Promise((resolve) => {

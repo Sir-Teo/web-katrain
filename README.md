@@ -95,6 +95,7 @@ PWA. There is no analysis server to run.
 - Store games in an IndexedDB library with folders, bundled famous games, and
   zip backup/restore.
 - Auto-save the current session and recover after a crash or reload.
+- Replacing a game offers Save, Discard and Cancel for open editor drafts too.
 
 **Use it anywhere**
 

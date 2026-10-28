@@ -63,6 +63,8 @@ export async function assertGameInfoReplacement(devtoolsPort, appUrl, runDir, sc
           const nodeId = (await cdp.send('DOM.querySelector', { nodeId: doc.nodeId, selector: 'input[type=file][accept^=".sgf"]:not([multiple])' })).result.nodeId;
           const imported = await cdp.send('DOM.setFileInputFiles', { nodeId, files: [filename] });
           assert.ok(!imported.error, JSON.stringify(imported.error));
+          await wait('!!document.querySelector("#unsaved-changes-title")');
+          await click(`[...document.querySelectorAll('[aria-labelledby="unsaved-changes-title"] button')].find(e=>e.textContent.trim()==='Discard')`);
           await wait(`metadataStore.getState().rootNode.id!==${JSON.stringify(previous)}`);
           await key('Tab', 9);
           await evaluate(cdp, 'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
@@ -83,7 +85,14 @@ export async function assertGameInfoReplacement(devtoolsPort, appUrl, runDir, sc
             await click('document.querySelector("[data-game-info-edit-toggle]")');
             await wait('metadataStore.getState().rootNode.properties.PB?.[0]==="Saved on Done"');
           }
-          reports.push({ width, height, field: label, nativeFileImport: true, importedMetadataRetained: true });
+          // Also exercise replacement below the UI guard: an outgoing editor
+          // must never commit into a different root during unmount cleanup.
+          await openEditor();
+          await replace(draft);
+          await evaluate(cdp, `(async()=>{const url=${loadedModuleUrl.toString()};const {parseSgf}=await import(url('/src/utils/sgf.ts'));metadataStore.getState().loadGame(parseSgf(${JSON.stringify(fs.readFileSync(filename, 'utf8'))}));return true})()`);
+          await evaluate(cdp, 'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+          assert.deepEqual(await evaluate(cdp, `(()=>{const s=metadataStore.getState(),r=s.rootNode;return {black:r.properties.PB?.[0],white:r.properties.PW?.[0],komi:s.komi,handicap:r.properties.HA?.[0]??'0',size:r.gameState.board.length,setupStones:r.gameState.board.flat().filter(Boolean).length,undo:s.editUndoCount,moves:[r.children[0]?.move,r.children[0]?.children[0]?.move]}})()`), actual, `${label} cleanup changed a directly replaced game at ${width}px`);
+          reports.push({ width, height, field: label, nativeFileImport: true, explicitDiscard: true, directReplacementProtected: true, importedMetadataRetained: true });
           const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
           fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-metadata-${label.toLowerCase()}.png`), Buffer.from(screenshot.result.data, 'base64'));
         } catch (error) {
