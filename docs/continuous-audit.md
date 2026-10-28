@@ -254,7 +254,7 @@ file selection through the success toast and checks persisted content afterward.
 | High | Analysis provenance is not carried comprehensively through imported records and reports. | `AnalysisResult` exposes evaluation data without model/search identity. The undo revision fix prevents one stale-data path, but imported external analysis can still have unknown provenance. Design explicit origin, model, and settings metadata before presenting mixed-source comparisons as equivalent. |
 | Medium | Continue profiling large-library operations. | ZIP export preparation, batch import naming, single-folder duplication, and selection/deletion now use indexes, with measured gains on large fixtures. OGS sync now merges against current state; dropped-text imports and naming dialogs still use separate paths. Compression still takes most of total export time. The 12,000-folder picker crash and duplication metadata loss are fixed. Bulk duplication across multiple roots still repeats naming, indexing, and array copies. Fully expanded deep folder rendering and breadcrumb traversal remain separate checks. Native folder-copy timing varied: the first post-fix sample took 233–252 ms through its DOM update with 255–261 ms long tasks; the post-commit repeat took 45–72 ms with 68–70 ms long tasks. Profile repeated normalization, whole-store persistence, and rendering under controlled conditions before choosing the next optimization. Intentionally empty library reload now passes in both storage modes. Its empty state now offers a visible Import files button rather than pointing at the overflow menu. |
 | Medium | Initial bundle size and slower-device behavior need targeted profiling. | The current production entry is about 724 kB uncompressed / 213 kB gzip. Idle dialog warming and worker inference already help. Measure cold network loading and CPU-throttled interaction before choosing further split points; do not infer gains from line counts alone. |
-| Medium | Browser coverage is Chrome-only in this audit. | Touch capability and viewport sizes were emulated, but WebKit/Firefox, physical phone behavior, and browser-specific WebGPU/WASM fallbacks were not validated. Prioritize load/import/review/scoring and dialog keyboard behavior across engines. |
+| Medium | Broaden browser and device coverage. | Chromium has the full viewport suite. Selected editing, export, theme and keyboard flows now also pass in Firefox 153 and WebKit 26.5 at three viewport sizes, with real WASM analysis on desktop. Physical phones and broader browser-specific engine fallbacks remain unvalidated. |
 
 ## Feature order for beginners and experienced players
 
@@ -932,3 +932,34 @@ follow-up work beyond this audit’s wrap-up.
   checks are included in the viewport suite.
 - Full verification passes with 3,253 tests, 77 intentional CI skips,
   both typechecks, lint and production build.
+- The full 11-size viewport suite passes at `15a26db`, including all twelve
+  OGS cancellation cases and fifteen native quiz-answer check groups.
+
+## 2026-10-28 continuation: Firefox and WebKit core-flow checks
+
+- Firefox 153 and WebKit 26.5 pass selected core flows at 1280×800, 390×844 and
+  320×568: note search with main-line filtering and Enter navigation; note
+  editing, Save and Cancel; a real downloaded SGF containing the edit; four UI
+  themes and System color changes; the shortcut reference at 200% text.
+- Both engines also produce a real 16-visit WASM analysis on desktop. These
+  passes report no uncaught page errors. No browser-specific product repair
+  was needed for the tested flows.
+- Test browsers and supporting runtime libraries live in temporary directories;
+  the app and its package dependencies are unchanged by that setup. This tests
+  the Linux browser engines, not physical phones or macOS/iOS Safari.
+
+## 2026-10-28 continuation: Quiz practice feedback and landscape results
+
+- Quiz statistics now explain that each position counts once and subsequent
+  guesses are practice. The three statistics wrap instead of colliding in a
+  narrow column.
+- The short-landscape grid allowed the feedback row to be smaller than its
+  contents. At 568×320, the result started 22 px above the scrollable body even
+  at scrollTop 0, making its title unreachable. The row now keeps its content
+  height; a cancellable reveal-frame scroll brings the complete feedback into
+  view.
+- All 25 native answer check groups pass across desktop, both portrait phones
+  and 844×390/568×320 landscape layouts. The reveal card must fit inside the
+  visible scroll region. Prior stale-result, retry and close/reopen checks also
+  pass, along with all ten focused quiz/numeric tests and lint.
+- The production build also passes.

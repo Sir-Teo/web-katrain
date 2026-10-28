@@ -11,7 +11,7 @@ export async function assertScoreQuizGuesses(devtoolsPort, appUrl, screenshotDir
   await browser.ready;
   const reports = [];
   try {
-    for (const [width, height] of [[1280, 800], [390, 844], [320, 568]]) {
+    for (const [width, height] of [[1280, 800], [390, 844], [320, 568], [844, 390], [568, 320]]) {
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
@@ -84,12 +84,21 @@ export async function assertScoreQuizGuesses(devtoolsPort, appUrl, screenshotDir
         await click(`[...document.querySelectorAll('[aria-label="Predicted leader"] button')].find(e=>e.textContent.trim()==='white')`);
         await click(reveal);
         await wait(`scoreGuessRequests===2&&!${input}&&!!document.querySelector('.score-quiz-stats')`);
+        await wait(`(()=>{const r=document.querySelector('.score-quiz-response').getBoundingClientRect(),b=document.querySelector('.score-quiz-body').getBoundingClientRect();return r.top>=b.top-1&&r.bottom<=b.bottom+1})()`);
         assert.equal(await evaluate(cdp, `[...document.querySelectorAll('.score-quiz-response span')].find(e=>e.textContent==='Your guess').nextElementSibling.textContent`), 'White +4.5');
         assert.ok(await evaluate(cdp, 'document.querySelector(".score-quiz-stats").textContent.includes("Rounds: 1")'), 'Practice guesses inflated round statistics');
         assert.deepEqual(await snapshot(), before, 'The score quiz edited or navigated the game');
         reports.push({ width, height, margin: '0 and White +4.5', evaluations: 2, rounds: 1, currentGamePreserved: true });
         const screenshot = await command('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-score-quiz-guesses.png`), Buffer.from(screenshot.data, 'base64'));
+      } catch (error) {
+        console.error('Score quiz guess state:', { width, height, layout: await evaluate(cdp, `(()=>{
+          const r=document.querySelector('.score-quiz-response'),b=document.querySelector('.score-quiz-body');
+          return {response:r?.getBoundingClientRect().toJSON(),body:b?.getBoundingClientRect().toJSON(),scrollTop:b?.scrollTop,scrollHeight:b?.scrollHeight,text:r?.textContent};
+        })()`).catch(String) });
+        const screenshot = await command('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-score-quiz-guesses-failed.png`), Buffer.from(screenshot.data, 'base64'));
+        throw error;
       } finally {
         cdp.close();
         await browser.send('Target.disposeBrowserContext', { browserContextId: context });

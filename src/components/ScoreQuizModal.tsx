@@ -44,6 +44,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const parsedMargin = parseDecimalDraft(margin);
   const guessMargin = parsedMargin !== null && parsedMargin >= 0 && Number.isInteger(parsedMargin * 2) ? parsedMargin : null;
   const marginInputRef = useRef<HTMLInputElement>(null);
+  const responseRef = useRef<HTMLDivElement>(null);
   const marginHintId = React.useId();
   const [actual, setActual] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,6 +59,12 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
   const lastMove = currentNode.move && currentNode.move.x >= 0
     ? { x: currentNode.move.x, y: currentNode.move.y }
     : null;
+
+  useEffect(() => {
+    if (phase !== 'reveal') return;
+    const frame = window.requestAnimationFrame(() => responseRef.current?.scrollIntoView({ block: 'nearest' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [phase, nodeId]);
 
   // Reset the round whenever the quizzed position changes (adjust state during
   // render, the React-recommended alternative to a reset effect).
@@ -235,7 +242,7 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
               )}
             </div>
           ) : (
-            <div className="score-quiz-response space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
+            <div ref={responseRef} className="score-quiz-response space-y-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3 text-sm">
               <div className="text-base font-semibold" style={{ color: rating.tone }}>{rating.label}</div>
               <div className="flex justify-between text-[var(--ui-text)]">
                 <span>Actual</span>
@@ -257,10 +264,13 @@ export const ScoreQuizModal: React.FC<ScoreQuizModalProps> = ({ onClose }) => {
           )}
 
           {stats.rounds > 0 && (
-            <div className="score-quiz-stats flex justify-between text-xs text-[var(--ui-text-muted)]">
-              <span>Rounds: {stats.rounds}</span>
-              <span>Leader correct: {stats.leaderHits}/{stats.rounds}</span>
-              <span>Avg error: {avgError.toFixed(1)} pts</span>
+            <div className="score-quiz-stats space-y-1 text-xs text-[var(--ui-text-muted)]">
+              <div className="flex flex-wrap justify-between gap-x-2 gap-y-1">
+                <span>Rounds: {stats.rounds}</span>
+                <span>Leader correct: {stats.leaderHits}/{stats.rounds}</span>
+                <span>Avg error: {avgError.toFixed(1)} pts</span>
+              </div>
+              <p>Each position counts once. Repeat guesses are practice.</p>
             </div>
           )}
         </div>
