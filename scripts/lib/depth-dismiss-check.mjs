@@ -19,7 +19,9 @@ export async function assertDepthDismissal(devtoolsPort, appUrl, screenshotDir) 
         for (const type of ['keyDown', 'keyUp']) await cdp.send('Input.dispatchKeyEvent', { type, key, windowsVirtualKeyCode: code, modifiers, ...(type === 'keyDown' && key === 'Enter' ? { text: '\r' } : {}) });
       };
       const click = async expression => {
-        const point = await wait(`(async()=>{const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(!e.isConnected)return false;const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return !e.disabled&&r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
+        // Keep the full control inside the scrollport while the enlarged dock
+        // settles. A nearest-edge position can be clipped before the tap lands.
+        const point = await wait(`(async()=>{const e=${expression};if(!e)return false;e.scrollIntoView({block:'center',inline:'nearest'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(!e.isConnected)return false;const r=e.getBoundingClientRect(),p=e.closest('[data-analysis-live-depth-popover]')?.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;if(p&&(r.top<p.top+1||r.bottom>p.bottom-1))return false;return !e.disabled&&r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false})()`);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       };
@@ -125,7 +127,7 @@ export async function assertDepthDismissal(devtoolsPort, appUrl, screenshotDir) 
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-depth-dismiss.png`), Buffer.from(screenshot.result.data, 'base64'));
       } catch (error) {
-        const state = await evaluate(cdp, `({width:innerWidth,height:innerHeight,active:document.activeElement?.outerHTML,inputValue:${input}?.value,popoverOpen:!!document.querySelector('[data-analysis-live-depth-popover]'),visits:window.depthDismissStore?.getState().settings.katagoVisits})`);
+        const state = await evaluate(cdp, `({width:innerWidth,height:innerHeight,active:document.activeElement?.getAttribute('aria-label')||document.activeElement?.tagName,inputValue:${input}?.value,popoverOpen:!!document.querySelector('[data-analysis-live-depth-popover]'),visits:window.depthDismissStore?.getState().settings.katagoVisits})`);
         console.error('Depth dismissal failure state:', JSON.stringify(state));
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-depth-dismiss-failed.png`), Buffer.from(screenshot.result.data, 'base64'));

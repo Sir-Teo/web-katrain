@@ -994,3 +994,11 @@ follow-up work beyond this audit’s wrap-up.
   Failures also report input, focus and store state for diagnosis.
 - The focused native check passes on both phone widths and tablet at normal
   speed and with sixfold CPU slowdown. Script lint and syntax checks pass.
+- The next CI run localized the failure to native focus. Chrome 156 reproduced
+  it locally: nearest-edge scrolling put the input at the popover's clipping
+  edge while the enlarged dock was still changing its height. The touch could
+  miss even though the earlier DOM hit test accepted that coordinate.
+- The helper now centers the control and requires its full height inside the
+  popover before touching it. The same assertions pass in Chrome 154 and 156,
+  with sixfold CPU slowdown and on the CI `/web-katrain/` base path. Failure
+  diagnostics report the active control without dumping the entire page DOM.
