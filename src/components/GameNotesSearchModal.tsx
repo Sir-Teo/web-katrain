@@ -33,7 +33,8 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
   const results = React.useMemo(() => filterGameNotes(entries, query), [entries, query]);
   const listId = React.useId();
   const shown = results.slice(0, visibleCount);
-  const active = shown[activeIndex];
+  const selectedIndex = activeIndex < shown.length ? activeIndex : 0;
+  const active = shown[selectedIndex];
 
   React.useEffect(() => {
     setActiveIndex(0);
@@ -88,7 +89,11 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
               aria-controls={listId}
               aria-activedescendant={active ? `${listId}-${active.node.id}` : undefined}
               value={query}
-              onChange={event => setQuery(event.currentTarget.value)}
+              onChange={event => {
+                setQuery(event.currentTarget.value);
+                setActiveIndex(0);
+                setVisibleCount(PAGE_SIZE);
+              }}
               placeholder="Search notes, move names, or coordinates"
               maxLength={MAX_SEARCH_QUERY_LENGTH}
               autoCapitalize="none"
@@ -98,7 +103,7 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
             />
             {query && (
-              <button type="button" aria-label="Clear note search" onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]">
+              <button type="button" aria-label="Clear note search" onClick={() => { setQuery(''); setActiveIndex(0); setVisibleCount(PAGE_SIZE); inputRef.current?.focus(); }} className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]">
                 <FaTimes aria-hidden="true" size={11} />
               </button>
             )}
@@ -114,11 +119,11 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
               <button
                 key={entry.node.id}
                 id={`${listId}-${entry.node.id}`}
-                ref={index === activeIndex ? activeRef : undefined}
+                ref={index === selectedIndex ? activeRef : undefined}
                 type="button"
                 role="option"
                 tabIndex={-1}
-                aria-selected={index === activeIndex}
+                aria-selected={index === selectedIndex}
                 aria-current={entry.node.id === currentNodeId ? 'true' : undefined}
                 disabled={isInsertMode}
                 onClick={() => onSelectNode(entry.node)}
@@ -126,7 +131,7 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
                 data-game-note-result={entry.node.id}
                 className={[
                   'block min-h-11 w-full rounded-lg border p-3 text-left disabled:cursor-not-allowed disabled:opacity-50',
-                  index === activeIndex ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)]' : 'border-transparent hover:bg-[var(--ui-surface-2)]',
+                  index === selectedIndex ? 'border-[var(--ui-accent)] bg-[var(--ui-accent-soft)]' : 'border-transparent hover:bg-[var(--ui-surface-2)]',
                 ].join(' ')}
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ui-text-muted)]">

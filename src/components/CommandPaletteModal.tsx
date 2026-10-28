@@ -37,7 +37,7 @@ interface CommandPaletteModalProps {
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ commands, onClose }) => {
   useEscapeToClose(onClose);
   const [query, setQuery] = React.useState('');
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [selectedCommandId, setSelectedCommandId] = React.useState<string | null>(null);
   const [overrides, setOverrides] = React.useState(() => loadShortcutOverrides());
   const inputRef = React.useRef<HTMLInputElement>(null);
   const activeOptionRef = React.useRef<HTMLButtonElement>(null);
@@ -102,20 +102,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
   );
 
   const firstEnabledIndex = getCommandNavigationIndex(filteredCommands, -1, 1);
+  const selectedIndex = filteredCommands.findIndex(command => command.id === selectedCommandId && !command.disabledReason);
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : firstEnabledIndex;
   const activeCommand = filteredCommands[activeIndex] ?? null;
   const activeOptionId = activeCommand ? `${listboxId}-option-${activeIndex}` : undefined;
 
   React.useEffect(() => {
-    setActiveIndex(firstEnabledIndex);
-  }, [query, firstEnabledIndex]);
-
-  React.useEffect(() => {
-    if (!activeCommand || activeCommand.disabledReason) setActiveIndex(firstEnabledIndex);
-  }, [activeCommand, firstEnabledIndex]);
-
-  React.useEffect(() => {
     activeOptionRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, activeCommand?.id]);
+  }, [activeOptionId, activeCommand?.id, query]);
 
   const runCommand = React.useCallback((command: CommandPaletteCommand) => {
     if (command.disabledReason) return;
@@ -139,7 +133,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
           if (fromSearch && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
             event.preventDefault();
             const direction = event.key === 'ArrowDown' ? 1 : -1;
-            setActiveIndex((index) => getCommandNavigationIndex(filteredCommands, index, direction));
+            setSelectedCommandId(previousId => {
+              const previousIndex = filteredCommands.findIndex(command => command.id === previousId && !command.disabledReason);
+              const nextIndex = getCommandNavigationIndex(filteredCommands, previousIndex >= 0 ? previousIndex : firstEnabledIndex, direction);
+              return filteredCommands[nextIndex]?.id ?? null;
+            });
             return;
           }
           // Enter runs the highlighted command only from the search field. On
@@ -190,7 +188,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              onChange={(event) => setQuery(event.currentTarget.value)}
+              onChange={(event) => {
+                setQuery(event.currentTarget.value);
+                setSelectedCommandId(null);
+              }}
               className="ui-input h-11 w-full rounded-lg border py-2 pl-8 pr-12 text-sm text-[var(--ui-text)]"
               placeholder="Search commands"
               aria-label="Search commands"
@@ -206,6 +207,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                 className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)] hover:text-[var(--ui-text)]"
                 onClick={() => {
                   setQuery('');
+                  setSelectedCommandId(null);
                   inputRef.current?.focus();
                 }}
                 aria-label="Clear command search"
@@ -255,7 +257,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
                     // then silently replace the keyboard selection before the
                     // user moved at all; only deliberate pointer movement should.
                     onPointerMove={(event) => {
-                      if (event.pointerType !== 'touch') setActiveIndex(index);
+                      if (event.pointerType !== 'touch' && !command.disabledReason) setSelectedCommandId(command.id);
                     }}
                     onClick={() => runCommand(command)}
                     data-command-palette-item={command.id}
