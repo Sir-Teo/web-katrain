@@ -138,7 +138,7 @@ import { getSgfImportSizeError } from '../utils/sgfImportLimits';
 import { GAME_RECORD_ACCEPT, GAME_RECORD_EXTENSION, isGameRecordFile, readGameRecordFile } from '../utils/gameRecordImport';
 import { getPvAnimationProgress } from '../utils/pvAnimation';
 import { resolveCandidatePreview } from '../utils/candidatePreview';
-import { NOTE_DRAFT_COMMITTED_EVENT } from '../utils/noteEditorState';
+import { GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
 
 const settingsModalChunk = createWarmableLazy(() => import('./SettingsModal'), (module) => module.SettingsModal);
 const SettingsModal = settingsModalChunk.Component;
@@ -1344,12 +1344,12 @@ export const Layout: React.FC = () => {
       if (document.visibilityState === 'hidden') writeNow();
     };
     window.addEventListener('pagehide', writeNow);
-    window.addEventListener(NOTE_DRAFT_COMMITTED_EVENT, writeNow);
+    window.addEventListener(GAME_DRAFT_COMMITTED_EVENT, writeNow);
     document.addEventListener('visibilitychange', writeOnHide);
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener('pagehide', writeNow);
-      window.removeEventListener(NOTE_DRAFT_COMMITTED_EVENT, writeNow);
+      window.removeEventListener(GAME_DRAFT_COMMITTED_EVENT, writeNow);
       document.removeEventListener('visibilitychange', writeOnHide);
     };
   }, [autoSaveRecovery, autoSaveRecoveryChecked, generateCurrentSgf, hasUnsavedChanges, toast, treeVersion]);

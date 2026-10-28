@@ -1,6 +1,3 @@
-/** Requests recovery persistence after a pending editor draft is committed. */
-export const NOTE_DRAFT_COMMITTED_EVENT = 'web-katrain:note-draft-committed';
-
 export type NoteEditorSyncDecision = {
   draft: string;
   editing: boolean;

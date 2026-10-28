@@ -672,3 +672,24 @@ follow-up work beyond this audit’s wrap-up.
   The complete 11-size viewport suite passes, including note retention and
   exit recovery, delayed-history navigation, Pass controls, print output,
   continuation gestures and game-info replacement checks.
+
+## 2026-10-28 continuation: Game-info recovery on page exit
+
+- Reproduced unfinished player-name and komi edits disappearing on native
+  reload at desktop and phone widths, without a warning or recovery copy.
+  Their normal blur/unmount commits do not cover document destruction.
+- Notes and game-info fields now share a lifecycle hook for owned drafts.
+  Text, komi and handicap values commit through their existing store actions,
+  request immediate recovery persistence and claim the browser warning when
+  a value changes. Root identity guards still reject writes into another game.
+- Input changes keep pending values current before a render. Escape clears
+  them before blur; invalid numbers do not change the game. Done explicitly
+  finishes numeric edits, including platforms that do not focus the button.
+- Eighteen native cases pass at 1280×800, 390×844 and 320×568. They exercise
+  name deletion, latest-value recovery for names/komi/handicap, correct handicap
+  setup stones, Cancel, invalid and untouched fields, and simultaneous note
+  and metadata recovery. The new regression is included in the viewport suite;
+  26 focused tests, typechecks and lint pass.
+- Full verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and build. The complete 11-size browser suite also passes,
+  including the existing replacement, note recovery and library save checks.

@@ -22,6 +22,7 @@ import { assertGameInfoReplacement } from './lib/game-info-replacement-check.mjs
 import { assertPassCandidates } from './lib/pass-candidate-check.mjs';
 import { assertNoteDraftRetention } from './lib/note-draft-retention-check.mjs';
 import { assertNotePageExit } from './lib/note-page-exit-check.mjs';
+import { assertGameInfoPageExit } from './lib/game-info-page-exit-check.mjs';
 import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4087,6 +4088,7 @@ async function main() {
     await assertLiveCandidatePreviews(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPvGestures(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertGameInfoReplacement(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
+    await assertGameInfoPageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

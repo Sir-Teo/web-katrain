@@ -67,8 +67,9 @@ PWA. There is no analysis server to run.
   number and score, so study starts from a real middlegame.
 - Branching move trees with collapsible variations, notes, setup stones,
   markup, and SGF-compatible export.
-- Unfinished notes are preserved when panels close, positions change, or the
-  page exits. Cancel discards the draft; saved changes support Undo and Redo.
+- Unfinished notes and game-info edits are preserved when panels close or the
+  page exits. Notes also follow their positions during review. Cancel discards
+  the draft; saved changes support Undo and Redo.
 - Find notes across every variation by comment text, position name, or move
   coordinate, then jump straight to the matching position. Open it from the
   Comment panel's search button or the command palette.

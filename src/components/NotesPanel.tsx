@@ -10,7 +10,9 @@ import { getVisualKeyboardInset, getVisualViewport } from '../utils/visualViewpo
 import { getMoveInsight, getMoveInsightCoach } from '../utils/moveInsight';
 import { getNoteEditorKeyAction } from '../utils/noteEditorKeys';
 import { isComposingKeyEvent } from '../utils/keyboardComposition';
-import { getNoteDraftRescue, getNoteEditorSyncDecision, NOTE_DRAFT_COMMITTED_EVENT } from '../utils/noteEditorState';
+import { getNoteDraftRescue, getNoteEditorSyncDecision } from '../utils/noteEditorState';
+import { GAME_DRAFT_COMMITTED_EVENT } from '../utils/gameDrafts';
+import { useGameDraftLifecycle } from '../hooks/useGameDraftLifecycle';
 import { useShortcutLabels } from '../hooks/useShortcutLabels';
 import { appendNoteBlock, formatShapeCoachNoteBlock } from '../utils/shapeCoachNote';
 import { formatBoardNoteBlock } from '../utils/boardTextDiagram';
@@ -378,7 +380,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     const before = useGameStore.getState().treeVersion;
     setNodeNote(pending.nodeId, pending.note);
     if (useGameStore.getState().treeVersion === before) return false;
-    window.dispatchEvent(new Event(NOTE_DRAFT_COMMITTED_EVENT));
+    window.dispatchEvent(new Event(GAME_DRAFT_COMMITTED_EVENT));
     return true;
   }, [setNodeNote]);
 
@@ -453,37 +455,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ showInfo, detailed, show
     setIsEditingNote(sync.editing);
   }, [currentNode.id, currentNote, isEditingNote, setNodeNote]);
 
-  React.useEffect(() => () => {
-    // Mobile section collapse unmounts this panel. Preserve its unfinished
-    // note on the node it belongs to, as navigation already does.
-    preservePendingNote();
-  }, [preservePendingNote]);
-
-  React.useEffect(() => {
-    const preserveBeforeLeaving = () => {
-      const saved = preservePendingNote();
-      if (saved) setIsEditingNote(false);
-      return saved;
-    };
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!preserveBeforeLeaving()) return;
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    const preserveWhenHidden = () => {
-      if (document.visibilityState === 'hidden') preserveBeforeLeaving();
-    };
-    // Browser page exit does not unmount React panels. The commit event flushes
-    // recovery even if its ordinary lifecycle listener has already run.
-    window.addEventListener('beforeunload', warnBeforeUnload, true);
-    window.addEventListener('pagehide', preserveBeforeLeaving, true);
-    document.addEventListener('visibilitychange', preserveWhenHidden, true);
-    return () => {
-      window.removeEventListener('beforeunload', warnBeforeUnload, true);
-      window.removeEventListener('pagehide', preserveBeforeLeaving, true);
-      document.removeEventListener('visibilitychange', preserveWhenHidden, true);
-    };
-  }, [preservePendingNote]);
+  useGameDraftLifecycle(preservePendingNote, () => setIsEditingNote(false));
 
   React.useEffect(() => {
     if (!isEditingNote || !shouldFocusNoteRef.current) return;
