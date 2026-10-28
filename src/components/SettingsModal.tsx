@@ -1,4 +1,5 @@
 import React from 'react';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 import { AnalysisModelNotice } from './AnalysisModelNotice';
 import { shallow } from 'zustand/shallow';
 import { useGameStore } from '../store/gameStore';
@@ -614,6 +615,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                             autoCorrect="off"
                             spellCheck={false}
                             value={settingsQuery}
+                            maxLength={MAX_SEARCH_QUERY_LENGTH}
                             onChange={(e) => {
                                 setSettingsQuery(e.target.value);
                                 setActiveSettingsResult(-1);
@@ -640,7 +642,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, focusMode
                         {settingsQuery.trim() !== '' && (
                             <ul id="settings-search-results" className="settings-search-results" role="listbox" aria-label="Search results">
                                 {settingsResults.length === 0 ? (
-                                    <li className="settings-search-empty">No setting matches “{settingsQuery.trim()}”</li>
+                                    <li className="settings-search-empty wrap-anywhere" data-search-empty="true">No setting matches “{settingsQuery.trim()}”</li>
                                 ) : (
                                     settingsResults.map((entry, index) => (
                                         <li key={entry.id}>

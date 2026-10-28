@@ -5,6 +5,7 @@ import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { StaticBoard } from './StaticBoard';
 import { PRO_GAMES, buildFinalBoard, filterProGames, type ProGameMeta } from '../utils/proGames';
 import { tagsFromResult, narrativeTagToneClass } from '../utils/narrativeTags';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 interface ProGamesModalProps {
   onClose: () => void;
@@ -98,6 +99,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
                   <input
                     type="search"
                     value={query}
+                    maxLength={MAX_SEARCH_QUERY_LENGTH}
                     autoCapitalize="none"
                     autoCorrect="off"
                     autoComplete="off"
@@ -150,7 +152,7 @@ export const ProGamesModal: React.FC<ProGamesModalProps> = ({ onClose, onLoadGam
             </div>
             <ul className="pro-games-results min-h-0 flex-1 overflow-y-auto">
               {filtered.length === 0 && (
-                <li className="p-4 text-sm text-[var(--ui-text-muted)]">No games match “{query}”.</li>
+                <li className="wrap-anywhere p-4 text-sm text-[var(--ui-text-muted)]" data-search-empty="true">No games match “{query}”.</li>
               )}
               {filtered.map((g) => {
                 const active = selected?.id === g.id;

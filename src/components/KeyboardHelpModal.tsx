@@ -11,6 +11,7 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { filterKeyboardReferenceItems } from '../utils/keyboardHelp';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 interface KeyboardHelpModalProps {
   onClose: () => void;
@@ -127,6 +128,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
               ref={searchInputRef}
               type="search"
               value={query}
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="off"
@@ -218,7 +220,7 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ onClose, o
             ))}
           </div>
           {normalizedQuery && visibleResultCount === 0 && (
-            <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-keyboard-help-empty="true">
+            <div className="ui-surface wrap-anywhere rounded-lg border p-4 text-sm ui-text-muted" data-keyboard-help-empty="true" data-search-empty="true">
               No shortcuts match "{query.trim()}".
             </div>
           )}

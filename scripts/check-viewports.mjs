@@ -26,6 +26,7 @@ import { assertGameInfoPageExit } from './lib/game-info-page-exit-check.mjs';
 import { assertDraftSaveSnapshots } from './lib/draft-save-check.mjs';
 import { assertDraftReplacement } from './lib/draft-replacement-check.mjs';
 import { assertDepthDismissal } from './lib/depth-dismiss-check.mjs';
+import { assertSearchPasteLimits } from './lib/search-paste-check.mjs';
 import { auditTextContrast } from './lib/text-contrast.mjs';
 // The CDP client, the Chrome lookup and evaluate() live in lib/browser.mjs so
 // check-responsiveness.mjs drives the same browser rather than carrying a
@@ -4095,6 +4096,7 @@ async function main() {
     await assertDraftSaveSnapshots(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertDraftReplacement(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertDepthDismissal(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertSearchPasteLimits(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     cdp.close();
     console.log(`Viewport checks passed. Screenshots: ${screenshotDir}`);
     for (const result of results) {

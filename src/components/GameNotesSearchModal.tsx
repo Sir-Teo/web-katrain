@@ -160,7 +160,7 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
             ))}
           </div>
           {results.length === 0 && (
-            <p data-game-notes-empty="true" className="rounded-lg border border-[var(--ui-border)] p-4 text-sm ui-text-muted">
+            <p data-game-notes-empty="true" data-search-empty="true" className="wrap-anywhere rounded-lg border border-[var(--ui-border)] p-4 text-sm ui-text-muted">
               {scopedEntries.length
                 ? `No notes${mainLineOnly ? ' on the main line' : ''} match “${query.trim()}”. Try another word or coordinate.`
                 : mainLineOnly && entries.length

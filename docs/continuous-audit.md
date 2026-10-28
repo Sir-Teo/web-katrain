@@ -770,3 +770,20 @@ follow-up work beyond this audit’s wrap-up.
   variation-only empty states and reading results at 200% text.
 - Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.
+
+## 2026-10-28 continuation: Bounded search pastes and readable empty states
+
+- Native pastes of 10,000 characters into the command palette, shortcut help,
+  Settings and pro-game search were accepted in full. Filtering already limited
+  its work, but the input and empty-state messages still held the entire paste;
+  those messages measured roughly 66,000 px wide in desktop Chrome.
+- The four fields now use the existing 200-character search limit. Empty
+  messages in those dialogs and Find notes wrap unbroken query text within their
+  containers, keeping the dialog width stable.
+- Fifteen native cases pass at 1280×800, 390×844 and 320×568. Each pastes 10,000
+  characters, verifies the native input limit, bounded message length and no
+  horizontal overflow, then replaces it with an ordinary query and finds results.
+  Current game identity, annotations, board and tree revision stay unchanged.
+  These cases are included in the viewport suite.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.

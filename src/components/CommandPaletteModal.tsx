@@ -18,6 +18,7 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useInitialDialogFocus } from '../hooks/useInitialDialogFocus';
 import { isComposingKeyEvent } from '../utils/keyboardComposition';
+import { MAX_SEARCH_QUERY_LENGTH } from '../utils/searchTerms';
 
 export type CommandPaletteCommand = {
   id: string;
@@ -180,6 +181,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
               type="search"
               role="combobox"
               value={query}
+              maxLength={MAX_SEARCH_QUERY_LENGTH}
               // A query is not a sentence. Left to itself a phone capitalises
               // the first letter and autocorrects the rest, so "sgf" arrives
               // as "SGF" or worse, and the list goes empty for a word the user
@@ -219,7 +221,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ comman
         </div>
         <div id={listboxId} className="min-h-0 max-h-[56dvh] flex-1 overflow-y-auto overscroll-contain px-3 pb-3" role="listbox" aria-label="Commands">
           {filteredCommands.length === 0 ? (
-            <div className="ui-surface rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true">
+            <div className="ui-surface wrap-anywhere rounded-lg border p-4 text-sm ui-text-muted" data-command-palette-empty="true" data-search-empty="true">
               No commands match "{query.trim()}".
             </div>
           ) : (
