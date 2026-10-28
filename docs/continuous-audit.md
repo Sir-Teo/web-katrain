@@ -883,3 +883,31 @@ follow-up work beyond this audit’s wrap-up.
   accessibility tests pass, alongside typechecking and focused lint.
 - Full verification passes with 3,247 tests, 77 intentional CI skips,
   both typechecks, lint and production build.
+- The full 11-size viewport suite passes at `3396515`, including the enlarged
+  shortcut reference and all 27 Library keyboard/focus check groups.
+
+## 2026-10-28 continuation: Canceling OGS sync at every stage
+
+- A native controlled-response probe confirmed that Cancel closed the dialog
+  while its player lookup continued. Releasing that obsolete response started
+  a game-list request and changed the remembered username after cancellation.
+- One controller now owns the entire sync: lookup, paginated listing, SGF
+  downloads and shared-queue backoff. Cancel, Close, Escape and unmount abort
+  that controller. Obsolete completions cannot update preferences, import
+  games or change a later dialog's state. A synchronous request guard prevents
+  duplicate starts before React updates the running state.
+- OGS request utilities accept the same cancellation options. Canceled
+  downloads do not count as failures, and stopping one sync retains the
+  server's rate-limit deadline for the next. Username IME confirmation no
+  longer starts a sync.
+- All 39 focused OGS tests pass, including six new cancellation regressions
+  for active/queued requests, pagination, downloads and cooldown preservation.
+- Twelve native cases pass across 1280×800, 390×844 and 320×568. Every stage
+  aborts through its dialog controls; a newly opened sync then imports a real
+  fixture SGF through the normal library path. Canceled attempts leave saved
+  records untouched, and sync never replaces the current game. Synthetic IME
+  confirmation keys do not submit; an ordinary native Enter still does.
+  All OGS requests are intercepted fixtures, with no real account or service
+  traffic. These cases are included in the viewport suite.
+- Full verification passes with 3,253 tests, 77 intentional CI skips,
+  both typechecks, lint and production build.

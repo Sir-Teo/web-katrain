@@ -107,6 +107,11 @@ const recordRateLimit = (response: Response): number => {
   return waitMs;
 };
 
+export type OgsRequestCancellation = {
+  signal?: AbortSignal;
+  isCancelled?: () => boolean;
+};
+
 type OgsFetchOptions = {
   /** Attempts after a 429 before the throttled response is handed back. */
   retries?: number;

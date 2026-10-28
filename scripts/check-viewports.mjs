@@ -13,6 +13,7 @@ import { assertHeaderNotificationsFit } from './lib/header-notification-check.mj
 import { assertKeyboardWorkflows } from './lib/keyboard-workflows-check.mjs';
 import { assertLibraryNavigation } from './lib/library-navigation-check.mjs';
 import { assertLibraryActionKeys } from './lib/library-action-keys-check.mjs';
+import { assertOgsSyncCancellation } from './lib/ogs-sync-cancellation-check.mjs';
 import { assertPracticeBoardSizes } from './lib/practice-board-sizes-check.mjs';
 import { assertCandidateControls } from './lib/candidate-controls-check.mjs';
 import { assertReportPrinting } from './lib/report-print-check.mjs';
@@ -4086,6 +4087,7 @@ async function main() {
     await assertNotePageExit(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertLibraryNavigation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertLibraryActionKeys(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
+    await assertOgsSyncCancellation(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPracticeBoardSizes(devtoolsPort, `http://127.0.0.1:${appPort}/`, runDir, screenshotDir);
     await assertCandidateControls(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
     await assertPassCandidates(devtoolsPort, `http://127.0.0.1:${appPort}/`, screenshotDir);
