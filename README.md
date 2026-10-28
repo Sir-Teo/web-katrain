@@ -71,9 +71,9 @@ PWA. There is no analysis server to run.
   page exits. Notes also follow their positions during review. Cancel discards
   the draft; saved changes support Undo and Redo.
 - Saving, copying SGF and sharing a game include the latest open editor text.
-- Find notes across every variation by comment text, position name, or move
-  coordinate, then jump straight to the matching position. Open it from the
-  Comment panel's search button or the command palette.
+- Find notes by comment text, position name, or move coordinate, across all
+  variations or just the main line. Jump to matching positions from the Comment
+  panel's search button or the command palette.
 - Frame a life-and-death problem as a tsumego (F10): walls the problem off and
   settles the rest of the board so the engine actually reads it.
 - Study tools: interactive fundamentals lessons, a score-estimation quiz, a

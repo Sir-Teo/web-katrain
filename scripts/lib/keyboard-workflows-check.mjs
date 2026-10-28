@@ -11,7 +11,7 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
   await browser.ready;
   const reports = [];
   try {
-    for (const [width, height] of [[1280, 800], [390, 844]]) {
+    for (const [width, height] of [[1280, 800], [390, 844], [320, 568]]) {
       const context = (await browser.send('Target.createBrowserContext')).result.browserContextId;
       const target = (await browser.send('Target.createTarget', { url: 'about:blank', browserContextId: context })).result.targetId;
       const cdp = connectDevtools(`ws://127.0.0.1:${devtoolsPort}/devtools/page/${target}`);
@@ -25,8 +25,10 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         }
       };
       const click = async expression => {
-        const point = await wait(`(()=>{
+        const point = await wait(`(async()=>{
           const e=${expression};if(!e)return false;e.scrollIntoView({block:'nearest'});
+          await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+          if(!e.isConnected)return false;
           const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
           return r.width&&r.height&&e.contains(document.elementFromPoint(x,y))?{x,y}:false;
         })()`);
@@ -150,14 +152,31 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
           await wait(`${noteSearch}===document.activeElement`);
         };
         await openFindNotes();
+        const mainLineFilter = 'document.querySelector("[data-game-notes-main-line]")';
+        const searchPosition = await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.id');
+        await wait('document.querySelectorAll("[data-game-note-result]").length===5');
+        await click(mainLineFilter);
+        await wait('document.querySelectorAll("[data-game-note-result]").length===4');
+        assert.equal(await evaluate(cdp, '[...document.querySelectorAll("[data-game-note-result]")].some(e=>e.textContent.includes("Variation"))'), false);
+        await key(' ', 32);
+        await wait('document.querySelectorAll("[data-game-note-result]").length===5');
+        assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.id'), searchPosition, 'Changing search scope navigated the game');
+        await click(mainLineFilter);
+        await click(noteSearch);
         await cdp.send('Input.insertText', { text: 'alternative ladder' });
+        await wait('document.querySelectorAll("[data-game-note-result]").length===0');
+        assert.equal(await evaluate(cdp, 'document.querySelector("[aria-labelledby=game-notes-search-title]").textContent.includes("No notes on the main line match")'), true);
+        await click(mainLineFilter);
         await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        assert.equal(await evaluate(cdp, `${noteSearch}.value`), 'alternative ladder', 'Changing scope cleared the search');
         assert.equal(await evaluate(cdp, 'document.querySelector("[data-game-note-result]").textContent.includes("Variation")'), true);
+        await click(noteSearch);
         await key('Enter', 13);
         await wait('!document.querySelector("#game-notes-search-title")');
         assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.note'), 'Branch ladder');
         assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().board[0][0]'), 'black');
         await openFindNotes();
+        assert.equal(await evaluate(cdp, `${mainLineFilter}.checked`), false, 'Find notes reopened with hidden variations');
         await cdp.send('Input.insertText', { text: 'hidden tesuji' });
         await wait('document.querySelectorAll("[data-game-note-result]").length===1');
         assert.equal(await evaluate(cdp, 'document.querySelector("[data-game-note-result]").textContent.includes("Hidden tesuji")'), true, 'A match deep inside the note had no visible excerpt');
@@ -187,12 +206,33 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
         assert.equal(await evaluate(cdp, 'document.querySelectorAll("[data-game-note-result]").length'), 50, 'Wrapping navigation rendered the whole study');
         await click(`[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Show more positions')`);
         await wait(`document.querySelectorAll('[data-game-note-result]').length===100&&${noteSearch}===document.activeElement`);
+        await click(mainLineFilter);
+        await wait('document.querySelectorAll("[data-game-note-result]").length===50');
+        assert.equal(await evaluate(cdp, 'document.querySelector("[data-game-note-result]").getAttribute("aria-selected")'), 'true');
+        await click(noteSearch);
         await cdp.send('Input.insertText', { text: 'note 129' });
         await wait('document.querySelectorAll("[data-game-note-result]").length===1');
         await key('Enter', 13);
         await wait('!document.querySelector("#game-notes-search-title")');
         assert.equal(await evaluate(cdp, 'keyboardAuditStore.getState().currentNode.note'), 'Study note 129');
-        reports.push({ width, height, navigation, original, committed, noteSearch: 'Variation navigation, full-text excerpts, search focus and Comment trigger passed' });
+        const variationOnlyStudy = '(;GM[1]SZ[9];B[dd](;W[ff])(;W[aa]C[Only a variation has a note]))';
+        await evaluate(cdp, `(async()=>{const url=${loadedModuleUrl.toString()};const {parseSgf}=await import(url('/src/utils/sgf.ts'));keyboardAuditStore.getState().loadGame(parseSgf(${JSON.stringify(variationOnlyStudy)}));keyboardAuditStore.getState().navigateStart();return true})()`);
+        await openFindNotes();
+        await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        await evaluate(cdp, 'document.documentElement.style.fontSize="200%";new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+        await click(mainLineFilter);
+        await wait('document.querySelectorAll("[data-game-note-result]").length===0');
+        assert.equal(await evaluate(cdp, 'document.querySelector("[aria-labelledby=game-notes-search-title]").textContent.includes("Turn off “Main line only” to include variations")'), true);
+        const visibleEmptyMessage = await evaluate(cdp, `(async()=>{const e=document.querySelector('[data-game-notes-empty]');e.scrollIntoView({block:'end'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=e.getBoundingClientRect(),b=e.parentElement.getBoundingClientRect();return Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)})()`);
+        assert.ok(visibleEmptyMessage >= 80, `Large text left only ${visibleEmptyMessage}px for reading results`);
+        const scopeScreenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-find-notes-scope-large-text.png`), Buffer.from(scopeScreenshot.result.data, 'base64'));
+        await key(' ', 32);
+        await wait('document.querySelectorAll("[data-game-note-result]").length===1');
+        await key('Escape', 27);
+        await wait('!document.querySelector("#game-notes-search-title")');
+        await evaluate(cdp, 'document.documentElement.style.fontSize=""');
+        reports.push({ width, height, navigation, original, committed, noteSearch: 'Main-line scope, keyboard toggling, pagination reset, variation navigation, full-text excerpts, search focus and Comment trigger passed' });
         const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(screenshotDir, `${width}x${height}-keyboard-workflows.png`), Buffer.from(screenshot.result.data, 'base64'));
       } catch (error) {
@@ -205,7 +245,7 @@ export async function assertKeyboardWorkflows(devtoolsPort, appUrl, screenshotDi
       }
     }
     fs.writeFileSync(path.join(screenshotDir, 'keyboard-workflows.json'), JSON.stringify(reports, null, 2));
-    console.log('Keyboard workflows: palette scrolling, IME ownership, search focus, game-info cancel/commit, and Find notes passed on desktop and phone.');
+    console.log('Keyboard workflows: palette, IME ownership, game-info edits and Find notes pass on desktop and both phones, including main-line filtering, pagination and 200% text.');
   } finally {
     browser.close();
   }

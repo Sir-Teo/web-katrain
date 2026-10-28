@@ -749,3 +749,24 @@ follow-up work beyond this audit’s wrap-up.
   suite; the original real-analysis reproduction also keeps 37 after dismissal.
 - Full code verification passes with 3,244 tests, 77 intentional CI skips,
   typechecks, lint and production build.
+- The complete 11-size browser suite passes at `56ebb66`, including the new
+  replacement-choice and depth-selector checks alongside the save/export,
+  library recovery, analysis, print and responsive-layout regressions.
+
+## 2026-10-28 continuation: Main-line note search
+
+- Find notes now offers a Main line only switch. Searches include every
+  variation by default; limiting them retains the query and includes annotated
+  starting positions and all descendants on the SGF main line. Changing scope
+  resets pagination and selection without navigating or editing the game.
+- Empty states distinguish a query with no matches from a main line with no
+  notes. Reopening the dialog includes every variation again.
+- Scope controls, counts and results share the scrollable content area, while
+  the search field and close button stay visible. This fixes enlarged text
+  consuming the entire results area on a 320 px phone.
+- Native keyboard workflows pass at 1280×800, 390×844 and 320×568. They cover
+  filtering five annotated positions to four, retaining a variation-only query,
+  Space activation, navigation, reopening defaults, resetting a 100-item page,
+  variation-only empty states and reading results at 200% text.
+- Full code verification passes with 3,244 tests, 77 intentional CI skips,
+  typechecks, lint and production build.

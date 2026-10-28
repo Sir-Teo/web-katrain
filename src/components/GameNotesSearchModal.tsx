@@ -27,10 +27,12 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
   // Snapshot on open or game replacement. Analysis updates don't change saved
   // annotations, and must not repeatedly scan the tree or reset a selection.
   const entries = React.useMemo(() => collectGameNotes(rootNode), [rootNode]);
+  const [mainLineOnly, setMainLineOnly] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
-  const results = React.useMemo(() => filterGameNotes(entries, query), [entries, query]);
+  const scopedEntries = React.useMemo(() => mainLineOnly ? entries.filter(entry => !entry.isVariation) : entries, [entries, mainLineOnly]);
+  const results = React.useMemo(() => filterGameNotes(scopedEntries, query), [scopedEntries, query]);
   const listId = React.useId();
   const shown = results.slice(0, visibleCount);
   const selectedIndex = activeIndex < shown.length ? activeIndex : 0;
@@ -65,11 +67,8 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
           }
         }}
       >
-        <div className="ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-4">
-          <div className="min-w-0">
-            <h2 id="game-notes-search-title" className="text-lg font-semibold text-[var(--ui-text)]">Find notes</h2>
-            <p className="mt-1 text-xs ui-text-muted">Search saved notes and named positions in every variation.</p>
-          </div>
+        <div className="ui-bar flex shrink-0 items-center justify-between gap-3 border-b border-[var(--ui-border)] p-3">
+          <h2 id="game-notes-search-title" className="min-w-0 text-lg font-semibold text-[var(--ui-text)]">Find notes</h2>
           <button type="button" onClick={onClose} aria-label="Close find notes" className="ui-control grid shrink-0 place-items-center rounded-lg text-[var(--ui-text-muted)] hover:bg-[var(--ui-surface-2)]">
             <FaTimes aria-hidden="true" />
           </button>
@@ -108,12 +107,28 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
               </button>
             )}
           </div>
-          <div className="mt-2 text-xs ui-text-faint" role="status" aria-live="polite">
-            {results.length} {results.length === 1 ? 'position' : 'positions'}{query.trim() ? ' found' : ' with notes'}
-          </div>
-          {isInsertMode && <p className="mt-2 text-xs text-[var(--ui-warning)]">Finish inserting before navigating to a note.</p>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs ui-text-muted">
+              <input
+                type="checkbox"
+                className="toggle"
+                checked={mainLineOnly}
+                data-game-notes-main-line="true"
+                onChange={event => {
+                  setMainLineOnly(event.currentTarget.checked);
+                  setActiveIndex(0);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              />
+              <span>Main line only</span>
+            </label>
+            <div className="text-xs ui-text-faint" role="status" aria-live="polite">
+              {results.length} {results.length === 1 ? 'position' : 'positions'}{query.trim() ? ' found' : ' with notes'}
+            </div>
+          </div>
+          {isInsertMode && <p className="mb-3 text-xs text-[var(--ui-warning)]">Finish inserting before navigating to a note.</p>}
           <div id={listId} role="listbox" aria-label="Noted positions" className="space-y-1">
             {shown.map((entry, index) => (
               <button
@@ -145,8 +160,12 @@ export const GameNotesSearchModal: React.FC<GameNotesSearchModalProps> = ({ onCl
             ))}
           </div>
           {results.length === 0 && (
-            <p className="rounded-lg border border-[var(--ui-border)] p-4 text-sm ui-text-muted">
-              {entries.length ? `No notes match “${query.trim()}”. Try another word or coordinate.` : 'No notes yet. Add a note to a position to find it here.'}
+            <p data-game-notes-empty="true" className="rounded-lg border border-[var(--ui-border)] p-4 text-sm ui-text-muted">
+              {scopedEntries.length
+                ? `No notes${mainLineOnly ? ' on the main line' : ''} match “${query.trim()}”. Try another word or coordinate.`
+                : mainLineOnly && entries.length
+                  ? 'No notes on the main line. Turn off “Main line only” to include variations.'
+                  : 'No notes yet. Add a note to a position to find it here.'}
             </p>
           )}
           {shown.length < results.length && <button type="button" onClick={() => { setVisibleCount(shown.length + PAGE_SIZE); setActiveIndex(shown.length); inputRef.current?.focus(); }} className="ui-control mt-2 min-h-11 w-full rounded-lg border px-3 text-sm">Show more positions</button>}
